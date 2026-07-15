@@ -1,0 +1,19 @@
+# --- Farm Water Analysis ---
+
+# Downloaded EcoWitt daily-log exports (raw data, not source code)
+inputs/*
+!inputs/.gitkeep
+
+# Generated dashboards (build artifacts produced by lib/build_dashboard.py)
+outputs/*
+!outputs/.gitkeep
+
+# macOS cruft
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

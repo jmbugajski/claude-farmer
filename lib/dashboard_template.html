@@ -106,7 +106,7 @@ footer a{color:var(--mut)}
 <header>
   <div>
     <p class="title">Soil Moisture Console</p>
-    <h1>Peppers &amp; Tomatoes — 4-Week Review</h1>
+    <h1>Peppers &amp; Tomatoes — Soil &amp; Water Review</h1>
     <p class="sub">Ecowitt GW1200 probes &middot; pepper fabric bags &amp; tomato raised bed &middot; weather correlated for Santa Clara 95050</p>
   </div>
   <div class="meta">
@@ -185,7 +185,7 @@ footer a{color:var(--mut)}
 </section>
 
 <footer>
-  Moisture data: Ecowitt GW1200 export, 4-hour interval, Jun 9 &ndash; Jul 7 2026 (172 readings). &nbsp;|&nbsp;
+  Moisture data: Ecowitt GW1200 export, __FOOTER_META__. &nbsp;|&nbsp;
   Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Forecast API (past_days), fetched live in your browser &mdash; CC BY 4.0. &nbsp;|&nbsp;
   Onboard hub temp/humidity/dew point are indoor readings and are not used for correlation. &nbsp;|&nbsp;
   Setpoints (62% tomato, 35% pepper) are the Ecowitt alert thresholds, not universal ideals; read each probe against itself.
@@ -193,14 +193,15 @@ footer a{color:var(--mut)}
 </div>
 
 <script>
-const DATA = {"series": [{"t": "2026-06-09T01:00", "tom": 78.0, "pep": 38.0}, {"t": "2026-06-09T05:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-09T09:00", "tom": 79.0, "pep": 39.0}, {"t": "2026-06-09T13:00", "tom": 76.0, "pep": 38.0}, {"t": "2026-06-09T17:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-09T21:00", "tom": 79.0, "pep": 38.0}, {"t": "2026-06-10T01:00", "tom": 78.0, "pep": 38.0}, {"t": "2026-06-10T05:00", "tom": 81.0, "pep": 39.0}, {"t": "2026-06-10T09:00", "tom": 79.0, "pep": 39.0}, {"t": "2026-06-10T13:00", "tom": 76.0, "pep": 38.0}, {"t": "2026-06-10T17:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-10T21:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-11T01:00", "tom": 77.0, "pep": 38.0}, {"t": "2026-06-11T05:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-11T09:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-11T13:00", "tom": 75.0, "pep": 38.0}, {"t": "2026-06-11T17:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-11T21:00", "tom": 78.0, "pep": 38.0}, {"t": "2026-06-12T01:00", "tom": 77.0, "pep": 38.0}, {"t": "2026-06-12T05:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-12T09:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-12T13:00", "tom": 75.0, "pep": 38.0}, {"t": "2026-06-12T17:00", "tom": 79.0, "pep": 39.0}, {"t": "2026-06-12T21:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-13T01:00", "tom": 77.0, "pep": 38.0}, {"t": "2026-06-13T05:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-13T09:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-13T13:00", "tom": 77.0, "pep": 40.0}, {"t": "2026-06-13T17:00", "tom": 80.0, "pep": 43.0}, {"t": "2026-06-13T21:00", "tom": 79.0, "pep": 40.0}, {"t": "2026-06-14T01:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-14T05:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-14T09:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-14T13:00", "tom": 76.0, "pep": 40.0}, {"t": "2026-06-14T17:00", "tom": 79.0, "pep": 43.0}, {"t": "2026-06-14T21:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-15T01:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-15T05:00", "tom": 80.0, "pep": 44.0}, {"t": "2026-06-15T09:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-15T13:00", "tom": 76.0, "pep": 40.0}, {"t": "2026-06-15T17:00", "tom": 79.0, "pep": 43.0}, {"t": "2026-06-15T21:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-16T01:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-16T05:00", "tom": 80.0, "pep": 43.0}, {"t": "2026-06-16T09:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-16T13:00", "tom": 76.0, "pep": 40.0}, {"t": "2026-06-16T17:00", "tom": 78.0, "pep": 43.0}, {"t": "2026-06-16T21:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-17T01:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-17T05:00", "tom": 79.0, "pep": 43.0}, {"t": "2026-06-17T09:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-17T13:00", "tom": 76.0, "pep": 40.0}, {"t": "2026-06-17T17:00", "tom": 78.0, "pep": 43.0}, {"t": "2026-06-17T21:00", "tom": 78.0, "pep": 41.0}, {"t": "2026-06-18T01:00", "tom": 77.0, "pep": 41.0}, {"t": "2026-06-18T05:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-18T09:00", "tom": 78.0, "pep": 42.0}, {"t": "2026-06-18T13:00", "tom": 76.0, "pep": 41.0}, {"t": "2026-06-18T17:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-18T21:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-19T01:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-19T05:00", "tom": 81.0, "pep": 42.0}, {"t": "2026-06-19T09:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-19T13:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-19T17:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-19T21:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-20T01:00", "tom": 80.0, "pep": 41.0}, {"t": "2026-06-20T05:00", "tom": 81.0, "pep": 40.0}, {"t": "2026-06-20T09:00", "tom": 80.0, "pep": 41.0}, {"t": "2026-06-20T13:00", "tom": 77.0, "pep": 40.0}, {"t": "2026-06-20T17:00", "tom": 75.0, "pep": 42.0}, {"t": "2026-06-20T21:00", "tom": 75.0, "pep": 41.0}, {"t": "2026-06-21T01:00", "tom": 74.0, "pep": 40.0}, {"t": "2026-06-21T05:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-21T09:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-21T13:00", "tom": 76.0, "pep": 41.0}, {"t": "2026-06-21T17:00", "tom": 71.0, "pep": 44.0}, {"t": "2026-06-21T21:00", "tom": 70.0, "pep": 42.0}, {"t": "2026-06-22T01:00", "tom": 69.0, "pep": 41.0}, {"t": "2026-06-22T05:00", "tom": 68.0, "pep": 43.0}, {"t": "2026-06-22T09:00", "tom": 78.0, "pep": 42.0}, {"t": "2026-06-22T13:00", "tom": 73.0, "pep": 42.0}, {"t": "2026-06-22T17:00", "tom": 70.0, "pep": 43.0}, {"t": "2026-06-22T21:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-06-23T01:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-06-23T05:00", "tom": 76.0, "pep": 44.0}, {"t": "2026-06-23T09:00", "tom": 75.0, "pep": 42.0}, {"t": "2026-06-23T13:00", "tom": 72.0, "pep": 42.0}, {"t": "2026-06-23T17:00", "tom": 69.0, "pep": 43.0}, {"t": "2026-06-23T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-24T01:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-24T05:00", "tom": 76.0, "pep": 43.0}, {"t": "2026-06-24T09:00", "tom": 76.0, "pep": 43.0}, {"t": "2026-06-24T13:00", "tom": 72.0, "pep": 42.0}, {"t": "2026-06-24T17:00", "tom": 69.0, "pep": 44.0}, {"t": "2026-06-24T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-25T01:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-25T05:00", "tom": 75.0, "pep": 44.0}, {"t": "2026-06-25T09:00", "tom": 75.0, "pep": 43.0}, {"t": "2026-06-25T13:00", "tom": 72.0, "pep": 42.0}, {"t": "2026-06-25T17:00", "tom": 69.0, "pep": 43.0}, {"t": "2026-06-25T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-26T01:00", "tom": 67.0, "pep": 42.0}, {"t": "2026-06-26T05:00", "tom": 75.0, "pep": 44.0}, {"t": "2026-06-26T09:00", "tom": 75.0, "pep": 43.0}, {"t": "2026-06-26T13:00", "tom": 71.0, "pep": 42.0}, {"t": "2026-06-26T17:00", "tom": 69.0, "pep": 43.0}, {"t": "2026-06-26T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-27T01:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-27T05:00", "tom": 75.0, "pep": 44.0}, {"t": "2026-06-27T09:00", "tom": 75.0, "pep": 43.0}, {"t": "2026-06-27T13:00", "tom": 71.0, "pep": 42.0}, {"t": "2026-06-27T17:00", "tom": 68.0, "pep": 43.0}, {"t": "2026-06-27T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-28T01:00", "tom": 67.0, "pep": 42.0}, {"t": "2026-06-28T05:00", "tom": 75.0, "pep": 44.0}, {"t": "2026-06-28T09:00", "tom": 75.0, "pep": 43.0}, {"t": "2026-06-28T13:00", "tom": 71.0, "pep": 42.0}, {"t": "2026-06-28T17:00", "tom": 67.0, "pep": 43.0}, {"t": "2026-06-28T21:00", "tom": 66.0, "pep": 42.0}, {"t": "2026-06-29T01:00", "tom": 66.0, "pep": 42.0}, {"t": "2026-06-29T05:00", "tom": 74.0, "pep": 44.0}, {"t": "2026-06-29T09:00", "tom": 74.0, "pep": 43.0}, {"t": "2026-06-29T13:00", "tom": 70.0, "pep": 42.0}, {"t": "2026-06-29T17:00", "tom": 66.0, "pep": 43.0}, {"t": "2026-06-29T21:00", "tom": 65.0, "pep": 42.0}, {"t": "2026-06-30T01:00", "tom": 65.0, "pep": 42.0}, {"t": "2026-06-30T05:00", "tom": 73.0, "pep": 44.0}, {"t": "2026-06-30T09:00", "tom": 74.0, "pep": 43.0}, {"t": "2026-06-30T13:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-06-30T17:00", "tom": 66.0, "pep": 43.0}, {"t": "2026-06-30T21:00", "tom": 65.0, "pep": 42.0}, {"t": "2026-07-01T01:00", "tom": 64.0, "pep": 42.0}, {"t": "2026-07-01T05:00", "tom": 72.0, "pep": 44.0}, {"t": "2026-07-01T09:00", "tom": 73.0, "pep": 43.0}, {"t": "2026-07-01T13:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-07-01T17:00", "tom": 66.0, "pep": 44.0}, {"t": "2026-07-01T21:00", "tom": 65.0, "pep": 43.0}, {"t": "2026-07-02T01:00", "tom": 64.0, "pep": 42.0}, {"t": "2026-07-02T05:00", "tom": 72.0, "pep": 44.0}, {"t": "2026-07-02T09:00", "tom": 73.0, "pep": 44.0}, {"t": "2026-07-02T13:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-07-02T17:00", "tom": 71.0, "pep": 44.0}, {"t": "2026-07-02T21:00", "tom": 71.0, "pep": 43.0}, {"t": "2026-07-03T01:00", "tom": 71.0, "pep": 42.0}, {"t": "2026-07-03T05:00", "tom": 70.0, "pep": 44.0}, {"t": "2026-07-03T09:00", "tom": 72.0, "pep": 45.0}, {"t": "2026-07-03T13:00", "tom": 69.0, "pep": 43.0}, {"t": "2026-07-03T17:00", "tom": 65.0, "pep": 44.0}, {"t": "2026-07-03T21:00", "tom": 64.0, "pep": 43.0}, {"t": "2026-07-04T01:00", "tom": 67.0, "pep": 42.0}, {"t": "2026-07-04T05:00", "tom": 72.0, "pep": 43.0}, {"t": "2026-07-04T09:00", "tom": 70.0, "pep": 43.0}, {"t": "2026-07-04T13:00", "tom": 66.0, "pep": 42.0}, {"t": "2026-07-04T17:00", "tom": 63.0, "pep": 43.0}, {"t": "2026-07-04T21:00", "tom": 62.0, "pep": 43.0}, {"t": "2026-07-05T01:00", "tom": 63.0, "pep": 42.0}, {"t": "2026-07-05T05:00", "tom": 69.0, "pep": 44.0}, {"t": "2026-07-05T09:00", "tom": 70.0, "pep": 43.0}, {"t": "2026-07-05T13:00", "tom": 67.0, "pep": 42.0}, {"t": "2026-07-05T17:00", "tom": 64.0, "pep": 43.0}, {"t": "2026-07-05T21:00", "tom": 64.0, "pep": 43.0}, {"t": "2026-07-06T01:00", "tom": 63.0, "pep": 42.0}, {"t": "2026-07-06T05:00", "tom": 63.0, "pep": 44.0}, {"t": "2026-07-06T09:00", "tom": 61.0, "pep": 43.0}, {"t": "2026-07-06T13:00", "tom": 63.0, "pep": 42.0}, {"t": "2026-07-06T17:00", "tom": 61.0, "pep": 43.0}, {"t": "2026-07-06T21:00", "tom": 60.0, "pep": 43.0}, {"t": "2026-07-07T01:00", "tom": 60.0, "pep": 42.0}, {"t": "2026-07-07T05:00", "tom": 68.0, "pep": 44.0}, {"t": "2026-07-07T09:00", "tom": 71.0, "pep": 43.0}, {"t": "2026-07-07T13:00", "tom": 67.0, "pep": 42.0}], "daily": [{"date": "2026-06-09", "tom_mean": 78.7, "tom_min": 76.0, "tom_max": 80.0, "pep_mean": 38.5, "pep_min": 38.0, "pep_max": 39.0}, {"date": "2026-06-10", "tom_mean": 78.7, "tom_min": 76.0, "tom_max": 81.0, "pep_mean": 38.7, "pep_min": 38.0, "pep_max": 39.0}, {"date": "2026-06-11", "tom_mean": 77.7, "tom_min": 75.0, "tom_max": 80.0, "pep_mean": 38.5, "pep_min": 38.0, "pep_max": 39.0}, {"date": "2026-06-12", "tom_mean": 77.8, "tom_min": 75.0, "tom_max": 80.0, "pep_mean": 38.7, "pep_min": 38.0, "pep_max": 39.0}, {"date": "2026-06-13", "tom_mean": 78.8, "tom_min": 77.0, "tom_max": 80.0, "pep_mean": 40.3, "pep_min": 38.0, "pep_max": 43.0}, {"date": "2026-06-14", "tom_mean": 78.5, "tom_min": 76.0, "tom_max": 80.0, "pep_mean": 41.2, "pep_min": 40.0, "pep_max": 43.0}, {"date": "2026-06-15", "tom_mean": 78.5, "tom_min": 76.0, "tom_max": 80.0, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 44.0}, {"date": "2026-06-16", "tom_mean": 78.3, "tom_min": 76.0, "tom_max": 80.0, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 43.0}, {"date": "2026-06-17", "tom_mean": 78.0, "tom_min": 76.0, "tom_max": 79.0, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 43.0}, {"date": "2026-06-18", "tom_mean": 78.0, "tom_min": 76.0, "tom_max": 79.0, "pep_mean": 41.7, "pep_min": 41.0, "pep_max": 42.0}, {"date": "2026-06-19", "tom_mean": 79.7, "tom_min": 78.0, "tom_max": 81.0, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 42.0}, {"date": "2026-06-20", "tom_mean": 78.0, "tom_min": 75.0, "tom_max": 81.0, "pep_mean": 40.8, "pep_min": 40.0, "pep_max": 42.0}, {"date": "2026-06-21", "tom_mean": 74.8, "tom_min": 70.0, "tom_max": 79.0, "pep_mean": 41.7, "pep_min": 40.0, "pep_max": 44.0}, {"date": "2026-06-22", "tom_mean": 71.2, "tom_min": 68.0, "tom_max": 78.0, "pep_mean": 42.2, "pep_min": 41.0, "pep_max": 43.0}, {"date": "2026-06-23", "tom_mean": 71.5, "tom_min": 68.0, "tom_max": 76.0, "pep_mean": 42.5, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-24", "tom_mean": 71.5, "tom_min": 68.0, "tom_max": 76.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-25", "tom_mean": 71.2, "tom_min": 68.0, "tom_max": 75.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-26", "tom_mean": 70.8, "tom_min": 67.0, "tom_max": 75.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-27", "tom_mean": 70.8, "tom_min": 68.0, "tom_max": 75.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-28", "tom_mean": 70.2, "tom_min": 66.0, "tom_max": 75.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-29", "tom_mean": 69.2, "tom_min": 65.0, "tom_max": 74.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-30", "tom_mean": 68.7, "tom_min": 65.0, "tom_max": 74.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-01", "tom_mean": 68.2, "tom_min": 64.0, "tom_max": 73.0, "pep_mean": 43.0, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-02", "tom_mean": 70.0, "tom_min": 64.0, "tom_max": 73.0, "pep_mean": 43.2, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-03", "tom_mean": 68.5, "tom_min": 64.0, "tom_max": 72.0, "pep_mean": 43.5, "pep_min": 42.0, "pep_max": 45.0}, {"date": "2026-07-04", "tom_mean": 66.7, "tom_min": 62.0, "tom_max": 72.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 43.0}, {"date": "2026-07-05", "tom_mean": 66.2, "tom_min": 63.0, "tom_max": 70.0, "pep_mean": 42.8, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-06", "tom_mean": 61.8, "tom_min": 60.0, "tom_max": 63.0, "pep_mean": 42.8, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-07", "tom_mean": 66.5, "tom_min": 60.0, "tom_max": 71.0, "pep_mean": 42.8, "pep_min": 42.0, "pep_max": 44.0}], "weekly": [{"idx": 1, "label": "Jun 9\u201315", "tom_mean": 78.4, "tom_min": 75.0, "tom_max": 81.0, "tom_std": 1.5, "pep_mean": 39.6, "pep_min": 38.0, "pep_max": 44.0, "pep_std": 1.6, "temp_mean": 72.4, "n": 42}, {"idx": 2, "label": "Jun 16\u201322", "tom_mean": 76.9, "tom_min": 68.0, "tom_max": 81.0, "tom_std": 3.5, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 44.0, "pep_std": 1.0, "temp_mean": 72.2, "n": 42}, {"idx": 3, "label": "Jun 23\u201329", "tom_mean": 70.7, "tom_min": 65.0, "tom_max": 76.0, "tom_std": 3.4, "pep_mean": 42.6, "pep_min": 42.0, "pep_max": 44.0, "pep_std": 0.8, "temp_mean": 72.4, "n": 42}, {"idx": 4, "label": "Jun 30\u20136", "tom_mean": 67.1, "tom_min": 60.0, "tom_max": 74.0, "tom_std": 3.9, "pep_mean": 43.0, "pep_min": 42.0, "pep_max": 45.0, "pep_std": 0.8, "temp_mean": 72.1, "n": 42}, {"idx": 5, "label": "Jul 7\u20137", "tom_mean": 66.5, "tom_min": 60.0, "tom_max": 71.0, "tom_std": 4.0, "pep_mean": 42.8, "pep_min": 42.0, "pep_max": 44.0, "pep_std": 0.8, "temp_mean": 70.0, "n": 4}], "diurnal": [{"h": 1, "tom": 71.3, "pep": 40.8}, {"h": 5, "tom": 75.6, "pep": 42.6}, {"h": 9, "tom": 75.7, "pep": 42.0}, {"h": 13, "tom": 72.4, "pep": 40.9}, {"h": 17, "tom": 72.1, "pep": 42.5}, {"h": 21, "tom": 71.5, "pep": 41.5}], "trend": {"slope": -0.559, "intercept": 80.9, "r2": 0.879, "per_week": -3.9, "start_fit": 80.9, "end_fit": 65.2, "set_reach_date": "2026-07-12", "days_from_start": 33.8, "last_daily": 66.5}, "water": {"meter_online": "2026-06-20", "first_flow": "2026-07-02 21:00", "end": "2026-07-07 13:00", "total_L": 572.0, "active_days": 4.7, "avg_active_L": 122.6, "daily": [{"date": "2026-07-02", "cum": 40.8, "draw": 40.8}, {"date": "2026-07-03", "cum": 40.8, "draw": 0.0}, {"date": "2026-07-04", "cum": 131.0, "draw": 90.2}, {"date": "2026-07-05", "cum": 266.3, "draw": 135.3}, {"date": "2026-07-06", "cum": 286.4, "draw": 20.1}, {"date": "2026-07-07", "cum": 572.0, "draw": 285.6}]}, "distribution": {"tom": {"pct_below": 2.3, "pct_above": 97.7, "hist": [{"bin": "58-60", "lo": 58, "hi": 60, "count": 0}, {"bin": "60-62", "lo": 60, "hi": 62, "count": 4}, {"bin": "62-64", "lo": 62, "hi": 64, "count": 6}, {"bin": "64-66", "lo": 64, "hi": 66, "count": 10}, {"bin": "66-68", "lo": 66, "hi": 68, "count": 12}, {"bin": "68-70", "lo": 68, "hi": 70, "count": 23}, {"bin": "70-72", "lo": 70, "hi": 72, "count": 14}, {"bin": "72-74", "lo": 72, "hi": 74, "count": 11}, {"bin": "74-76", "lo": 74, "hi": 76, "count": 17}, {"bin": "76-78", "lo": 76, "hi": 78, "count": 17}, {"bin": "78-80", "lo": 78, "hi": 80, "count": 39}, {"bin": "80-82", "lo": 80, "hi": 82, "count": 19}, {"bin": "82-84", "lo": 82, "hi": 84, "count": 0}]}, "pep": {"pct_below": 0.0, "pct_above": 100.0, "hist": [{"bin": "36-37", "lo": 36, "hi": 37, "count": 0}, {"bin": "37-38", "lo": 37, "hi": 38, "count": 0}, {"bin": "38-39", "lo": 38, "hi": 39, "count": 11}, {"bin": "39-40", "lo": 39, "hi": 40, "count": 15}, {"bin": "40-41", "lo": 40, "hi": 41, "count": 14}, {"bin": "41-42", "lo": 41, "hi": 42, "count": 15}, {"bin": "42-43", "lo": 42, "hi": 43, "count": 56}, {"bin": "43-44", "lo": 43, "hi": 44, "count": 40}, {"bin": "44-45", "lo": 44, "hi": 45, "count": 20}, {"bin": "45-46", "lo": 45, "hi": 46, "count": 1}]}}, "stats": {"range_start": "2026-06-09 01:00", "range_end": "2026-07-07 13:00", "n": 172, "interval_hr": 4, "tom": {"mean": 73.1, "min": 60.0, "max": 81.0, "std": 5.6, "median": 75.0, "setpoint": 62, "last": 67.0}, "pep": {"mean": 41.7, "min": 38.0, "max": 45.0, "std": 1.7, "median": 42.0, "setpoint": 35, "last": 42.0}}};
-const LAT=37.3541, LON=-121.9552;
+const DATA = __DATA__;
+const CFG = __CFG__;
+const LAT=CFG.lat, LON=CFG.lon;
 const COL={tom:'#D9533B',pep:'#E0A43C',wx:'#6FA8A0',ink:'#E8E6DA',mut:'#9AA08C',line:'#2E3322',trend:'#B98BD9',leaf:'#6FA53F'};
 
 /* ---------- header ---------- */
 const S=DATA.stats;
-document.getElementById('m-window').textContent='Jun 9 – Jul 7';
-document.getElementById('m-n').textContent=S.n+' @ 4 h';
+document.getElementById('m-window').textContent=CFG.window_label;
+document.getElementById('m-n').textContent=S.n+CFG.interval_label;
 
 /* ---------- gauges ---------- */
 function gauge(key,name,loc,lo,hi,idealLo,idealHi,verdict,vclass,note){
@@ -228,14 +229,9 @@ function gauge(key,name,loc,lo,hi,idealLo,idealHi,verdict,vclass,note){
     <div class="note">${note}</div>
   </div>`;
 }
-const tomOver=Math.round(S.tom.last-S.tom.setpoint), pepOver=Math.round(S.pep.mean-S.pep.setpoint);
 document.getElementById('gauges').innerHTML =
-  gauge('tom','Tomatoes','raised bed · in-ground',55,90,60,68,
-    `DRYING DOWN · +${tomOver} over setpoint`,'v-trend',
-    'Steady four-week decline from ~81% toward the 62% setpoint — the timer trims are working. Latest reading 67%, recent low 60%. No longer saturated.') +
-  gauge('pep','Peppers','6× 7-gal fabric bags',25,55,35,48,
-    `IN BAND · +${pepOver} over setpoint`,'v-ok',
-    'Tightened to a very narrow band (std ±'+S.pep.std+') and settled ~42%, comfortably above the 35% setpoint. Dialed in and stable all month.');
+  gauge('tom',CFG.gauge.tom.name,CFG.gauge.tom.loc,CFG.gauge.tom.lo,CFG.gauge.tom.hi,CFG.gauge.tom.idealLo,CFG.gauge.tom.idealHi,CFG.gauge.tom.verdict,CFG.gauge.tom.vclass,CFG.gauge.tom.note) +
+  gauge('pep',CFG.gauge.pep.name,CFG.gauge.pep.loc,CFG.gauge.pep.lo,CFG.gauge.pep.hi,CFG.gauge.pep.idealLo,CFG.gauge.pep.idealHi,CFG.gauge.pep.verdict,CFG.gauge.pep.vclass,CFG.gauge.pep.note);
 
 /* ---------- main chart ---------- */
 const series=DATA.series;
@@ -249,7 +245,7 @@ const trendLine=series.map(p=>{
 });
 const setpointPlugin={id:'setpoints',afterDatasetsDraw(c){
   const{ctx,chartArea:{left,right},scales:{y}}=c;
-  [[62,'rgba(217,83,59,.55)','tomato 62'],[35,'rgba(224,164,60,.55)','pepper 35']].forEach(([v,col,lab])=>{
+  [[CFG.setpoints.tom,'rgba(217,83,59,.55)','tomato '+CFG.setpoints.tom],[CFG.setpoints.pep,'rgba(224,164,60,.55)','pepper '+CFG.setpoints.pep]].forEach(([v,col,lab])=>{
     const yy=y.getPixelForValue(v);ctx.save();ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash([5,4]);
     ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();
     ctx.setLineDash([]);ctx.fillStyle=col;ctx.font='10px "IBM Plex Mono",monospace';
@@ -325,22 +321,23 @@ buildChart(null);
   const cards=[
     ['Slope',`${T.per_week}<span style="font-size:14px;color:var(--mut)"> %/wk</span>`,'linear rate of decline'],
     ['Fit quality',`${(T.r2*100).toFixed(0)}<span style="font-size:14px;color:var(--mut)">%</span>`,`R² — variance explained`],
-    ['Reaches 62% setpoint',`${new Date(T.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,'projected at current rate'],
+    [`Reaches ${CFG.setpoints.tom}% setpoint`,`${T.set_reach_date?new Date(T.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'n/a'}`,'projected at current rate'],
   ];
   document.getElementById('trend-cards').innerHTML=cards.map(c=>
     `<div class="cc"><div class="lab">${c[2]}</div><div class="r" style="color:var(--trend)">${c[1]}</div><div class="rd">${c[0]}</div></div>`).join('');
-  document.getElementById('trend-caveat').innerHTML=
-    `The bed is drying at a steady <b>${Math.abs(T.per_week)} %/week</b> (R²=${T.r2}, a tight linear fit) and, if nothing changes, crosses the 62% setpoint around <b>${new Date(T.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'})}</b> — days away. This is a trailing trend, not a guarantee: as the bed approaches the setpoint the dry-down usually flattens, and any timer change resets the slope. Watch the daily min, which has already touched 60%.`;
+  document.getElementById('trend-caveat').innerHTML= (T.per_week<0
+    ? `The bed is trending <b>${Math.abs(T.per_week)} %/week drier</b> (R²=${T.r2}). ${T.set_reach_date?('If nothing changes it crosses the '+CFG.setpoints.tom+'% setpoint around <b>'+new Date(T.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'})+'</b>.'):('At this rate it stays above the '+CFG.setpoints.tom+'% setpoint across the projection window.')} This is a trailing trend, not a guarantee — as the bed nears the setpoint the dry-down usually flattens and any timer change resets the slope. Watch the daily min (recent low ${S.tom.min}%).`
+    : `The bed is trending <b>${Math.abs(T.per_week)} %/week wetter</b> (R²=${T.r2}) over this window — likely a watering-plan change or cooler weather. Read it as a short trailing trend; a few more weeks will show whether it holds. Recent daily min ${S.tom.min}%.`);
 })();
 
 /* ---------- distribution ---------- */
 (function(){
   const D=DATA.distribution;
   document.getElementById('dist-cards').innerHTML=
-    `<div class="cc"><div class="lab">Tomato — share of readings <b>at or above</b> the 62% setpoint</div>
-       <div class="r" style="color:var(--tom)">${D.tom.pct_above}%</div><div class="rd">${D.tom.pct_below}% below · min 60%</div></div>
-     <div class="cc"><div class="lab">Pepper — share of readings <b>at or above</b> the 35% setpoint</div>
-       <div class="r" style="color:var(--pep)">${D.pep.pct_above}%</div><div class="rd">${D.pep.pct_below}% below · never dry-stressed</div></div>`;
+    `<div class="cc"><div class="lab">Tomato — share of readings <b>at or above</b> the ${CFG.setpoints.tom}% setpoint</div>
+       <div class="r" style="color:var(--tom)">${D.tom.pct_above}%</div><div class="rd">${D.tom.pct_below}% below · min ${S.tom.min}%</div></div>
+     <div class="cc"><div class="lab">Pepper — share of readings <b>at or above</b> the ${CFG.setpoints.pep}% setpoint</div>
+       <div class="r" style="color:var(--pep)">${D.pep.pct_above}%</div><div class="rd">${D.pep.pct_below}% below · min ${S.pep.min}%</div></div>`;
   function hist(id,h,col,setp){
     new Chart(document.getElementById(id),{type:'bar',
       data:{labels:h.map(b=>b.lo),datasets:[{data:h.map(b=>b.count),backgroundColor:col+'cc',borderColor:col,borderWidth:1,barPercentage:1,categoryPercentage:1}]},
@@ -353,18 +350,19 @@ buildChart(null);
         ctx.beginPath();ctx.moveTo(xx,top);ctx.lineTo(xx,bottom);ctx.stroke();
         ctx.setLineDash([]);ctx.fillStyle='#E8E6DA';ctx.font='9px "IBM Plex Mono"';ctx.fillText('setpoint '+setp,xx+3,top+10);ctx.restore();}}]});
   }
-  hist('histTom',D.tom.hist,COL.tom,62);
-  hist('histPep',D.pep.hist,COL.pep,35);
+  hist('histTom',D.tom.hist,COL.tom,CFG.setpoints.tom);
+  hist('histPep',D.pep.hist,COL.pep,CFG.setpoints.pep);
 })();
 
 /* ---------- water usage ---------- */
 (function(){
   const W=DATA.water;
-  document.getElementById('water-hint').textContent=`metered flow began ${W.first_flow}`;
+  if(!W){document.getElementById('water-hint').textContent='no meter data in this export';return;}
+  document.getElementById('water-hint').textContent=`metered flow began ${W.first_flow||'—'}`;
   document.getElementById('water-cards').innerHTML=
-    `<div class="cc"><div class="lab">Total logged since first measured flow (Jul 2)</div><div class="r" style="color:var(--wx)">${W.total_L}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">≈ ${(W.total_L*0.264).toFixed(0)} gal</div></div>
+    `<div class="cc"><div class="lab">Total logged since first measured flow (${W.first_flow?W.first_flow.slice(5,10).replace('-','/'):'—'})</div><div class="r" style="color:var(--wx)">${W.total_L}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">≈ ${(W.total_L*0.264).toFixed(0)} gal</div></div>
      <div class="cc"><div class="lab">Average over the ${W.active_days}-day metered window</div><div class="r" style="color:var(--wx)">${W.avg_active_L}<span style="font-size:14px;color:var(--mut)"> L/d</span></div><div class="rd">≈ ${(W.avg_active_L*0.264).toFixed(0)} gal/day</div></div>
-     <div class="cc"><div class="lab">Meter paired but idle</div><div class="r" style="color:var(--faint)">${W.meter_online.slice(5)}→${W.first_flow.slice(5,10)}</div><div class="rd">zero flow logged for ~12 days</div></div>`;
+     <div class="cc"><div class="lab">Meter paired but idle</div><div class="r" style="color:var(--faint)">${W.meter_online.slice(5)}→${W.first_flow?W.first_flow.slice(5,10):'—'}</div><div class="rd">before first metered flow</div></div>`;
   new Chart(document.getElementById('waterChart'),{type:'bar',
     data:{labels:W.daily.map(d=>d.date.slice(5)),datasets:[
       {type:'bar',label:'Daily draw (L)',data:W.daily.map(d=>d.draw),backgroundColor:COL.wx+'cc',borderColor:COL.wx,borderWidth:1,yAxisID:'y',order:2},
@@ -376,13 +374,12 @@ buildChart(null);
         y:{position:'left',title:{display:true,text:'Daily L',color:COL.wx},ticks:{color:COL.wx,font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(46,51,34,.5)'}},
         y1:{position:'right',title:{display:true,text:'Cumulative L',color:COL.leaf},ticks:{color:COL.leaf,font:{family:'IBM Plex Mono',size:10}},grid:{drawOnChartArea:false}}}}});
   document.getElementById('water-caveat').innerHTML=
-    `The WFC01 meter was paired <b>Jun 20</b> but logged zero flow until <b>${W.first_flow}</b>, so only the last ${W.active_days} days are metered — too short a record to trend. Daily draws are also lumpy (a 285 L jump appears in the Jul 7 morning reading, likely a batched or backfilled count), so treat the total as a rough tally, not a precise per-day irrigation log. It will get more useful with a few more weeks of clean flow data.`;
+    `The WFC01 meter came online <b>${W.meter_online}</b> and first logged flow at <b>${W.first_flow||'—'}</b>; ${W.active_days} metered day(s) show draw in this window. Daily draws from a cumulative meter can be lumpy — batched or back-filled counts show up as single-reading jumps — so treat the totals as a rough tally rather than a precise per-day irrigation log. The record sharpens with a few more weeks of clean flow data.`;
 })();
 
 /* ---------- irrigation plan + target vs actual ---------- */
 (function(){
-  const PLAN={set:'2026-07-07', freq:'every other day', vol:40, time:'05:15',
-    weekly_target:140, inches:1.24, sys_lh:200, dose_min_lo:11, dose_min_hi:13};
+  const PLAN=CFG.plan;
   document.getElementById('plan-hint').textContent=
     'logged '+new Date(PLAN.set+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   document.getElementById('plan-note').innerHTML=
@@ -394,7 +391,7 @@ buildChart(null);
       <b>~${PLAN.dose_min_lo}–${PLAN.dose_min_hi} min</b> — use that as a leak/clog sanity check.</div>`;
 
   // weekly actual from metered daily draws (7-day bins from first metered day)
-  const days=DATA.water.daily.filter(d=>d.cum>0);
+  const days=(DATA.water?DATA.water.daily:[]).filter(d=>d.cum>0);
   const bins=[];
   if(days.length){
     const d0=new Date(days[0].date+'T00:00');
@@ -443,7 +440,7 @@ function alignWeather(times,vals){
 async function loadWeather(){
   const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}`
     +`&hourly=temperature_2m,relative_humidity_2m,et0_fao_evapotranspiration,precipitation,shortwave_radiation`
-    +`&temperature_unit=fahrenheit&timezone=America%2FLos_Angeles&start_date=2026-06-09&end_date=2026-07-07`;
+    +`&temperature_unit=fahrenheit&timezone=America%2FLos_Angeles&start_date=${CFG.wx_start}&end_date=${CFG.wx_end}`;
   try{
     const r=await fetch(url); if(!r.ok)throw new Error('HTTP '+r.status);
     const j=await r.json(); const H=j.hourly;
@@ -523,14 +520,14 @@ function computeCorrelation(){
 /* ---------- findings ---------- */
 function writeFindings(noWx){
   document.getElementById('f-tom').innerHTML=
-    `The big shift: a steady <b>four-week dry-down</b> from a ~81% mean to <b>${DATA.weekly[DATA.weekly.length-1].tom_mean}%</b>, ${Math.abs(DATA.trend.per_week)} pts/week (R²=${DATA.trend.r2}). Now <b>67%</b>, with a recent low of 60% — finally near the 62% setpoint after weeks of saturation. The timer trims clearly landed.`;
+    `Tomato bed mean is <b>${S.tom.mean}%</b> (range ${S.tom.min}–${S.tom.max}%), latest <b>${S.tom.last}%</b>, trending ${DATA.trend.per_week} pts/week (R²=${DATA.trend.r2}) against the ${CFG.setpoints.tom}% setpoint. ${DATA.distribution.tom.pct_above}% of readings sat at or above setpoint.`;
   document.getElementById('f-pep').innerHTML=
-    `<b>${S.pep.mean}% mean</b>, the tightest band of the month (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%). Sat ${DATA.distribution.pep.pct_above}% of readings above the 35% setpoint and never dry-stressed. Stable and dialed in — no action needed.`;
+    `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%), with ${DATA.distribution.pep.pct_above}% of readings at or above the ${CFG.setpoints.pep}% setpoint. Stable and dialed in.`;
   document.getElementById('f-wx').innerHTML= noWx
     ? `Live weather didn&rsquo;t load. Reopen online to populate the ET₀/temp overlay and the ${DATA.daily.length}-day correlation for 95050.`
     : `Over ${DATA.daily.length} days, ET₀ and peak temperature track the pepper dry-down in the expected direction. Toggle <b>ET₀</b> on the chart to see drying demand against the dips; the tomato line is dominated by its own downtrend, so weather reads cleaner on peppers.`;
   document.getElementById('f-act').innerHTML=
-    `<b>Tomatoes:</b> the bed is projected to hit 62% around <b>${new Date(DATA.trend.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</b> — hold the current timer and let it settle rather than cutting further; watch the daily min so it doesn&rsquo;t undershoot. <b>Peppers:</b> no change. <b>Water:</b> let the WFC01 log a few clean weeks before reading the L/day numbers.`;
+    `<b>Tomatoes:</b> ${CFG.advice.tom} <b>Peppers:</b> ${CFG.advice.pep} <b>Water:</b> ${CFG.advice.water}`;
 }
 
 loadWeather();

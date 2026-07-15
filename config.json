@@ -1,0 +1,49 @@
+{
+  "_comment": "Configuration for the Farm Water Analysis dashboard generator (lib/build_dashboard.py). Edit these values as the garden / irrigation plan changes; no code changes needed.",
+
+  "location": {
+    "name": "Santa Clara 95050",
+    "lat": 37.3541,
+    "lon": -121.9552,
+    "timezone": "America/Los_Angeles"
+  },
+
+  "sample_interval_minutes": 60,
+
+  "columns": {
+    "time_header": "Time",
+    "soil_moisture_sub": "Soil Moisture(%)",
+    "water_total_sub": "Water Total(L)"
+  },
+
+  "probes": {
+    "tomato": {
+      "group": "Tomato Probe",
+      "setpoint": 62,
+      "hist_bin": 2,
+      "gauge": { "name": "Tomatoes", "loc": "raised bed · in-ground", "lo": 55, "hi": 90, "idealLo": 60, "idealHi": 68 }
+    },
+    "pepper": {
+      "group": "Pepper Probe",
+      "setpoint": 35,
+      "hist_bin": 1,
+      "gauge": { "name": "Peppers", "loc": "6× 7-gal fabric bags", "lo": 25, "hi": 55, "idealLo": 35, "idealHi": 48 }
+    }
+  },
+
+  "water": {
+    "group_prefix": "WFC01"
+  },
+
+  "plan": {
+    "set": "2026-07-07",
+    "freq": "every other day",
+    "vol": 40,
+    "time": "05:15",
+    "weekly_target": 140,
+    "inches": 1.24,
+    "sys_lh": 200,
+    "dose_min_lo": 11,
+    "dose_min_hi": 13
+  }
+}
