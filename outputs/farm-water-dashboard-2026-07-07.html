@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soil Moisture Console — Peppers &amp; Tomatoes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#14160F; --panel:#1C1F16; --panel2:#222719; --line:#2E3322;
+  --ink:#E8E6DA; --mut:#9AA08C; --faint:#6E7461;
+  --tom:#D9533B; --pep:#E0A43C; --wx:#6FA8A0; --leaf:#6FA53F; --trend:#B98BD9;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 60px}
+.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.cond{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif}
+
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;
+  border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:24px}
+.title{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--pep);margin:0 0 6px}
+h1{font-family:"IBM Plex Sans Condensed";font-weight:700;font-size:34px;line-height:1;margin:0;letter-spacing:.5px}
+.sub{color:var(--mut);font-size:13px;margin-top:8px}
+.meta{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end}
+.meta div{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.12em}
+.meta b{display:block;font-size:14px;color:var(--ink);letter-spacing:0;text-transform:none;margin-top:3px}
+.pill{font-size:11px;font-family:"IBM Plex Mono";padding:5px 10px;border:1px solid var(--line);border-radius:2px;color:var(--mut)}
+.pill.live{color:var(--wx);border-color:#33473f}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--wx);margin-right:6px;vertical-align:middle}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.dot.loading{animation:pulse 1.1s infinite}
+
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.gauge{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:18px 20px}
+.gauge h2{font-family:"IBM Plex Sans Condensed";font-size:18px;margin:0 0 2px;letter-spacing:.5px}
+.gauge .loc{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.14em;margin-bottom:16px}
+.readout{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.big{font-family:"IBM Plex Mono";font-weight:600;font-size:46px;line-height:.9}
+.verdict{font-size:12px;font-weight:600;padding:4px 9px;border-radius:2px;letter-spacing:.04em}
+.v-wet{background:#33271c;color:var(--pep)}
+.v-ok{background:#23311a;color:var(--leaf)}
+.v-trend{background:#2b2338;color:var(--trend)}
+.bandwrap{margin-top:18px}
+.bar{position:relative;height:30px;border-radius:2px;
+  background:linear-gradient(90deg,#3a2a1e 0%,#3a2a1e 22%,#243319 38%,#243319 62%,#1f2a36 100%);
+  border:1px solid var(--line);overflow:hidden}
+.bar .ideal{position:absolute;top:0;bottom:0;background:rgba(111,165,63,.16);border-left:1px dashed #4d6b34;border-right:1px dashed #4d6b34}
+.bar .set{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.needle{position:absolute;top:-4px;bottom:-4px;width:3px;border-radius:2px}
+.scale{display:flex;justify-content:space-between;font-family:"IBM Plex Mono";font-size:10px;color:var(--faint);margin-top:5px}
+.stats{display:flex;gap:20px;margin-top:16px;border-top:1px solid var(--line);padding-top:14px;flex-wrap:wrap}
+.stat .k{font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:var(--faint)}
+.stat .v{font-family:"IBM Plex Mono";font-size:17px;margin-top:3px}
+.note{font-size:12px;color:var(--mut);margin-top:14px;line-height:1.5}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:20px;margin-bottom:20px}
+.phead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px}
+.phead h3{font-family:"IBM Plex Sans Condensed";font-size:16px;margin:0;letter-spacing:.4px}
+.phead .hint{font-size:12px;color:var(--faint)}
+.toggles{display:flex;gap:6px}
+.tg{font-family:"IBM Plex Mono";font-size:11px;background:var(--panel2);border:1px solid var(--line);
+  color:var(--mut);padding:5px 10px;border-radius:2px;cursor:pointer}
+.tg[aria-pressed="true"]{color:var(--ink);border-color:var(--faint)}
+.tg:focus-visible{outline:2px solid var(--wx);outline-offset:2px}
+.chartbox{position:relative;height:340px;margin-top:14px}
+.chartbox.sm{height:240px}
+
+/* weekly table */
+table.wk{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+table.wk th,table.wk td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.wk th{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);font-weight:600}
+table.wk td:first-child,table.wk th:first-child{text-align:left}
+table.wk td.mono,table.wk .num{font-family:"IBM Plex Mono";font-variant-numeric:tabular-nums}
+table.wk tbody tr:last-child td{border-bottom:none}
+.delta-dn{color:var(--leaf)} .delta-up{color:var(--pep)} .delta-0{color:var(--faint)}
+.wk-cap{font-size:11px;color:var(--faint);margin-top:6px}
+
+/* trend cards / generic 3-up */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+.cc{background:var(--panel2);border:1px solid var(--line);border-radius:2px;padding:14px}
+.cc .lab{font-size:11px;color:var(--mut);line-height:1.4;min-height:42px}
+.cc .r{font-family:"IBM Plex Mono";font-size:30px;margin:8px 0 2px}
+.cc .rd{font-size:11px;color:var(--faint)}
+.caveat{font-size:12px;color:var(--faint);margin-top:14px;line-height:1.5;border-left:2px solid var(--line);padding-left:12px}
+
+.find{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fcard{border:1px solid var(--line);border-radius:2px;padding:16px;background:var(--panel2)}
+.fcard .tag{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.tag.t{color:var(--tom)} .tag.p{color:var(--pep)} .tag.w{color:var(--wx)} .tag.a{color:var(--leaf)}
+.fcard p{margin:0;font-size:13px;line-height:1.55;color:#D7D5C8}
+.fcard b{color:var(--ink)}
+footer{margin-top:26px;border-top:1px solid var(--line);padding-top:16px;font-size:11px;color:var(--faint);line-height:1.6}
+footer a{color:var(--mut)}
+@media(max-width:760px){.gauges,.grid3,.find{grid-template-columns:1fr}h1{font-size:27px}.big{font-size:38px}
+  table.wk th,table.wk td{padding:7px 5px;font-size:12px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <p class="title">Soil Moisture Console</p>
+    <h1>Peppers &amp; Tomatoes — 4-Week Review</h1>
+    <p class="sub">Ecowitt GW1200 probes &middot; pepper fabric bags &amp; tomato raised bed &middot; weather correlated for Santa Clara 95050</p>
+  </div>
+  <div class="meta">
+    <div>Window<b id="m-window">&mdash;</b></div>
+    <div>Samples<b id="m-n">&mdash;</b></div>
+    <div>Weather<span class="pill live" id="wx-pill"><span class="dot loading"></span>loading&hellip;</span></div>
+  </div>
+</header>
+
+<section class="gauges" id="gauges"></section>
+
+<section class="panel">
+  <div class="phead">
+    <h3>Moisture vs Weather &mdash; Jun 9 &ndash; Jul 7</h3>
+    <div class="toggles" role="group" aria-label="Overlay">
+      <button class="tg" id="tg-trend" aria-pressed="true">Tomato trend</button>
+      <button class="tg" id="tg-temp" aria-pressed="false">Air temp &deg;F</button>
+      <button class="tg" id="tg-et0" aria-pressed="false">ET&#8320; (drying)</button>
+      <button class="tg" id="tg-rad" aria-pressed="false">Solar</button>
+    </div>
+  </div>
+  <div class="phead"><div class="hint">Left axis: soil moisture %. Right axis: live weather. Dashed lines mark each crop&rsquo;s setpoint; violet line is the tomato dry-down regression.</div></div>
+  <div class="chartbox"><canvas id="mainChart"></canvas></div>
+</section>
+
+<section class="panel">
+  <div class="phead"><h3>Week-over-week</h3><div class="hint">7-day bins from Jun 9 &middot; &Delta; = change in mean vs prior week</div></div>
+  <div style="overflow-x:auto"><table class="wk" id="wk-table"></table></div>
+  <p class="wk-cap" id="wk-cap"></p>
+</section>
+
+<section class="panel">
+  <div class="phead"><h3>Tomato dry-down trend</h3><div class="hint" id="trend-hint"></div></div>
+  <div class="grid3" id="trend-cards"></div>
+  <p class="caveat" id="trend-caveat"></p>
+</section>
+
+<section class="panel">
+  <div class="phead"><h3>Distribution &amp; time in band</h3><div class="hint">every reading, whole window &middot; dashed line = setpoint</div></div>
+  <div class="grid3" style="grid-template-columns:1fr 1fr" id="dist-cards"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+    <div class="chartbox sm"><canvas id="histTom"></canvas></div>
+    <div class="chartbox sm"><canvas id="histPep"></canvas></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="phead"><h3>Water usage &mdash; WFC01 flow meter</h3><div class="hint" id="water-hint"></div></div>
+  <div class="grid3" id="water-cards"></div>
+  <div class="chartbox sm"><canvas id="waterChart"></canvas></div>
+  <p class="caveat" id="water-caveat"></p>
+</section>
+
+<section class="panel">
+  <div class="phead"><h3>Irrigation plan &amp; target vs actual</h3><div class="hint" id="plan-hint"></div></div>
+  <div id="plan-note"></div>
+  <div class="grid3" id="tva-cards" style="margin-top:14px"></div>
+  <div class="chartbox sm"><canvas id="tvaChart"></canvas></div>
+  <p class="caveat" id="tva-caveat"></p>
+</section>
+
+<section class="panel">
+  <div class="phead"><h3>Weather &harr; Moisture Correlation</h3><div class="hint" id="corr-hint">computing&hellip;</div></div>
+  <div class="grid3" id="corr"></div>
+  <p class="caveat" id="corr-caveat"></p>
+</section>
+
+<section class="panel">
+  <div class="phead"><h3>What the month says</h3></div>
+  <div class="find">
+    <div class="fcard"><div class="tag t">Tomatoes &middot; raised bed</div><p id="f-tom"></p></div>
+    <div class="fcard"><div class="tag p">Peppers &middot; fabric bags</div><p id="f-pep"></p></div>
+    <div class="fcard"><div class="tag w">Weather driver</div><p id="f-wx"></p></div>
+    <div class="fcard"><div class="tag a">Do next</div><p id="f-act"></p></div>
+  </div>
+</section>
+
+<footer>
+  Moisture data: Ecowitt GW1200 export, 4-hour interval, Jun 9 &ndash; Jul 7 2026 (172 readings). &nbsp;|&nbsp;
+  Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Forecast API (past_days), fetched live in your browser &mdash; CC BY 4.0. &nbsp;|&nbsp;
+  Onboard hub temp/humidity/dew point are indoor readings and are not used for correlation. &nbsp;|&nbsp;
+  Setpoints (62% tomato, 35% pepper) are the Ecowitt alert thresholds, not universal ideals; read each probe against itself.
+</footer>
+</div>
+
+<script>
+const DATA = {"series": [{"t": "2026-06-09T01:00", "tom": 78.0, "pep": 38.0}, {"t": "2026-06-09T05:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-09T09:00", "tom": 79.0, "pep": 39.0}, {"t": "2026-06-09T13:00", "tom": 76.0, "pep": 38.0}, {"t": "2026-06-09T17:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-09T21:00", "tom": 79.0, "pep": 38.0}, {"t": "2026-06-10T01:00", "tom": 78.0, "pep": 38.0}, {"t": "2026-06-10T05:00", "tom": 81.0, "pep": 39.0}, {"t": "2026-06-10T09:00", "tom": 79.0, "pep": 39.0}, {"t": "2026-06-10T13:00", "tom": 76.0, "pep": 38.0}, {"t": "2026-06-10T17:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-10T21:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-11T01:00", "tom": 77.0, "pep": 38.0}, {"t": "2026-06-11T05:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-11T09:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-11T13:00", "tom": 75.0, "pep": 38.0}, {"t": "2026-06-11T17:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-11T21:00", "tom": 78.0, "pep": 38.0}, {"t": "2026-06-12T01:00", "tom": 77.0, "pep": 38.0}, {"t": "2026-06-12T05:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-12T09:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-12T13:00", "tom": 75.0, "pep": 38.0}, {"t": "2026-06-12T17:00", "tom": 79.0, "pep": 39.0}, {"t": "2026-06-12T21:00", "tom": 78.0, "pep": 39.0}, {"t": "2026-06-13T01:00", "tom": 77.0, "pep": 38.0}, {"t": "2026-06-13T05:00", "tom": 80.0, "pep": 39.0}, {"t": "2026-06-13T09:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-13T13:00", "tom": 77.0, "pep": 40.0}, {"t": "2026-06-13T17:00", "tom": 80.0, "pep": 43.0}, {"t": "2026-06-13T21:00", "tom": 79.0, "pep": 40.0}, {"t": "2026-06-14T01:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-14T05:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-14T09:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-14T13:00", "tom": 76.0, "pep": 40.0}, {"t": "2026-06-14T17:00", "tom": 79.0, "pep": 43.0}, {"t": "2026-06-14T21:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-15T01:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-15T05:00", "tom": 80.0, "pep": 44.0}, {"t": "2026-06-15T09:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-15T13:00", "tom": 76.0, "pep": 40.0}, {"t": "2026-06-15T17:00", "tom": 79.0, "pep": 43.0}, {"t": "2026-06-15T21:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-16T01:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-16T05:00", "tom": 80.0, "pep": 43.0}, {"t": "2026-06-16T09:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-16T13:00", "tom": 76.0, "pep": 40.0}, {"t": "2026-06-16T17:00", "tom": 78.0, "pep": 43.0}, {"t": "2026-06-16T21:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-17T01:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-17T05:00", "tom": 79.0, "pep": 43.0}, {"t": "2026-06-17T09:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-17T13:00", "tom": 76.0, "pep": 40.0}, {"t": "2026-06-17T17:00", "tom": 78.0, "pep": 43.0}, {"t": "2026-06-17T21:00", "tom": 78.0, "pep": 41.0}, {"t": "2026-06-18T01:00", "tom": 77.0, "pep": 41.0}, {"t": "2026-06-18T05:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-18T09:00", "tom": 78.0, "pep": 42.0}, {"t": "2026-06-18T13:00", "tom": 76.0, "pep": 41.0}, {"t": "2026-06-18T17:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-18T21:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-19T01:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-19T05:00", "tom": 81.0, "pep": 42.0}, {"t": "2026-06-19T09:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-19T13:00", "tom": 78.0, "pep": 40.0}, {"t": "2026-06-19T17:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-19T21:00", "tom": 80.0, "pep": 42.0}, {"t": "2026-06-20T01:00", "tom": 80.0, "pep": 41.0}, {"t": "2026-06-20T05:00", "tom": 81.0, "pep": 40.0}, {"t": "2026-06-20T09:00", "tom": 80.0, "pep": 41.0}, {"t": "2026-06-20T13:00", "tom": 77.0, "pep": 40.0}, {"t": "2026-06-20T17:00", "tom": 75.0, "pep": 42.0}, {"t": "2026-06-20T21:00", "tom": 75.0, "pep": 41.0}, {"t": "2026-06-21T01:00", "tom": 74.0, "pep": 40.0}, {"t": "2026-06-21T05:00", "tom": 79.0, "pep": 42.0}, {"t": "2026-06-21T09:00", "tom": 79.0, "pep": 41.0}, {"t": "2026-06-21T13:00", "tom": 76.0, "pep": 41.0}, {"t": "2026-06-21T17:00", "tom": 71.0, "pep": 44.0}, {"t": "2026-06-21T21:00", "tom": 70.0, "pep": 42.0}, {"t": "2026-06-22T01:00", "tom": 69.0, "pep": 41.0}, {"t": "2026-06-22T05:00", "tom": 68.0, "pep": 43.0}, {"t": "2026-06-22T09:00", "tom": 78.0, "pep": 42.0}, {"t": "2026-06-22T13:00", "tom": 73.0, "pep": 42.0}, {"t": "2026-06-22T17:00", "tom": 70.0, "pep": 43.0}, {"t": "2026-06-22T21:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-06-23T01:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-06-23T05:00", "tom": 76.0, "pep": 44.0}, {"t": "2026-06-23T09:00", "tom": 75.0, "pep": 42.0}, {"t": "2026-06-23T13:00", "tom": 72.0, "pep": 42.0}, {"t": "2026-06-23T17:00", "tom": 69.0, "pep": 43.0}, {"t": "2026-06-23T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-24T01:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-24T05:00", "tom": 76.0, "pep": 43.0}, {"t": "2026-06-24T09:00", "tom": 76.0, "pep": 43.0}, {"t": "2026-06-24T13:00", "tom": 72.0, "pep": 42.0}, {"t": "2026-06-24T17:00", "tom": 69.0, "pep": 44.0}, {"t": "2026-06-24T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-25T01:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-25T05:00", "tom": 75.0, "pep": 44.0}, {"t": "2026-06-25T09:00", "tom": 75.0, "pep": 43.0}, {"t": "2026-06-25T13:00", "tom": 72.0, "pep": 42.0}, {"t": "2026-06-25T17:00", "tom": 69.0, "pep": 43.0}, {"t": "2026-06-25T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-26T01:00", "tom": 67.0, "pep": 42.0}, {"t": "2026-06-26T05:00", "tom": 75.0, "pep": 44.0}, {"t": "2026-06-26T09:00", "tom": 75.0, "pep": 43.0}, {"t": "2026-06-26T13:00", "tom": 71.0, "pep": 42.0}, {"t": "2026-06-26T17:00", "tom": 69.0, "pep": 43.0}, {"t": "2026-06-26T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-27T01:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-27T05:00", "tom": 75.0, "pep": 44.0}, {"t": "2026-06-27T09:00", "tom": 75.0, "pep": 43.0}, {"t": "2026-06-27T13:00", "tom": 71.0, "pep": 42.0}, {"t": "2026-06-27T17:00", "tom": 68.0, "pep": 43.0}, {"t": "2026-06-27T21:00", "tom": 68.0, "pep": 42.0}, {"t": "2026-06-28T01:00", "tom": 67.0, "pep": 42.0}, {"t": "2026-06-28T05:00", "tom": 75.0, "pep": 44.0}, {"t": "2026-06-28T09:00", "tom": 75.0, "pep": 43.0}, {"t": "2026-06-28T13:00", "tom": 71.0, "pep": 42.0}, {"t": "2026-06-28T17:00", "tom": 67.0, "pep": 43.0}, {"t": "2026-06-28T21:00", "tom": 66.0, "pep": 42.0}, {"t": "2026-06-29T01:00", "tom": 66.0, "pep": 42.0}, {"t": "2026-06-29T05:00", "tom": 74.0, "pep": 44.0}, {"t": "2026-06-29T09:00", "tom": 74.0, "pep": 43.0}, {"t": "2026-06-29T13:00", "tom": 70.0, "pep": 42.0}, {"t": "2026-06-29T17:00", "tom": 66.0, "pep": 43.0}, {"t": "2026-06-29T21:00", "tom": 65.0, "pep": 42.0}, {"t": "2026-06-30T01:00", "tom": 65.0, "pep": 42.0}, {"t": "2026-06-30T05:00", "tom": 73.0, "pep": 44.0}, {"t": "2026-06-30T09:00", "tom": 74.0, "pep": 43.0}, {"t": "2026-06-30T13:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-06-30T17:00", "tom": 66.0, "pep": 43.0}, {"t": "2026-06-30T21:00", "tom": 65.0, "pep": 42.0}, {"t": "2026-07-01T01:00", "tom": 64.0, "pep": 42.0}, {"t": "2026-07-01T05:00", "tom": 72.0, "pep": 44.0}, {"t": "2026-07-01T09:00", "tom": 73.0, "pep": 43.0}, {"t": "2026-07-01T13:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-07-01T17:00", "tom": 66.0, "pep": 44.0}, {"t": "2026-07-01T21:00", "tom": 65.0, "pep": 43.0}, {"t": "2026-07-02T01:00", "tom": 64.0, "pep": 42.0}, {"t": "2026-07-02T05:00", "tom": 72.0, "pep": 44.0}, {"t": "2026-07-02T09:00", "tom": 73.0, "pep": 44.0}, {"t": "2026-07-02T13:00", "tom": 69.0, "pep": 42.0}, {"t": "2026-07-02T17:00", "tom": 71.0, "pep": 44.0}, {"t": "2026-07-02T21:00", "tom": 71.0, "pep": 43.0}, {"t": "2026-07-03T01:00", "tom": 71.0, "pep": 42.0}, {"t": "2026-07-03T05:00", "tom": 70.0, "pep": 44.0}, {"t": "2026-07-03T09:00", "tom": 72.0, "pep": 45.0}, {"t": "2026-07-03T13:00", "tom": 69.0, "pep": 43.0}, {"t": "2026-07-03T17:00", "tom": 65.0, "pep": 44.0}, {"t": "2026-07-03T21:00", "tom": 64.0, "pep": 43.0}, {"t": "2026-07-04T01:00", "tom": 67.0, "pep": 42.0}, {"t": "2026-07-04T05:00", "tom": 72.0, "pep": 43.0}, {"t": "2026-07-04T09:00", "tom": 70.0, "pep": 43.0}, {"t": "2026-07-04T13:00", "tom": 66.0, "pep": 42.0}, {"t": "2026-07-04T17:00", "tom": 63.0, "pep": 43.0}, {"t": "2026-07-04T21:00", "tom": 62.0, "pep": 43.0}, {"t": "2026-07-05T01:00", "tom": 63.0, "pep": 42.0}, {"t": "2026-07-05T05:00", "tom": 69.0, "pep": 44.0}, {"t": "2026-07-05T09:00", "tom": 70.0, "pep": 43.0}, {"t": "2026-07-05T13:00", "tom": 67.0, "pep": 42.0}, {"t": "2026-07-05T17:00", "tom": 64.0, "pep": 43.0}, {"t": "2026-07-05T21:00", "tom": 64.0, "pep": 43.0}, {"t": "2026-07-06T01:00", "tom": 63.0, "pep": 42.0}, {"t": "2026-07-06T05:00", "tom": 63.0, "pep": 44.0}, {"t": "2026-07-06T09:00", "tom": 61.0, "pep": 43.0}, {"t": "2026-07-06T13:00", "tom": 63.0, "pep": 42.0}, {"t": "2026-07-06T17:00", "tom": 61.0, "pep": 43.0}, {"t": "2026-07-06T21:00", "tom": 60.0, "pep": 43.0}, {"t": "2026-07-07T01:00", "tom": 60.0, "pep": 42.0}, {"t": "2026-07-07T05:00", "tom": 68.0, "pep": 44.0}, {"t": "2026-07-07T09:00", "tom": 71.0, "pep": 43.0}, {"t": "2026-07-07T13:00", "tom": 67.0, "pep": 42.0}], "daily": [{"date": "2026-06-09", "tom_mean": 78.7, "tom_min": 76.0, "tom_max": 80.0, "pep_mean": 38.5, "pep_min": 38.0, "pep_max": 39.0}, {"date": "2026-06-10", "tom_mean": 78.7, "tom_min": 76.0, "tom_max": 81.0, "pep_mean": 38.7, "pep_min": 38.0, "pep_max": 39.0}, {"date": "2026-06-11", "tom_mean": 77.7, "tom_min": 75.0, "tom_max": 80.0, "pep_mean": 38.5, "pep_min": 38.0, "pep_max": 39.0}, {"date": "2026-06-12", "tom_mean": 77.8, "tom_min": 75.0, "tom_max": 80.0, "pep_mean": 38.7, "pep_min": 38.0, "pep_max": 39.0}, {"date": "2026-06-13", "tom_mean": 78.8, "tom_min": 77.0, "tom_max": 80.0, "pep_mean": 40.3, "pep_min": 38.0, "pep_max": 43.0}, {"date": "2026-06-14", "tom_mean": 78.5, "tom_min": 76.0, "tom_max": 80.0, "pep_mean": 41.2, "pep_min": 40.0, "pep_max": 43.0}, {"date": "2026-06-15", "tom_mean": 78.5, "tom_min": 76.0, "tom_max": 80.0, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 44.0}, {"date": "2026-06-16", "tom_mean": 78.3, "tom_min": 76.0, "tom_max": 80.0, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 43.0}, {"date": "2026-06-17", "tom_mean": 78.0, "tom_min": 76.0, "tom_max": 79.0, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 43.0}, {"date": "2026-06-18", "tom_mean": 78.0, "tom_min": 76.0, "tom_max": 79.0, "pep_mean": 41.7, "pep_min": 41.0, "pep_max": 42.0}, {"date": "2026-06-19", "tom_mean": 79.7, "tom_min": 78.0, "tom_max": 81.0, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 42.0}, {"date": "2026-06-20", "tom_mean": 78.0, "tom_min": 75.0, "tom_max": 81.0, "pep_mean": 40.8, "pep_min": 40.0, "pep_max": 42.0}, {"date": "2026-06-21", "tom_mean": 74.8, "tom_min": 70.0, "tom_max": 79.0, "pep_mean": 41.7, "pep_min": 40.0, "pep_max": 44.0}, {"date": "2026-06-22", "tom_mean": 71.2, "tom_min": 68.0, "tom_max": 78.0, "pep_mean": 42.2, "pep_min": 41.0, "pep_max": 43.0}, {"date": "2026-06-23", "tom_mean": 71.5, "tom_min": 68.0, "tom_max": 76.0, "pep_mean": 42.5, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-24", "tom_mean": 71.5, "tom_min": 68.0, "tom_max": 76.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-25", "tom_mean": 71.2, "tom_min": 68.0, "tom_max": 75.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-26", "tom_mean": 70.8, "tom_min": 67.0, "tom_max": 75.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-27", "tom_mean": 70.8, "tom_min": 68.0, "tom_max": 75.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-28", "tom_mean": 70.2, "tom_min": 66.0, "tom_max": 75.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-29", "tom_mean": 69.2, "tom_min": 65.0, "tom_max": 74.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-06-30", "tom_mean": 68.7, "tom_min": 65.0, "tom_max": 74.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-01", "tom_mean": 68.2, "tom_min": 64.0, "tom_max": 73.0, "pep_mean": 43.0, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-02", "tom_mean": 70.0, "tom_min": 64.0, "tom_max": 73.0, "pep_mean": 43.2, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-03", "tom_mean": 68.5, "tom_min": 64.0, "tom_max": 72.0, "pep_mean": 43.5, "pep_min": 42.0, "pep_max": 45.0}, {"date": "2026-07-04", "tom_mean": 66.7, "tom_min": 62.0, "tom_max": 72.0, "pep_mean": 42.7, "pep_min": 42.0, "pep_max": 43.0}, {"date": "2026-07-05", "tom_mean": 66.2, "tom_min": 63.0, "tom_max": 70.0, "pep_mean": 42.8, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-06", "tom_mean": 61.8, "tom_min": 60.0, "tom_max": 63.0, "pep_mean": 42.8, "pep_min": 42.0, "pep_max": 44.0}, {"date": "2026-07-07", "tom_mean": 66.5, "tom_min": 60.0, "tom_max": 71.0, "pep_mean": 42.8, "pep_min": 42.0, "pep_max": 44.0}], "weekly": [{"idx": 1, "label": "Jun 9\u201315", "tom_mean": 78.4, "tom_min": 75.0, "tom_max": 81.0, "tom_std": 1.5, "pep_mean": 39.6, "pep_min": 38.0, "pep_max": 44.0, "pep_std": 1.6, "temp_mean": 72.4, "n": 42}, {"idx": 2, "label": "Jun 16\u201322", "tom_mean": 76.9, "tom_min": 68.0, "tom_max": 81.0, "tom_std": 3.5, "pep_mean": 41.5, "pep_min": 40.0, "pep_max": 44.0, "pep_std": 1.0, "temp_mean": 72.2, "n": 42}, {"idx": 3, "label": "Jun 23\u201329", "tom_mean": 70.7, "tom_min": 65.0, "tom_max": 76.0, "tom_std": 3.4, "pep_mean": 42.6, "pep_min": 42.0, "pep_max": 44.0, "pep_std": 0.8, "temp_mean": 72.4, "n": 42}, {"idx": 4, "label": "Jun 30\u20136", "tom_mean": 67.1, "tom_min": 60.0, "tom_max": 74.0, "tom_std": 3.9, "pep_mean": 43.0, "pep_min": 42.0, "pep_max": 45.0, "pep_std": 0.8, "temp_mean": 72.1, "n": 42}, {"idx": 5, "label": "Jul 7\u20137", "tom_mean": 66.5, "tom_min": 60.0, "tom_max": 71.0, "tom_std": 4.0, "pep_mean": 42.8, "pep_min": 42.0, "pep_max": 44.0, "pep_std": 0.8, "temp_mean": 70.0, "n": 4}], "diurnal": [{"h": 1, "tom": 71.3, "pep": 40.8}, {"h": 5, "tom": 75.6, "pep": 42.6}, {"h": 9, "tom": 75.7, "pep": 42.0}, {"h": 13, "tom": 72.4, "pep": 40.9}, {"h": 17, "tom": 72.1, "pep": 42.5}, {"h": 21, "tom": 71.5, "pep": 41.5}], "trend": {"slope": -0.559, "intercept": 80.9, "r2": 0.879, "per_week": -3.9, "start_fit": 80.9, "end_fit": 65.2, "set_reach_date": "2026-07-12", "days_from_start": 33.8, "last_daily": 66.5}, "water": {"meter_online": "2026-06-20", "first_flow": "2026-07-02 21:00", "end": "2026-07-07 13:00", "total_L": 572.0, "active_days": 4.7, "avg_active_L": 122.6, "daily": [{"date": "2026-07-02", "cum": 40.8, "draw": 40.8}, {"date": "2026-07-03", "cum": 40.8, "draw": 0.0}, {"date": "2026-07-04", "cum": 131.0, "draw": 90.2}, {"date": "2026-07-05", "cum": 266.3, "draw": 135.3}, {"date": "2026-07-06", "cum": 286.4, "draw": 20.1}, {"date": "2026-07-07", "cum": 572.0, "draw": 285.6}]}, "distribution": {"tom": {"pct_below": 2.3, "pct_above": 97.7, "hist": [{"bin": "58-60", "lo": 58, "hi": 60, "count": 0}, {"bin": "60-62", "lo": 60, "hi": 62, "count": 4}, {"bin": "62-64", "lo": 62, "hi": 64, "count": 6}, {"bin": "64-66", "lo": 64, "hi": 66, "count": 10}, {"bin": "66-68", "lo": 66, "hi": 68, "count": 12}, {"bin": "68-70", "lo": 68, "hi": 70, "count": 23}, {"bin": "70-72", "lo": 70, "hi": 72, "count": 14}, {"bin": "72-74", "lo": 72, "hi": 74, "count": 11}, {"bin": "74-76", "lo": 74, "hi": 76, "count": 17}, {"bin": "76-78", "lo": 76, "hi": 78, "count": 17}, {"bin": "78-80", "lo": 78, "hi": 80, "count": 39}, {"bin": "80-82", "lo": 80, "hi": 82, "count": 19}, {"bin": "82-84", "lo": 82, "hi": 84, "count": 0}]}, "pep": {"pct_below": 0.0, "pct_above": 100.0, "hist": [{"bin": "36-37", "lo": 36, "hi": 37, "count": 0}, {"bin": "37-38", "lo": 37, "hi": 38, "count": 0}, {"bin": "38-39", "lo": 38, "hi": 39, "count": 11}, {"bin": "39-40", "lo": 39, "hi": 40, "count": 15}, {"bin": "40-41", "lo": 40, "hi": 41, "count": 14}, {"bin": "41-42", "lo": 41, "hi": 42, "count": 15}, {"bin": "42-43", "lo": 42, "hi": 43, "count": 56}, {"bin": "43-44", "lo": 43, "hi": 44, "count": 40}, {"bin": "44-45", "lo": 44, "hi": 45, "count": 20}, {"bin": "45-46", "lo": 45, "hi": 46, "count": 1}]}}, "stats": {"range_start": "2026-06-09 01:00", "range_end": "2026-07-07 13:00", "n": 172, "interval_hr": 4, "tom": {"mean": 73.1, "min": 60.0, "max": 81.0, "std": 5.6, "median": 75.0, "setpoint": 62, "last": 67.0}, "pep": {"mean": 41.7, "min": 38.0, "max": 45.0, "std": 1.7, "median": 42.0, "setpoint": 35, "last": 42.0}}};
+const LAT=37.3541, LON=-121.9552;
+const COL={tom:'#D9533B',pep:'#E0A43C',wx:'#6FA8A0',ink:'#E8E6DA',mut:'#9AA08C',line:'#2E3322',trend:'#B98BD9',leaf:'#6FA53F'};
+
+/* ---------- header ---------- */
+const S=DATA.stats;
+document.getElementById('m-window').textContent='Jun 9 – Jul 7';
+document.getElementById('m-n').textContent=S.n+' @ 4 h';
+
+/* ---------- gauges ---------- */
+function gauge(key,name,loc,lo,hi,idealLo,idealHi,verdict,vclass,note){
+  const s=S[key]; const span=hi-lo;
+  const pos=v=>Math.max(0,Math.min(100,(v-lo)/span*100));
+  const col=COL[key];
+  return `<div class="gauge">
+    <h2>${name}</h2><div class="loc">${loc}</div>
+    <div class="readout"><span class="big" style="color:${col}">${s.last}<span style="font-size:20px;color:var(--mut)">%</span></span>
+      <span class="verdict ${vclass}">${verdict}</span></div>
+    <div class="bandwrap">
+      <div class="bar">
+        <div class="ideal" style="left:${pos(idealLo)}%;width:${pos(idealHi)-pos(idealLo)}%"></div>
+        <div class="set" style="left:${pos(s.setpoint)}%" title="setpoint ${s.setpoint}%"></div>
+        <div class="needle" style="left:${pos(s.last)}%;background:${col}"></div>
+      </div>
+      <div class="scale"><span>${lo}%</span><span>setpoint ${s.setpoint}% &nbsp;|&nbsp; healthy band</span><span>${hi}%</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">4-wk mean</div><div class="v">${s.mean}%</div></div>
+      <div class="stat"><div class="k">median</div><div class="v">${s.median}%</div></div>
+      <div class="stat"><div class="k">range</div><div class="v">${s.min}–${s.max}%</div></div>
+      <div class="stat"><div class="k">std dev</div><div class="v">±${s.std}</div></div>
+    </div>
+    <div class="note">${note}</div>
+  </div>`;
+}
+const tomOver=Math.round(S.tom.last-S.tom.setpoint), pepOver=Math.round(S.pep.mean-S.pep.setpoint);
+document.getElementById('gauges').innerHTML =
+  gauge('tom','Tomatoes','raised bed · in-ground',55,90,60,68,
+    `DRYING DOWN · +${tomOver} over setpoint`,'v-trend',
+    'Steady four-week decline from ~81% toward the 62% setpoint — the timer trims are working. Latest reading 67%, recent low 60%. No longer saturated.') +
+  gauge('pep','Peppers','6× 7-gal fabric bags',25,55,35,48,
+    `IN BAND · +${pepOver} over setpoint`,'v-ok',
+    'Tightened to a very narrow band (std ±'+S.pep.std+') and settled ~42%, comfortably above the 35% setpoint. Dialed in and stable all month.');
+
+/* ---------- main chart ---------- */
+const series=DATA.series;
+const labels=series.map(p=>p.t);
+const tom=series.map(p=>p.tom), pep=series.map(p=>p.pep);
+// tomato regression line across series x, using daily-index slope/intercept
+const T=DATA.trend, d0=new Date(DATA.daily[0].date+'T00:00');
+const trendLine=series.map(p=>{
+  const dayOff=(new Date(p.t)-d0)/86400000;
+  return +(T.intercept + T.slope*dayOff).toFixed(2);
+});
+const setpointPlugin={id:'setpoints',afterDatasetsDraw(c){
+  const{ctx,chartArea:{left,right},scales:{y}}=c;
+  [[62,'rgba(217,83,59,.55)','tomato 62'],[35,'rgba(224,164,60,.55)','pepper 35']].forEach(([v,col,lab])=>{
+    const yy=y.getPixelForValue(v);ctx.save();ctx.strokeStyle=col;ctx.lineWidth=1;ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();
+    ctx.setLineDash([]);ctx.fillStyle=col;ctx.font='10px "IBM Plex Mono",monospace';
+    ctx.textBaseline='bottom';ctx.fillText(lab,left+6,yy-2);ctx.restore();});
+}};
+
+let chart, showTrend=true;
+function buildChart(weather){
+  const ds=[
+    {label:'Tomato %',data:tom,borderColor:COL.tom,backgroundColor:'transparent',borderWidth:1.6,pointRadius:0,yAxisID:'y',tension:.25},
+    {label:'Pepper %',data:pep,borderColor:COL.pep,backgroundColor:'transparent',borderWidth:1.6,pointRadius:0,yAxisID:'y',tension:.25},
+  ];
+  if(showTrend){
+    ds.push({label:'Tomato trend',data:trendLine,borderColor:COL.trend,backgroundColor:'transparent',
+      borderWidth:2,pointRadius:0,yAxisID:'y',borderDash:[6,4],tension:0});
+  }
+  if(weather){
+    ds.push({label:weather.label,data:weather.aligned,borderColor:COL.wx,backgroundColor:'transparent',
+      borderWidth:1.4,pointRadius:0,yAxisID:'y1',tension:.3,borderDash:weather.dash||[]});
+  }
+  const cfg={type:'line',data:{labels,datasets:ds},options:{
+    responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    scales:{
+      x:{ticks:{color:COL.mut,maxRotation:0,autoSkip:true,maxTicksLimit:9,
+            callback:(v)=>{const t=labels[v]||'';return t.slice(5,10).replace('-','/');},
+            font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(46,51,34,.5)'}},
+      y:{min:25,max:90,position:'left',title:{display:true,text:'Soil moisture %',color:COL.mut},
+         ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(46,51,34,.5)'}},
+      y1:{display:!!weather,position:'right',title:{display:!!weather,text:weather?weather.axis:'',color:COL.wx},
+         ticks:{color:COL.wx,font:{family:'IBM Plex Mono',size:10}},grid:{drawOnChartArea:false}}
+    },
+    plugins:{legend:{labels:{color:COL.ink,font:{family:'IBM Plex Sans',size:12},boxWidth:14}}}
+  }};
+  if(chart)chart.destroy();
+  chart=new Chart(document.getElementById('mainChart'),{...cfg,plugins:[setpointPlugin]});
+}
+let curWeather=null;
+buildChart(null);
+
+/* ---------- weekly table ---------- */
+(function(){
+  const W=DATA.weekly;
+  const delta=(cur,prev)=>{if(prev==null)return '<span class="delta-0">—</span>';
+    const d=+(cur-prev).toFixed(1);const cls=d<-0.05?'delta-dn':d>0.05?'delta-up':'delta-0';
+    const sign=d>0?'+':'';return `<span class="${cls}">${sign}${d}</span>`;};
+  let rows='';
+  W.forEach((w,i)=>{
+    const pv=W[i-1];
+    rows+=`<tr>
+      <td>Wk ${w.idx} <span style="color:var(--faint)">${w.label}</span></td>
+      <td class="num">${w.tom_mean}</td>
+      <td class="num">${delta(w.tom_mean,pv?pv.tom_mean:null)}</td>
+      <td class="num">${w.tom_min}–${w.tom_max}</td>
+      <td class="num">±${w.tom_std}</td>
+      <td class="num">${w.pep_mean}</td>
+      <td class="num">${delta(w.pep_mean,pv?pv.pep_mean:null)}</td>
+      <td class="num">${w.pep_min}–${w.pep_max}</td>
+      <td class="num">±${w.pep_std}</td>
+    </tr>`;
+  });
+  document.getElementById('wk-table').innerHTML=
+    `<thead><tr><th>Week</th><th>Tom mean</th><th>&Delta;</th><th>Tom range</th><th>Tom &sigma;</th>
+      <th>Pep mean</th><th>&Delta;</th><th>Pep range</th><th>Pep &sigma;</th></tr></thead><tbody>${rows}</tbody>`;
+  const first=W[0], last=W[W.length-1];
+  document.getElementById('wk-cap').innerHTML=
+    `Tomato mean fell <b style="color:var(--leaf)">${(first.tom_mean-last.tom_mean).toFixed(1)} points</b> across the window (Wk ${first.idx} ${first.tom_mean}% → Wk ${last.idx} ${last.tom_mean}%), while pepper drifted <b style="color:var(--pep)">+${(last.pep_mean-first.pep_mean).toFixed(1)}</b> and tightened. Wk ${W.length} is a partial week (n=${last.n}).`;
+})();
+
+/* ---------- dry-down trend ---------- */
+(function(){
+  const T=DATA.trend;
+  document.getElementById('trend-hint').textContent=`OLS on ${DATA.daily.length} daily means · R² = ${T.r2}`;
+  const cards=[
+    ['Slope',`${T.per_week}<span style="font-size:14px;color:var(--mut)"> %/wk</span>`,'linear rate of decline'],
+    ['Fit quality',`${(T.r2*100).toFixed(0)}<span style="font-size:14px;color:var(--mut)">%</span>`,`R² — variance explained`],
+    ['Reaches 62% setpoint',`${new Date(T.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}`,'projected at current rate'],
+  ];
+  document.getElementById('trend-cards').innerHTML=cards.map(c=>
+    `<div class="cc"><div class="lab">${c[2]}</div><div class="r" style="color:var(--trend)">${c[1]}</div><div class="rd">${c[0]}</div></div>`).join('');
+  document.getElementById('trend-caveat').innerHTML=
+    `The bed is drying at a steady <b>${Math.abs(T.per_week)} %/week</b> (R²=${T.r2}, a tight linear fit) and, if nothing changes, crosses the 62% setpoint around <b>${new Date(T.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'})}</b> — days away. This is a trailing trend, not a guarantee: as the bed approaches the setpoint the dry-down usually flattens, and any timer change resets the slope. Watch the daily min, which has already touched 60%.`;
+})();
+
+/* ---------- distribution ---------- */
+(function(){
+  const D=DATA.distribution;
+  document.getElementById('dist-cards').innerHTML=
+    `<div class="cc"><div class="lab">Tomato — share of readings <b>at or above</b> the 62% setpoint</div>
+       <div class="r" style="color:var(--tom)">${D.tom.pct_above}%</div><div class="rd">${D.tom.pct_below}% below · min 60%</div></div>
+     <div class="cc"><div class="lab">Pepper — share of readings <b>at or above</b> the 35% setpoint</div>
+       <div class="r" style="color:var(--pep)">${D.pep.pct_above}%</div><div class="rd">${D.pep.pct_below}% below · never dry-stressed</div></div>`;
+  function hist(id,h,col,setp){
+    new Chart(document.getElementById(id),{type:'bar',
+      data:{labels:h.map(b=>b.lo),datasets:[{data:h.map(b=>b.count),backgroundColor:col+'cc',borderColor:col,borderWidth:1,barPercentage:1,categoryPercentage:1}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+        title:{display:true,text:(id==='histTom'?'Tomato %':'Pepper %')+' — reading count',color:COL.mut,font:{family:'IBM Plex Sans',size:12}}},
+        scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{display:false}},
+          y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(46,51,34,.5)'}}}},
+      plugins:[{id:'sp'+id,afterDatasetsDraw(c){const{ctx,chartArea:{top,bottom},scales:{x}}=c;
+        const xx=x.getPixelForValue(setp);ctx.save();ctx.strokeStyle='#E8E6DA';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+        ctx.beginPath();ctx.moveTo(xx,top);ctx.lineTo(xx,bottom);ctx.stroke();
+        ctx.setLineDash([]);ctx.fillStyle='#E8E6DA';ctx.font='9px "IBM Plex Mono"';ctx.fillText('setpoint '+setp,xx+3,top+10);ctx.restore();}}]});
+  }
+  hist('histTom',D.tom.hist,COL.tom,62);
+  hist('histPep',D.pep.hist,COL.pep,35);
+})();
+
+/* ---------- water usage ---------- */
+(function(){
+  const W=DATA.water;
+  document.getElementById('water-hint').textContent=`metered flow began ${W.first_flow}`;
+  document.getElementById('water-cards').innerHTML=
+    `<div class="cc"><div class="lab">Total logged since first measured flow (Jul 2)</div><div class="r" style="color:var(--wx)">${W.total_L}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">≈ ${(W.total_L*0.264).toFixed(0)} gal</div></div>
+     <div class="cc"><div class="lab">Average over the ${W.active_days}-day metered window</div><div class="r" style="color:var(--wx)">${W.avg_active_L}<span style="font-size:14px;color:var(--mut)"> L/d</span></div><div class="rd">≈ ${(W.avg_active_L*0.264).toFixed(0)} gal/day</div></div>
+     <div class="cc"><div class="lab">Meter paired but idle</div><div class="r" style="color:var(--faint)">${W.meter_online.slice(5)}→${W.first_flow.slice(5,10)}</div><div class="rd">zero flow logged for ~12 days</div></div>`;
+  new Chart(document.getElementById('waterChart'),{type:'bar',
+    data:{labels:W.daily.map(d=>d.date.slice(5)),datasets:[
+      {type:'bar',label:'Daily draw (L)',data:W.daily.map(d=>d.draw),backgroundColor:COL.wx+'cc',borderColor:COL.wx,borderWidth:1,yAxisID:'y',order:2},
+      {type:'line',label:'Cumulative (L)',data:W.daily.map(d=>d.cum),borderColor:COL.leaf,backgroundColor:'transparent',borderWidth:2,pointRadius:3,pointBackgroundColor:COL.leaf,yAxisID:'y1',order:1,tension:.2}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:COL.ink,font:{family:'IBM Plex Sans',size:11},boxWidth:12}}},
+      scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:10}},grid:{display:false}},
+        y:{position:'left',title:{display:true,text:'Daily L',color:COL.wx},ticks:{color:COL.wx,font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(46,51,34,.5)'}},
+        y1:{position:'right',title:{display:true,text:'Cumulative L',color:COL.leaf},ticks:{color:COL.leaf,font:{family:'IBM Plex Mono',size:10}},grid:{drawOnChartArea:false}}}}});
+  document.getElementById('water-caveat').innerHTML=
+    `The WFC01 meter was paired <b>Jun 20</b> but logged zero flow until <b>${W.first_flow}</b>, so only the last ${W.active_days} days are metered — too short a record to trend. Daily draws are also lumpy (a 285 L jump appears in the Jul 7 morning reading, likely a batched or backfilled count), so treat the total as a rough tally, not a precise per-day irrigation log. It will get more useful with a few more weeks of clean flow data.`;
+})();
+
+/* ---------- irrigation plan + target vs actual ---------- */
+(function(){
+  const PLAN={set:'2026-07-07', freq:'every other day', vol:40, time:'05:15',
+    weekly_target:140, inches:1.24, sys_lh:200, dose_min_lo:11, dose_min_hi:13};
+  document.getElementById('plan-hint').textContent=
+    'logged '+new Date(PLAN.set+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('plan-note').innerHTML=
+    `<div class="caveat" style="border-left-color:var(--leaf);color:#D7D5C8">
+      <b style="color:var(--ink)">Active plan — Plan mode (scheduled on the valve, Smart mode off):</b>
+      deliver <b style="color:var(--leaf)">${PLAN.vol} L</b>, <b>${PLAN.freq}</b>, at <b>${PLAN.time}</b>.
+      Target ≈ <b>${PLAN.weekly_target} L/week</b> (~${PLAN.inches}″ over the 12 × 4 ft bed).
+      At ~${PLAN.sys_lh} L/h system flow (12 bubblers ≈ 4–5 gph) each dose should hold the faucet open
+      <b>~${PLAN.dose_min_lo}–${PLAN.dose_min_hi} min</b> — use that as a leak/clog sanity check.</div>`;
+
+  // weekly actual from metered daily draws (7-day bins from first metered day)
+  const days=DATA.water.daily.filter(d=>d.cum>0);
+  const bins=[];
+  if(days.length){
+    const d0=new Date(days[0].date+'T00:00');
+    days.forEach(d=>{
+      const wi=Math.floor((new Date(d.date+'T00:00')-d0)/(7*86400000));
+      (bins[wi]=bins[wi]||{sum:0,from:d.date,to:d.date}).sum+=d.draw;
+      bins[wi].to=d.date;
+    });
+  }
+  const fmt=s=>new Date(s+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  const B=bins.filter(Boolean).map(b=>({label:fmt(b.from)+'–'+fmt(b.to).replace(/^\w+ /,''),sum:+b.sum.toFixed(1)}));
+  const latest=B[B.length-1];
+  const delta=latest?+(latest.sum-PLAN.weekly_target).toFixed(0):null;
+  const dcls=delta>5?'delta-up':delta<-5?'delta-dn':'delta-0';
+  document.getElementById('tva-cards').innerHTML=
+    `<div class="cc"><div class="lab">Programmed dose</div><div class="r" style="color:var(--leaf)">${PLAN.vol}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">${PLAN.freq} · ${PLAN.time}</div></div>
+     <div class="cc"><div class="lab">Weekly target</div><div class="r" style="color:var(--wx)">${PLAN.weekly_target}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">≈ ${PLAN.inches}″ · 3–4 doses/wk</div></div>
+     <div class="cc"><div class="lab">Latest metered week</div><div class="r" style="color:var(--tom)">${latest?latest.sum:'—'}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">${latest?('<span class="'+dcls+'">'+(delta>0?'+':'')+delta+' L vs target</span> · pre-plan (Smart)'):'awaiting data'}</div></div>`;
+
+  const targetLine={id:'tgt',afterDatasetsDraw(c){const{ctx,chartArea:{left,right},scales:{y}}=c;
+    const yy=y.getPixelForValue(PLAN.weekly_target);ctx.save();ctx.strokeStyle=COL.wx;ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+    ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=COL.wx;ctx.font='10px "IBM Plex Mono"';ctx.textBaseline='bottom';
+    ctx.fillText('target '+PLAN.weekly_target+' L/wk',left+6,yy-2);ctx.restore();}};
+  new Chart(document.getElementById('tvaChart'),{type:'bar',
+    data:{labels:B.map(b=>b.label),datasets:[{label:'Metered L / week',data:B.map(b=>b.sum),
+      backgroundColor:B.map(b=>b.sum>PLAN.weekly_target*1.15?'#D9533Bcc':'#6FA53Fcc'),
+      borderColor:B.map(b=>b.sum>PLAN.weekly_target*1.15?COL.tom:COL.leaf),borderWidth:1,barPercentage:.55}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      title:{display:true,text:'Water delivered per week vs 140 L target',color:COL.mut,font:{family:'IBM Plex Sans',size:12}}},
+      scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:10}},grid:{display:false}},
+        y:{beginAtZero:true,title:{display:true,text:'L / week',color:COL.mut},ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(46,51,34,.5)'}}}},
+    plugins:[targetLine]});
+
+  document.getElementById('tva-caveat').innerHTML=
+    `The only metered week so far ran under the <b>old Smart-mode rule</b> and over-delivered to <b>${latest?latest.sum:'—'} L</b> — roughly <b>${latest?(latest.sum/PLAN.weekly_target).toFixed(1):'—'}×</b> the 140 L target. The new <b>40 L every-other-day</b> plan started <b>${new Date(PLAN.set+'T00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'})}</b>; expect future weeks to land near <b>120–160 L</b> (3–4 doses) and hug the target line. Drop in next week's export and this chart fills in for a clean read.`;
+})();
+
+/* ---------- weather fetch (client-side, Open-Meteo) ---------- */
+let WX=null;
+const pill=document.getElementById('wx-pill');
+function alignWeather(times,vals){
+  const idx={}; times.forEach((t,i)=>idx[t.slice(0,13)]=vals[i]);
+  return labels.map(l=>{const k=l.slice(0,13);return (k in idx)?idx[k]:null;});
+}
+async function loadWeather(){
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}`
+    +`&hourly=temperature_2m,relative_humidity_2m,et0_fao_evapotranspiration,precipitation,shortwave_radiation`
+    +`&temperature_unit=fahrenheit&timezone=America%2FLos_Angeles&start_date=2026-06-09&end_date=2026-07-07`;
+  try{
+    const r=await fetch(url); if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json(); const H=j.hourly;
+    WX={time:H.time,temp:H.temperature_2m,rh:H.relative_humidity_2m,
+        et0:H.et0_fao_evapotranspiration,rad:H.shortwave_radiation,precip:H.precipitation};
+    pill.innerHTML='<span class="dot"></span>live · Open-Meteo';
+    computeCorrelation();
+    writeFindings();
+  }catch(e){
+    pill.classList.remove('live'); pill.style.color='#C98A6B';
+    pill.innerHTML='weather unavailable';
+    document.getElementById('corr-hint').textContent='needs live weather';
+    document.getElementById('corr').innerHTML='<div class="cc" style="grid-column:1/-1"><div class="lab">Couldn&rsquo;t reach Open-Meteo from this browser. Open the file with an internet connection to load weather and correlation. All moisture, trend, distribution and water analysis above is unaffected.</div></div>';
+    writeFindings(true);
+  }
+}
+const OVERLAYS={
+  temp:{label:'Air temp °F',axis:'°F',pick:()=>WX.temp},
+  et0:{label:'ET₀ in/hr (drying demand)',axis:'ET₀',pick:()=>WX.et0,dash:[4,3]},
+  rad:{label:'Solar W/m²',axis:'W/m²',pick:()=>WX.rad,dash:[2,3]},
+};
+function setOverlay(key){
+  ['temp','et0','rad'].forEach(k=>document.getElementById('tg-'+k).setAttribute('aria-pressed',k===key));
+  if(!WX){return;}
+  const o=OVERLAYS[key];
+  curWeather={label:o.label,axis:o.axis,aligned:alignWeather(WX.time,o.pick()),dash:o.dash};
+  buildChart(curWeather);
+}
+document.getElementById('tg-trend').onclick=()=>{
+  showTrend=!showTrend;
+  document.getElementById('tg-trend').setAttribute('aria-pressed',showTrend);
+  buildChart(curWeather);
+};
+document.getElementById('tg-temp').onclick=()=>setOverlay('temp');
+document.getElementById('tg-et0').onclick=()=>setOverlay('et0');
+document.getElementById('tg-rad').onclick=()=>setOverlay('rad');
+
+/* ---------- correlation (client-side) ---------- */
+function pearson(x,y){const n=x.length;const mx=x.reduce((a,b)=>a+b)/n,my=y.reduce((a,b)=>a+b)/n;
+  let num=0,dx=0,dy=0;for(let i=0;i<n;i++){const a=x[i]-mx,b=y[i]-my;num+=a*b;dx+=a*a;dy+=b*b;}
+  return num/Math.sqrt(dx*dy);}
+function dailyWx(){
+  const by={};
+  WX.time.forEach((t,i)=>{const d=t.slice(0,10);(by[d]=by[d]||{temp:[],et0:[],rad:[]});
+    by[d].temp.push(WX.temp[i]);by[d].et0.push(WX.et0[i]);by[d].rad.push(WX.rad[i]);});
+  const days=DATA.daily.map(r=>r.date).filter(d=>by[d]);
+  return {days,
+    tmax:days.map(d=>Math.max(...by[d].temp)),
+    et0sum:days.map(d=>by[d].et0.reduce((a,b)=>a+b,0)),
+    tomMean:days.map(d=>DATA.daily.find(r=>r.date===d).tom_mean),
+    pepMean:days.map(d=>DATA.daily.find(r=>r.date===d).pep_mean),
+    tomDraw:days.map(d=>{const r=DATA.daily.find(x=>x.date===d);return r.tom_max-r.tom_min;}),
+    pepDraw:days.map(d=>{const r=DATA.daily.find(x=>x.date===d);return r.pep_max-r.pep_min;}),
+  };
+}
+function rcard(lab,r){
+  const mag=Math.abs(r), s=mag>=.6?'strong':mag>=.35?'moderate':mag>=.15?'weak':'negligible';
+  const dir=r<0?'inverse':'direct';
+  return `<div class="cc"><div class="lab">${lab}</div><div class="r" style="color:${r<0?COL.wx:COL.pep}">${r>=0?'+':''}${r.toFixed(2)}</div><div class="rd">${s} ${dir}</div></div>`;
+}
+let CORR=null;
+function computeCorrelation(){
+  const w=dailyWx();
+  const rTomDrawEt=pearson(w.et0sum,w.tomDraw);
+  const rPepDrawEt=pearson(w.et0sum,w.pepDraw);
+  const rPepMeanT=pearson(w.tmax,w.pepMean);
+  CORR={rTomDrawEt,rPepDrawEt,rPepMeanT,w};
+  document.getElementById('corr-hint').textContent=`n = ${w.days.length} days`;
+  document.getElementById('corr').innerHTML=
+    rcard('Daily ET₀ (evaporative demand) vs <b>tomato</b> daily dry-down',rTomDrawEt)+
+    rcard('Daily ET₀ vs <b>pepper</b> daily dry-down',rPepDrawEt)+
+    rcard('Daily peak temp vs <b>pepper</b> mean moisture',rPepMeanT);
+  document.getElementById('corr-caveat').innerHTML=
+    `<b>Read with care:</b> at n = ${w.days.length} days this is more robust than the original 7-day look, but irrigation is still the dominant driver — weather only modulates the dry-down <em>between</em> waterings. Positive ET₀-vs-dry-down means hotter/drier-air days pulled more water from the soil, the physically expected direction. The tomato signal is partly confounded by its multi-week downtrend, so lean on the pepper relationships for the cleaner weather read.`;
+}
+
+/* ---------- findings ---------- */
+function writeFindings(noWx){
+  document.getElementById('f-tom').innerHTML=
+    `The big shift: a steady <b>four-week dry-down</b> from a ~81% mean to <b>${DATA.weekly[DATA.weekly.length-1].tom_mean}%</b>, ${Math.abs(DATA.trend.per_week)} pts/week (R²=${DATA.trend.r2}). Now <b>67%</b>, with a recent low of 60% — finally near the 62% setpoint after weeks of saturation. The timer trims clearly landed.`;
+  document.getElementById('f-pep').innerHTML=
+    `<b>${S.pep.mean}% mean</b>, the tightest band of the month (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%). Sat ${DATA.distribution.pep.pct_above}% of readings above the 35% setpoint and never dry-stressed. Stable and dialed in — no action needed.`;
+  document.getElementById('f-wx').innerHTML= noWx
+    ? `Live weather didn&rsquo;t load. Reopen online to populate the ET₀/temp overlay and the ${DATA.daily.length}-day correlation for 95050.`
+    : `Over ${DATA.daily.length} days, ET₀ and peak temperature track the pepper dry-down in the expected direction. Toggle <b>ET₀</b> on the chart to see drying demand against the dips; the tomato line is dominated by its own downtrend, so weather reads cleaner on peppers.`;
+  document.getElementById('f-act').innerHTML=
+    `<b>Tomatoes:</b> the bed is projected to hit 62% around <b>${new Date(DATA.trend.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</b> — hold the current timer and let it settle rather than cutting further; watch the daily min so it doesn&rsquo;t undershoot. <b>Peppers:</b> no change. <b>Water:</b> let the WFC01 log a few clean weeks before reading the L/day numbers.`;
+}
+
+loadWeather();
+</script>
+</body>
+</html>
