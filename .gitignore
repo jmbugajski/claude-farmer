@@ -5,8 +5,11 @@ inputs/*
 !inputs/.gitkeep
 
 # Generated dashboards (produced by lib/build_dashboard.py).
-# These are intentionally tracked: the dated files in outputs/ are the archive,
-# and docs/index.html is the stable copy served publicly via GitHub Pages.
+# The dated files in outputs/ are local build artifacts and stay untracked —
+# git history of the committed docs/index.html already preserves every past
+# version. docs/index.html is the stable copy served publicly via GitHub Pages.
+outputs/*
+!outputs/.gitkeep
 
 # macOS cruft
 .DS_Store
