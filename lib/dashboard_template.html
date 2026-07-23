@@ -382,17 +382,27 @@ buildChart(null);
   const PLAN=CFG.plan;
   document.getElementById('plan-hint').textContent=
     'fixed timer · set '+new Date(PLAN.set+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  const effD=PLAN.run_min_effective?new Date(PLAN.run_min_effective+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):null;
   document.getElementById('plan-note').innerHTML=
     `<div class="caveat" style="border-left-color:var(--leaf);color:#D7D5C8">
       <b style="color:var(--ink)">Actual watering — fixed timer, not a volume-based plan:</b>
-      the scheduled-volume / "Smart" idea was never implemented. The <b>tomato raised bed</b> gets
-      <b style="color:var(--leaf)">${PLAN.run_min} min</b>, <b>${PLAN.freq}</b>, at <b>${PLAN.time} PT</b> on a set timer,
-      through <b>${PLAN.emitters}</b>. The WFC01 meters this line and measures
-      <b>~${PLAN.metered_daily} L/day (~${PLAN.metered_weekly} L/wk)</b> on clean days —
-      well above emitter nameplate (~530–580 L/wk), so real flow runs high; the <b>meter is the source of truth</b>, not the hardware spec.
+      the scheduled-volume / "Smart" idea was never implemented. The <b>tomato raised bed</b> now runs
+      <b style="color:var(--leaf)">${PLAN.run_min} min</b>, <b>${PLAN.freq}</b>, at <b>${PLAN.time} PT</b>${effD?' (<b>as of '+effD+'</b>, trimmed from 14 min)':''},
+      through <b>${PLAN.emitters}</b>. The metered figures below were measured under the <b>prior 14-min run (Jul 16–22)</b>:
+      <b>~${PLAN.metered_daily} L/day (~${PLAN.metered_weekly} L/wk)</b> on clean days — well above emitter nameplate (~530–580 L/wk),
+      so real flow runs high and the <b>meter is the source of truth</b>. At 10 min, expect ~10/14 of that (~120 L/day, ~820 L/wk) once new exports land.
       <br><br><b style="color:var(--ink)">Peppers are not on this line or in this data:</b>
       the 6× fabric bags run on a <b>separate</b> timer (${PLAN.pepper_run_min} min, ${PLAN.pepper_freq}),
       <b>unmetered and unlogged</b> — so nothing below reflects pepper watering.</div>`;
+
+  // schedule change-log
+  if(PLAN.schedule_log&&PLAN.schedule_log.length){
+    const rows=PLAN.schedule_log.slice().reverse().map(e=>
+      `<div style="display:flex;gap:10px;padding:3px 0"><span style="color:var(--wx);font-family:'IBM Plex Mono';white-space:nowrap">${new Date(e.date+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span><span>${e.change}</span></div>`).join('');
+    document.getElementById('plan-note').innerHTML+=
+      `<div class="caveat" style="border-left-color:var(--wx);color:#D7D5C8;margin-top:10px">
+        <b style="color:var(--ink)">Schedule change-log</b>${rows}</div>`;
+  }
 
   // weekly actual from metered daily draws (7-day bins from first metered day)
   const days=(DATA.water?DATA.water.daily:[]).filter(d=>d.cum>0);
@@ -409,8 +419,8 @@ buildChart(null);
   const B=bins.filter(Boolean).map(b=>({label:fmt(b.from)+'–'+fmt(b.to).replace(/^\w+ /,''),sum:+b.sum.toFixed(1)}));
   const latest=B[B.length-1];
   document.getElementById('tva-cards').innerHTML=
-    `<div class="cc"><div class="lab">Timer run (tomato bed)</div><div class="r" style="color:var(--leaf)">${PLAN.run_min}<span style="font-size:14px;color:var(--mut)"> min</span></div><div class="rd">${PLAN.freq} · ${PLAN.time} PT</div></div>
-     <div class="cc"><div class="lab">Metered rate (clean days)</div><div class="r" style="color:var(--wx)">~${PLAN.metered_daily}<span style="font-size:14px;color:var(--mut)"> L/day</span></div><div class="rd">~${PLAN.metered_weekly} L/wk · WFC01 measured</div></div>
+    `<div class="cc"><div class="lab">Timer run (tomato bed)</div><div class="r" style="color:var(--leaf)">${PLAN.run_min}<span style="font-size:14px;color:var(--mut)"> min</span></div><div class="rd">${PLAN.freq} · ${PLAN.time} PT${effD?' · from '+effD:''}</div></div>
+     <div class="cc"><div class="lab">Metered rate · prior 14-min run</div><div class="r" style="color:var(--wx)">~${PLAN.metered_daily}<span style="font-size:14px;color:var(--mut)"> L/day</span></div><div class="rd">~${PLAN.metered_weekly} L/wk · Jul 16–22 · WFC01</div></div>
      <div class="cc"><div class="lab">Latest metered week</div><div class="r" style="color:var(--tom)">${latest?latest.sum:'—'}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">${latest?latest.label:'awaiting data'}</div></div>`;
 
   const targetLine={id:'tgt',afterDatasetsDraw(c){const{ctx,chartArea:{left,right},scales:{y}}=c;
@@ -429,7 +439,7 @@ buildChart(null);
     plugins:[targetLine]});
 
   document.getElementById('tva-caveat').innerHTML=
-    `There is <b>no volume target</b> — the bed runs on a fixed timer, and the dashed line is just the <b>typical metered timer-week (~${PLAN.metered_weekly} L)</b> as a leak/clog benchmark. The first full week on the ${PLAN.run_min}-min daily timer (from <b>${new Date(PLAN.set+'T00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'})}</b>) metered <b>${latest?latest.sum:'—'} L</b>, ~${PLAN.metered_daily} L/day on clean days — roughly <b>2× the emitter nameplate</b>, so the ${PLAN.emitters} actually flow well above spec at line pressure. The WFC01 is cumulative and batches: a 0 L day followed by a double (e.g. Jul 18 → 19) is the meter catching up, not a skipped watering. Earlier weeks (pre-Jul 16) ran under irregular hand-timing. Peppers water on a separate, unmetered line and never appear here.`;
+    `There is <b>no volume target</b> — the bed runs on a fixed timer, and the dashed line is just the <b>typical metered timer-week (~${PLAN.metered_weekly} L)</b> as a leak/clog benchmark. The first full week on the <b>14-min</b> daily timer (Jul 16–22) metered <b>${latest?latest.sum:'—'} L</b>, ~${PLAN.metered_daily} L/day on clean days — roughly <b>2× the emitter nameplate</b>, so the ${PLAN.emitters} flow well above spec at line pressure. <b>The timer was trimmed to 10 min on ${PLAN.run_min_effective?new Date(PLAN.run_min_effective+'T00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'}):'Jul 24'}</b>, so expect the next metered week to fall to ~<b>820 L</b> (~120 L/day) and the bars to step down below the dashed line — that drop is the schedule change, not a leak. The WFC01 is cumulative and batches: a 0 L day followed by a double (e.g. Jul 18 → 19) is the meter catching up, not a skipped watering. Earlier weeks (pre-Jul 16) ran under irregular hand-timing. Peppers water on a separate, unmetered line and never appear here.`;
 })();
 
 /* ---------- weather fetch (client-side, Open-Meteo) ---------- */

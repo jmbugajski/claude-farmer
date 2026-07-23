@@ -42,10 +42,16 @@
     "scope": "tomato raised bed only",
     "freq": "once daily",
     "time": "05:05",
-    "run_min": 14,
+    "run_min": 10,
+    "run_min_effective": "2026-07-24",
     "emitters": "12 bubblers + 8–10 drip-flag emitters (4 gph)",
     "metered_daily": 170,
     "metered_weekly": 1150,
+    "metered_regime_note": "170 L/day & 1150 L/wk were measured under the prior 14-min run (Jul 16–22). At 10 min expect ~10/14 of that: ~120 L/day, ~820 L/wk once new exports land.",
+    "schedule_log": [
+      {"date": "2026-07-16", "change": "Tomato timer set: 14 min once daily @ 05:05 PT (fixed-timer, replacing earlier irregular hand-timing)."},
+      {"date": "2026-07-24", "change": "Tomato timer trimmed 14 → 10 min to cut leaching / deep percolation; watch the overnight probe min holds near 58–60% at 3 in."}
+    ],
     "pepper_freq": "every 12 h",
     "pepper_run_min": 15
   }
