@@ -20,12 +20,19 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 from datetime import datetime
 from typing import Optional
 
 import openpyxl
 
 DATA_SHEET = "result_list"
+
+
+def _norm(x) -> str:
+    """Lowercase and strip non-alphanumerics, so 'WFC01-00003D29' and
+    '[WFC01] Water Flow' both normalize to a string containing 'wfc01'."""
+    return re.sub(r"[^a-z0-9]", "", str(x).lower())
 
 
 def _num(v) -> Optional[float]:
@@ -71,11 +78,15 @@ def _find_column(group_row, sub_row, group_name, sub_name) -> Optional[int]:
             last = str(g).strip()
         filled_group.append(last)
 
+    gn = _norm(group_name)
     for i, (g, s) in enumerate(zip(filled_group, sub_row)):
         if g is None or s is None:
             continue
         g, s = str(g).strip(), str(s).strip()
-        if s == sub_name and (g == group_name or g.startswith(group_name)):
+        # Group match tolerates EcoWitt header renames (e.g. 'WFC01-00003D29'
+        # -> '[WFC01] Water Flow'): exact, prefix, or normalized-substring.
+        group_ok = g == group_name or g.startswith(group_name) or gn in _norm(g)
+        if s == sub_name and group_ok:
             return i
     return None
 

@@ -36,14 +36,17 @@
   },
 
   "plan": {
-    "set": "2026-07-07",
-    "freq": "every other day",
-    "vol": 40,
-    "time": "05:15",
-    "weekly_target": 140,
-    "inches": 1.24,
-    "sys_lh": 200,
-    "dose_min_lo": 11,
-    "dose_min_hi": 13
+    "_comment": "Actual watering is a fixed timer, not a volume-based/Smart plan (that was never implemented). The WFC01 meters the tomato raised bed line ONLY; peppers run on a separate, unmetered timer. Delivery figures below are the MEASURED metered rate on clean days, not a nameplate estimate — real flow runs well above emitter nameplate.",
+    "set": "2026-07-16",
+    "mode": "timer",
+    "scope": "tomato raised bed only",
+    "freq": "once daily",
+    "time": "05:05",
+    "run_min": 14,
+    "emitters": "12 bubblers + 8–10 drip-flag emitters (4 gph)",
+    "metered_daily": 170,
+    "metered_weekly": 1150,
+    "pepper_freq": "every 12 h",
+    "pepper_run_min": 15
   }
 }

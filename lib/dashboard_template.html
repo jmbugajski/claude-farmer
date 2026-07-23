@@ -161,7 +161,7 @@ footer a{color:var(--mut)}
 </section>
 
 <section class="panel">
-  <div class="phead"><h3>Irrigation plan &amp; target vs actual</h3><div class="hint" id="plan-hint"></div></div>
+  <div class="phead"><h3>Irrigation schedule &amp; metered water</h3><div class="hint" id="plan-hint"></div></div>
   <div id="plan-note"></div>
   <div class="grid3" id="tva-cards" style="margin-top:14px"></div>
   <div class="chartbox sm"><canvas id="tvaChart"></canvas></div>
@@ -381,14 +381,18 @@ buildChart(null);
 (function(){
   const PLAN=CFG.plan;
   document.getElementById('plan-hint').textContent=
-    'logged '+new Date(PLAN.set+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    'fixed timer · set '+new Date(PLAN.set+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
   document.getElementById('plan-note').innerHTML=
     `<div class="caveat" style="border-left-color:var(--leaf);color:#D7D5C8">
-      <b style="color:var(--ink)">Active plan — Plan mode (scheduled on the valve, Smart mode off):</b>
-      deliver <b style="color:var(--leaf)">${PLAN.vol} L</b>, <b>${PLAN.freq}</b>, at <b>${PLAN.time}</b>.
-      Target ≈ <b>${PLAN.weekly_target} L/week</b> (~${PLAN.inches}″ over the 12 × 4 ft bed).
-      At ~${PLAN.sys_lh} L/h system flow (12 bubblers ≈ 4–5 gph) each dose should hold the faucet open
-      <b>~${PLAN.dose_min_lo}–${PLAN.dose_min_hi} min</b> — use that as a leak/clog sanity check.</div>`;
+      <b style="color:var(--ink)">Actual watering — fixed timer, not a volume-based plan:</b>
+      the scheduled-volume / "Smart" idea was never implemented. The <b>tomato raised bed</b> gets
+      <b style="color:var(--leaf)">${PLAN.run_min} min</b>, <b>${PLAN.freq}</b>, at <b>${PLAN.time} PT</b> on a set timer,
+      through <b>${PLAN.emitters}</b>. The WFC01 meters this line and measures
+      <b>~${PLAN.metered_daily} L/day (~${PLAN.metered_weekly} L/wk)</b> on clean days —
+      well above emitter nameplate (~530–580 L/wk), so real flow runs high; the <b>meter is the source of truth</b>, not the hardware spec.
+      <br><br><b style="color:var(--ink)">Peppers are not on this line or in this data:</b>
+      the 6× fabric bags run on a <b>separate</b> timer (${PLAN.pepper_run_min} min, ${PLAN.pepper_freq}),
+      <b>unmetered and unlogged</b> — so nothing below reflects pepper watering.</div>`;
 
   // weekly actual from metered daily draws (7-day bins from first metered day)
   const days=(DATA.water?DATA.water.daily:[]).filter(d=>d.cum>0);
@@ -404,30 +408,28 @@ buildChart(null);
   const fmt=s=>new Date(s+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
   const B=bins.filter(Boolean).map(b=>({label:fmt(b.from)+'–'+fmt(b.to).replace(/^\w+ /,''),sum:+b.sum.toFixed(1)}));
   const latest=B[B.length-1];
-  const delta=latest?+(latest.sum-PLAN.weekly_target).toFixed(0):null;
-  const dcls=delta>5?'delta-up':delta<-5?'delta-dn':'delta-0';
   document.getElementById('tva-cards').innerHTML=
-    `<div class="cc"><div class="lab">Programmed dose</div><div class="r" style="color:var(--leaf)">${PLAN.vol}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">${PLAN.freq} · ${PLAN.time}</div></div>
-     <div class="cc"><div class="lab">Weekly target</div><div class="r" style="color:var(--wx)">${PLAN.weekly_target}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">≈ ${PLAN.inches}″ · 3–4 doses/wk</div></div>
-     <div class="cc"><div class="lab">Latest metered week</div><div class="r" style="color:var(--tom)">${latest?latest.sum:'—'}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">${latest?('<span class="'+dcls+'">'+(delta>0?'+':'')+delta+' L vs target</span> · pre-plan (Smart)'):'awaiting data'}</div></div>`;
+    `<div class="cc"><div class="lab">Timer run (tomato bed)</div><div class="r" style="color:var(--leaf)">${PLAN.run_min}<span style="font-size:14px;color:var(--mut)"> min</span></div><div class="rd">${PLAN.freq} · ${PLAN.time} PT</div></div>
+     <div class="cc"><div class="lab">Metered rate (clean days)</div><div class="r" style="color:var(--wx)">~${PLAN.metered_daily}<span style="font-size:14px;color:var(--mut)"> L/day</span></div><div class="rd">~${PLAN.metered_weekly} L/wk · WFC01 measured</div></div>
+     <div class="cc"><div class="lab">Latest metered week</div><div class="r" style="color:var(--tom)">${latest?latest.sum:'—'}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">${latest?latest.label:'awaiting data'}</div></div>`;
 
   const targetLine={id:'tgt',afterDatasetsDraw(c){const{ctx,chartArea:{left,right},scales:{y}}=c;
-    const yy=y.getPixelForValue(PLAN.weekly_target);ctx.save();ctx.strokeStyle=COL.wx;ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
+    const yy=y.getPixelForValue(PLAN.metered_weekly);ctx.save();ctx.strokeStyle=COL.wx;ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
     ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle=COL.wx;ctx.font='10px "IBM Plex Mono"';ctx.textBaseline='bottom';
-    ctx.fillText('target '+PLAN.weekly_target+' L/wk',left+6,yy-2);ctx.restore();}};
+    ctx.fillText('typical timer wk ~'+PLAN.metered_weekly+' L',left+6,yy-2);ctx.restore();}};
   new Chart(document.getElementById('tvaChart'),{type:'bar',
     data:{labels:B.map(b=>b.label),datasets:[{label:'Metered L / week',data:B.map(b=>b.sum),
-      backgroundColor:B.map(b=>b.sum>PLAN.weekly_target*1.15?'#D9533Bcc':'#6FA53Fcc'),
-      borderColor:B.map(b=>b.sum>PLAN.weekly_target*1.15?COL.tom:COL.leaf),borderWidth:1,barPercentage:.55}]},
+      backgroundColor:B.map(b=>b.sum>PLAN.metered_weekly*1.25?'#D9533Bcc':'#6FA53Fcc'),
+      borderColor:B.map(b=>b.sum>PLAN.metered_weekly*1.25?COL.tom:COL.leaf),borderWidth:1,barPercentage:.55}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      title:{display:true,text:'Water delivered per week vs 140 L target',color:COL.mut,font:{family:'IBM Plex Sans',size:12}}},
+      title:{display:true,text:'Metered water per week (dashed = typical timer-week delivery)',color:COL.mut,font:{family:'IBM Plex Sans',size:12}}},
       scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:10}},grid:{display:false}},
         y:{beginAtZero:true,title:{display:true,text:'L / week',color:COL.mut},ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(46,51,34,.5)'}}}},
     plugins:[targetLine]});
 
   document.getElementById('tva-caveat').innerHTML=
-    `The only metered week so far ran under the <b>old Smart-mode rule</b> and over-delivered to <b>${latest?latest.sum:'—'} L</b> — roughly <b>${latest?(latest.sum/PLAN.weekly_target).toFixed(1):'—'}×</b> the 140 L target. The new <b>40 L every-other-day</b> plan started <b>${new Date(PLAN.set+'T00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'})}</b>; expect future weeks to land near <b>120–160 L</b> (3–4 doses) and hug the target line. Drop in next week's export and this chart fills in for a clean read.`;
+    `There is <b>no volume target</b> — the bed runs on a fixed timer, and the dashed line is just the <b>typical metered timer-week (~${PLAN.metered_weekly} L)</b> as a leak/clog benchmark. The first full week on the ${PLAN.run_min}-min daily timer (from <b>${new Date(PLAN.set+'T00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'})}</b>) metered <b>${latest?latest.sum:'—'} L</b>, ~${PLAN.metered_daily} L/day on clean days — roughly <b>2× the emitter nameplate</b>, so the ${PLAN.emitters} actually flow well above spec at line pressure. The WFC01 is cumulative and batches: a 0 L day followed by a double (e.g. Jul 18 → 19) is the meter catching up, not a skipped watering. Earlier weeks (pre-Jul 16) ran under irregular hand-timing. Peppers water on a separate, unmetered line and never appear here.`;
 })();
 
 /* ---------- weather fetch (client-side, Open-Meteo) ---------- */

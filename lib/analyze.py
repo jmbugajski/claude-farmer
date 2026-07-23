@@ -308,11 +308,12 @@ def _advice(data, config):
     if not w or not w["first_flow"]:
         water = "no metered flow yet — confirm the WFC01 meter is paired and reporting."
     elif w["active_days"] < 14:
-        water = ("let the WFC01 log a few more clean weeks before leaning on the L/day numbers, "
-                 "but the every-other-day draw pattern is already visible.")
+        water = ("let the WFC01 log a few more clean weeks before leaning on the L/day numbers; "
+                 "the tomato bed runs on a fixed 14-min daily timer (no volume target), "
+                 "and peppers are watered separately and not metered.")
     else:
-        water = (f"metered ~{w['avg_active_L']} L per watering day; "
-                 f"compare against the {config['plan']['weekly_target']} L/wk target.")
+        water = (f"metered ~{w['avg_active_L']} L per watering day on the tomato bed's "
+                 f"fixed 14-min daily timer — read as delivered volume, not against a target.")
 
     return {"tom": tom, "pep": pep, "water": water}
 
