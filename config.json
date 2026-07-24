@@ -50,9 +50,12 @@
     "metered_regime_note": "170 L/day & 1150 L/wk were measured under the prior 14-min run (Jul 16–22). At 10 min expect ~10/14 of that: ~120 L/day, ~820 L/wk once new exports land.",
     "schedule_log": [
       {"date": "2026-07-16", "change": "Tomato timer set: 14 min once daily @ 05:05 PT (fixed-timer, replacing earlier irregular hand-timing)."},
-      {"date": "2026-07-24", "change": "Tomato timer trimmed 14 → 10 min to cut leaching / deep percolation; watch the overnight probe min holds near 58–60% at 3 in."}
+      {"date": "2026-07-24", "change": "Tomato timer trimmed 14 → 10 min to cut leaching / deep percolation; watch the overnight probe min holds near 58–60% at 3 in."},
+      {"date": "2026-07-24", "change": "Pepper bags moved from every-12 h to once daily, 15 min @ 06:45 PT; watch the 2-in probe for a deeper daily dry-down (bag bottoms may still stay wet)."}
     ],
-    "pepper_freq": "every 12 h",
-    "pepper_run_min": 15
+    "pepper_freq": "once daily",
+    "pepper_time": "06:45",
+    "pepper_run_min": 15,
+    "pepper_effective": "2026-07-24"
   }
 }

@@ -392,7 +392,7 @@ buildChart(null);
       <b>~${PLAN.metered_daily} L/day (~${PLAN.metered_weekly} L/wk)</b> on clean days — well above emitter nameplate (~530–580 L/wk),
       so real flow runs high and the <b>meter is the source of truth</b>. At 10 min, expect ~10/14 of that (~120 L/day, ~820 L/wk) once new exports land.
       <br><br><b style="color:var(--ink)">Peppers are not on this line or in this data:</b>
-      the 6× fabric bags run on a <b>separate</b> timer (${PLAN.pepper_run_min} min, ${PLAN.pepper_freq}),
+      the 6× fabric bags run on a <b>separate</b> timer — now <b>${PLAN.pepper_run_min} min, ${PLAN.pepper_freq}${PLAN.pepper_time?' @ '+PLAN.pepper_time+' PT':''}</b>${PLAN.pepper_effective?' (<b>as of '+new Date(PLAN.pepper_effective+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</b>, was every 12 h)':''},
       <b>unmetered and unlogged</b> — so nothing below reflects pepper watering.</div>`;
 
   // schedule change-log
