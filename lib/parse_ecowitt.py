@@ -91,6 +91,21 @@ def _find_column(group_row, sub_row, group_name, sub_name) -> Optional[int]:
     return None
 
 
+def _find_voltage(group_row, sub_row, ch: str) -> Optional[int]:
+    """
+    Locate a per-channel sensor voltage column. EcoWitt has renamed these
+    across firmware versions, e.g. 'Soil Moisture Sensor CH1(V)' ->
+    '[CH1] Tomato Soil Sensor(V)', so match on the channel tag + '(V)'.
+    """
+    for i, s in enumerate(sub_row):
+        if s is None:
+            continue
+        s = str(s).strip()
+        if ch.lower() in s.lower() and "(v)" in s.lower():
+            return i
+    return None
+
+
 def load_readings(inputs_dir: str, config: dict) -> list[dict]:
     """
     Load every .xlsx in inputs_dir and return a de-duplicated, time-sorted list
@@ -121,16 +136,30 @@ def load_readings(inputs_dir: str, config: dict) -> list[dict]:
         i_tom = _find_column(group_row, sub_row, tom_group, sm_sub)
         i_pep = _find_column(group_row, sub_row, pep_group, sm_sub)
         i_water = _find_column(group_row, sub_row, water_prefix, water_sub)
+        # Diagnostic channels: raw AD count per probe + per-channel sensor
+        # voltage. Used for sensor-health checks (a battery swap or chemistry
+        # change shifts the derived %, and a failing/uncoupled probe shows a
+        # collapsing daily AD range) — see analyze._sensor_health.
+        i_tom_ad = _find_column(group_row, sub_row, tom_group, "AD")
+        i_pep_ad = _find_column(group_row, sub_row, pep_group, "AD")
+        i_v1 = _find_voltage(group_row, sub_row, "CH1")
+        i_v2 = _find_voltage(group_row, sub_row, "CH2")
 
         for r in rows[2:]:
             dt = _parse_time(r[0])
             if dt is None:
                 continue
+            def cell(i):
+                return _num(r[i]) if i is not None else None
             by_dt[dt] = {
                 "dt": dt,
-                "tom": _num(r[i_tom]) if i_tom is not None else None,
-                "pep": _num(r[i_pep]) if i_pep is not None else None,
-                "water": _num(r[i_water]) if i_water is not None else None,
+                "tom": cell(i_tom),
+                "pep": cell(i_pep),
+                "water": cell(i_water),
+                "tom_ad": cell(i_tom_ad),
+                "pep_ad": cell(i_pep_ad),
+                "v_tom": cell(i_v1),
+                "v_pep": cell(i_v2),
             }
 
     return [by_dt[k] for k in sorted(by_dt)]

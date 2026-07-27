@@ -354,6 +354,92 @@ def _gauge_for(pkey, pcfg, stats, trend=None):
     return g
 
 
+def _sensor_health(readings, config):
+    """
+    Per-channel instrument trust check. Two failure modes matter for remote
+    diagnosis, and neither shows up in the moisture % series itself:
+
+      1. Supply-voltage change. These capacitance probes derive moisture from a
+         raw AD count that scales with excitation voltage, and the factory
+         calibration assumes ~1.5 V alkaline. Swapping to lithium (~1.7 V)
+         shifts the derived % with no physical change in the soil.
+      2. Collapsing daily AD range. A healthy probe resolves a clear diurnal
+         wet/dry cycle. If the daily range falls to a small fraction of its
+         trailing norm, the probe is degrading or has lost contact with the
+         medium (air gap) — the reading may still look plausible but is no
+         longer responsive.
+    """
+    hc = config.get("health", {})
+    v_tol = hc.get("volt_tolerance", 0.08)
+    range_frac = hc.get("range_collapse_frac", 0.35)
+    nominal = hc.get("nominal_volts", 1.5)
+
+    by_day = {}
+    for r in readings:
+        d = r["dt"].date()
+        by_day.setdefault(d, []).append(r)
+
+    out = {}
+    for key, label, vkey, adkey in (("tom", "Tomato", "v_tom", "tom_ad"),
+                                    ("pep", "Pepper", "v_pep", "pep_ad")):
+        days = []
+        for d in sorted(by_day):
+            vs = [x[vkey] for x in by_day[d] if x.get(vkey) is not None]
+            ads = [x[adkey] for x in by_day[d] if x.get(adkey) is not None]
+            if not vs and not ads:
+                continue
+            days.append({
+                "date": d.isoformat(),
+                "v": round(statistics.mean(vs), 3) if vs else None,
+                "ad_range": round(max(ads) - min(ads), 1) if len(ads) > 1 else None,
+            })
+        if not days:
+            continue
+
+        flags = []
+        # --- voltage: off nominal, and step changes vs the prior day
+        last_v = days[-1]["v"]
+        if last_v is not None and abs(last_v - nominal) > v_tol:
+            flags.append({
+                "level": "warn",
+                "msg": (f"sensor voltage {last_v:.2f} V is off the {nominal:.1f} V "
+                        f"nominal — derived % is on a shifted calibration, so "
+                        f"absolute values aren't comparable to earlier history."),
+            })
+        for a, b in zip(days, days[1:]):
+            if a["v"] is not None and b["v"] is not None and abs(b["v"] - a["v"]) > v_tol:
+                flags.append({
+                    "level": "warn",
+                    "msg": (f"voltage stepped {a['v']:.2f} → {b['v']:.2f} V on "
+                            f"{b['date']} (battery change?) — treat that date as a "
+                            f"calibration break, not a moisture event."),
+                })
+
+        # --- AD dynamic range: compare latest vs trailing median of prior days
+        rngs = [d["ad_range"] for d in days if d["ad_range"] is not None]
+        if len(rngs) >= 8:
+            base = statistics.median(rngs[:-3][-14:]) if len(rngs) > 6 else None
+            recent = statistics.median(rngs[-3:])
+            if base and base > 0 and recent < base * range_frac:
+                flags.append({
+                    "level": "bad",
+                    "msg": (f"daily AD range collapsed to ~{recent:.0f} counts vs a "
+                            f"~{base:.0f}-count norm — probe is barely resolving the "
+                            f"diurnal cycle. Suspect a failing sensor or lost soil "
+                            f"contact; verify with an air-vs-water span test."),
+                })
+
+        out[key] = {
+            "label": label,
+            "days": days[-14:],
+            "v_last": last_v,
+            "ad_range_last": days[-1]["ad_range"],
+            "flags": flags,
+            "ok": not flags,
+        }
+    return out
+
+
 # ----------------------------------------------------------------------------- top-level
 def build(readings, config):
     interval = config["sample_interval_minutes"]
@@ -385,6 +471,7 @@ def build(readings, config):
             "tom": _distribution(series, "tom", tom_cfg["setpoint"], tom_cfg["hist_bin"]),
             "pep": _distribution(series, "pep", pep_cfg["setpoint"], pep_cfg["hist_bin"]),
         },
+        "health": _sensor_health(readings, config),
         "stats": {
             "range_start": t0.strftime("%Y-%m-%d %H:%M"),
             "range_end": t1.strftime("%Y-%m-%d %H:%M"),

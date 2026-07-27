@@ -161,6 +161,12 @@ footer a{color:var(--mut)}
 </section>
 
 <section class="panel">
+  <div class="phead"><h3>Sensor health</h3><div class="hint" id="health-hint">instrument trust &middot; check before reading anything below</div></div>
+  <div class="grid3" id="health-cards"></div>
+  <div id="health-flags"></div>
+</section>
+
+<section class="panel">
   <div class="phead"><h3>Irrigation schedule &amp; metered water</h3><div class="hint" id="plan-hint"></div></div>
   <div id="plan-note"></div>
   <div class="grid3" id="tva-cards" style="margin-top:14px"></div>
@@ -375,6 +381,26 @@ buildChart(null);
         y1:{position:'right',title:{display:true,text:'Cumulative L',color:COL.leaf},ticks:{color:COL.leaf,font:{family:'IBM Plex Mono',size:10}},grid:{drawOnChartArea:false}}}}});
   document.getElementById('water-caveat').innerHTML=
     `The WFC01 meter came online <b>${W.meter_online}</b> and first logged flow at <b>${W.first_flow||'—'}</b>; ${W.active_days} metered day(s) show draw in this window. Daily draws from a cumulative meter can be lumpy — batched or back-filled counts show up as single-reading jumps — so treat the totals as a rough tally rather than a precise per-day irrigation log. The record sharpens with a few more weeks of clean flow data.`;
+})();
+
+/* ---------- sensor health ---------- */
+(function(){
+  const H=DATA.health||{};
+  const keys=Object.keys(H);
+  if(!keys.length){document.getElementById('health-cards').innerHTML='<div class="cc"><div class="lab">no diagnostic channels found</div></div>';return;}
+  document.getElementById('health-cards').innerHTML=keys.map(k=>{
+    const s=H[k];
+    const col=s.ok?'var(--leaf)':(s.flags.some(f=>f.level==='bad')?'var(--tom)':'var(--wx)');
+    const badge=s.ok?'OK':(s.flags.some(f=>f.level==='bad')?'CHECK PROBE':'CALIBRATION SHIFT');
+    return `<div class="cc"><div class="lab">${s.label} probe</div>
+      <div class="r" style="color:${col};font-size:20px">${badge}</div>
+      <div class="rd">${s.v_last!=null?s.v_last.toFixed(2)+' V':'— V'} &middot; AD range ${s.ad_range_last!=null?s.ad_range_last.toFixed(0):'—'} counts</div></div>`;
+  }).join('');
+  const all=[];
+  keys.forEach(k=>(H[k].flags||[]).forEach(f=>all.push({label:H[k].label,...f})));
+  document.getElementById('health-flags').innerHTML=all.length
+    ? all.map(f=>`<p class="caveat" style="border-left-color:${f.level==='bad'?'var(--tom)':'var(--wx)'};margin-top:10px"><b style="color:var(--ink)">${f.label}:</b> ${f.msg}</p>`).join('')
+    : `<p class="caveat" style="border-left-color:var(--leaf);margin-top:10px">Both channels at nominal voltage with healthy diurnal AD range — moisture readings below can be taken at face value.</p>`;
 })();
 
 /* ---------- irrigation plan + target vs actual ---------- */

@@ -35,6 +35,13 @@
     "group_prefix": "WFC01"
   },
 
+  "health": {
+    "_comment": "Sensor-trust thresholds. nominal_volts is the voltage the probe's factory calibration assumes (1.5 V alkaline); a lithium AA reads ~1.7 V and shifts the derived moisture %. range_collapse_frac flags a probe whose daily AD swing drops below this fraction of its trailing norm (failing sensor or lost soil contact).",
+    "nominal_volts": 1.5,
+    "volt_tolerance": 0.08,
+    "range_collapse_frac": 0.35
+  },
+
   "plan": {
     "_comment": "Actual watering is a fixed timer, not a volume-based/Smart plan (that was never implemented). The WFC01 meters the tomato raised bed line ONLY; peppers run on a separate, unmetered timer. Delivery figures below are the MEASURED metered rate on clean days, not a nameplate estimate — real flow runs well above emitter nameplate.",
     "set": "2026-07-16",
@@ -51,7 +58,8 @@
     "schedule_log": [
       {"date": "2026-07-16", "change": "Tomato timer set: 14 min once daily @ 05:05 PT (fixed-timer, replacing earlier irregular hand-timing)."},
       {"date": "2026-07-24", "change": "Tomato timer trimmed 14 → 10 min to cut leaching / deep percolation; watch the overnight probe min holds near 58–60% at 3 in."},
-      {"date": "2026-07-24", "change": "Pepper bags moved from every-12 h to once daily, 15 min @ 06:45 PT; watch the 2-in probe for a deeper daily dry-down (bag bottoms may still stay wet)."}
+      {"date": "2026-07-24", "change": "Pepper bags moved from every-12 h to once daily, 15 min @ 06:45 PT; watch the 2-in probe for a deeper daily dry-down (bag bottoms may still stay wet)."},
+      {"date": "2026-07-26", "change": "DECISION: hold peppers at once daily 15 min through the week of Jul 27 despite an apparent net daily deficit (AD baseline −3 to −4 counts/day vs only +2 recovery per dose). Pepper probe is on a lithium battery (1.70 V vs 1.50 V nominal) since Jul 18, so its % scale is shifted and its AD range has collapsed — deficit reading is unconfirmed. Escalation tripwires handed to on-site helper; re-evaluate on the Aug 1 site visit."}
     ],
     "pepper_freq": "once daily",
     "pepper_time": "06:45",
