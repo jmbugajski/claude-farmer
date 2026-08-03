@@ -115,8 +115,7 @@
     "proposed_plan": {
       "_comment": "NOT YET ACTIVE — proposed 2026-08-03 after reading docs/Ecowitt Water Meter WFC01.pdf. Set this in the Ecowitt app, then move these values into the live keys above. Manual refs: sec 6.1 watering methods p22-23, sec 6.2.2 cycle mode p24-25, sec 6.2.3 plan mode p27-30.",
       "mode": "Plan mode",
-      "method": "BY VOLUME, not by duration — the WFC01 closes the valve when the set quantity is reached (manual sec 6.1 'By quantity'). This removes line-pressure and bubbler-throttle variance from the delivered amount entirely, which duration-based control could never do. It retires the whole 'timer buys volume at an assumed flow rate' problem.",
-      "volume_per_run_L": 19,
+      "method": "BY DURATION (Justin's call, 2026-08-03). Volume mode was tried at install and rejected: emitter output is uneven across the flags and bubblers, and he reads timings more fluently than volumes. Accepted — distribution unevenness is real but it is orthogonal to the control method (a given emitter's SHARE of the total is the same whether the run ends on a clock or on a quantity), and operator fluency has genuine value. One thing duration keeps that volume would have destroyed: under volume mode the metered-litres chart flatlines by construction and loses its value as a leak/clog detector. Under duration, metered volume drifting at a fixed run length IS the diagnostic. The cost is that delivered depth is no longer guaranteed — recheck metered L against the target weekly and re-trim minutes.",
       "start_times": ["05:05", "17:30"],
       "repeat": "daily",
       "cycle_mode": {
@@ -124,11 +123,32 @@
         "on_seconds": 20,
         "off_seconds": 60,
         "duty_pct": 25,
-        "_comment": "Manual: 'a duty cycle is introduced against the current working mode... can be used to regulate more precisely for lower water rate application.' Legal range 5-3600 s. 25% duty takes the 6.6 in/hr instantaneous rate down to ~1.65 in/hr effective, inside the raised-bed infiltration window. 20/60 gives ~4.1 L per pulse over ~4.6 pulses; 15/45 is a finer alternative at the same duty. Elapsed is ~6.1 min per run either way."
+        "_comment": "Manual: 'a duty cycle is introduced against the current working mode... can be used to regulate more precisely for lower water rate application.' Legal range 5-3600 s. 25% duty takes the 6.6 in/hr instantaneous rate down to ~1.65 in/hr effective, inside the raised-bed infiltration window. 20/60 gives ~4.1 L per pulse; 15/45 is a finer alternative at the same duty.",
+        "UNVERIFIED": "It is not clear from the manual whether the Duration value under cycle mode counts total ELAPSED time or total ON time. This changes delivered volume by 4x at 25% duty. TEST ON THE FIRST RUN: note wall-clock start and end, and the WFC01 counter delta. If a 6-minute setting yields ~19 L and ends ~6 min later, Duration = elapsed. If it yields ~74 L and ends ~24 min later, Duration = ON time. Set the ramp table accordingly."
       },
-      "delivers": {"liters_per_day": 38, "in_per_day": 0.335, "in_per_week": 2.35},
-      "vs_current": "current 129.4 L/day = 7.99 in/week; proposed is a 71% cut in volume",
-      "step_down": "Do not jump 129 -> 38 L mid-heatwave. Ramp over ~5 days (e.g. 90, 70, 55, 45, 38 L/day) and watch the overnight min.",
+      "ramp": {
+        "_comment": "Justin's concern about shocking the plants is well taken, though the mechanism is not 'shock' from the volume cut per se — plants respond to root-zone moisture, not to applied litres, and the 10-to-12-min test showed +5.2 L moving settled moisture by -1 point, so most of the marginal water never reaches roots. The real risk is that the 2.35 in/wk ETc estimate is simply too low for a raised bed in a heatwave, while the probe is already at a record-low 50%. Abrupt swings also invite blossom-end rot and fruit cracking, so gradual is right regardless. THE PROBE SETS THE ENDPOINT, NOT THIS TABLE: hold at whatever step returns the overnight min to 58-60%, even if that is 70 L/day and the 38 L target turns out to be wrong.",
+        "control_variable": "overnight tomato minimum, target 58-60%",
+        "steps_L_per_day": [90, 70, 55, 45, 38],
+        "hold_days_per_step": 2,
+        "table_at_25pct_duty": [
+          {"step": "current", "L_day": 129, "L_run": 64.7, "on_s_run": 313, "elapsed_min_run": 20.9, "in_wk": 7.99},
+          {"step": 1, "L_day": 90, "L_run": 45.0, "on_s_run": 218, "elapsed_min_run": 14.5, "in_wk": 5.56},
+          {"step": 2, "L_day": 70, "L_run": 35.0, "on_s_run": 169, "elapsed_min_run": 11.3, "in_wk": 4.32},
+          {"step": 3, "L_day": 55, "L_run": 27.5, "on_s_run": 133, "elapsed_min_run": 8.9, "in_wk": 3.40},
+          {"step": 4, "L_day": 45, "L_run": 22.5, "on_s_run": 109, "elapsed_min_run": 7.3, "in_wk": 2.78},
+          {"step": 5, "L_day": 38, "L_run": 19.0, "on_s_run": 92, "elapsed_min_run": 6.1, "in_wk": 2.35}
+        ],
+        "tripwires": [
+          "Overnight min falls more than 2 points the day after a step -> hold, or back up one step.",
+          "Overnight min recovers into 58-60% -> STOP RAMPING and hold there, whatever the litres say.",
+          "Midday wilt still present at 20:00 -> back up a step immediately (midday wilt that recovers by evening is normal).",
+          "Blossom-end rot or fruit cracking appearing -> moisture is swinging too hard; lengthen hold_days_per_step.",
+          "Metered L/day drifting at a fixed run length -> emitter clog or leak, not a schedule effect."
+        ],
+        "do_not_confound": "Leave the pepper line untouched through the ramp, and do not also change start times or duty cycle mid-ramp."
+      },
+      "delivers_at_target": {"liters_per_day": 38, "in_per_day": 0.335, "in_per_week": 2.35},
       "caveats": [
         "Plan-mode skip conditions (rain skip, temperature skip) are NOT implemented — manual p28 says 'under development'. Do not design around them.",
         "Smart mode (auto-irrigate from the WH51 reading) requires the hub to be talking to the Ecowitt cloud. Hold off until a depth probe is installed; closing the loop on a 3-inch probe would just automate the current misread.",
