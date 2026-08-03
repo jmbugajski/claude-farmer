@@ -112,6 +112,39 @@
       {"date": "2026-08-03", "change": "OPEN ITEM: the dashboard's irrigation panel narrative is now stale — it still hardcodes the 14-min run, the ~820 L expectation, and the claim that 'there is no volume target'. With bed geometry recorded there IS a volume target (113 L per inch). Needs a template pass."},
       {"date": "2026-08-02", "change": "Pepper probe battery swap (lithium 1.70 V → alkaline 1.50 V) scheduled for later the week of Aug 3. Pepper moisture is NOT trustworthy until then: AD range has collapsed to 4–6 counts (was 50–89 before Jul 22) with daily min/max nearly identical, i.e. no diurnal signal at all, so the apparent Jul 27–Aug 1 decline (43.8 → 40.5) reads as calibration drift rather than a real dry-down. After the swap, confirm the AD range recovers before acting on any pepper number."}
     ],
+    "proposed_plan": {
+      "_comment": "NOT YET ACTIVE — proposed 2026-08-03 after reading docs/Ecowitt Water Meter WFC01.pdf. Set this in the Ecowitt app, then move these values into the live keys above. Manual refs: sec 6.1 watering methods p22-23, sec 6.2.2 cycle mode p24-25, sec 6.2.3 plan mode p27-30.",
+      "mode": "Plan mode",
+      "method": "BY VOLUME, not by duration — the WFC01 closes the valve when the set quantity is reached (manual sec 6.1 'By quantity'). This removes line-pressure and bubbler-throttle variance from the delivered amount entirely, which duration-based control could never do. It retires the whole 'timer buys volume at an assumed flow rate' problem.",
+      "volume_per_run_L": 19,
+      "start_times": ["05:05", "17:30"],
+      "repeat": "daily",
+      "cycle_mode": {
+        "enabled": true,
+        "on_seconds": 20,
+        "off_seconds": 60,
+        "duty_pct": 25,
+        "_comment": "Manual: 'a duty cycle is introduced against the current working mode... can be used to regulate more precisely for lower water rate application.' Legal range 5-3600 s. 25% duty takes the 6.6 in/hr instantaneous rate down to ~1.65 in/hr effective, inside the raised-bed infiltration window. 20/60 gives ~4.1 L per pulse over ~4.6 pulses; 15/45 is a finer alternative at the same duty. Elapsed is ~6.1 min per run either way."
+      },
+      "delivers": {"liters_per_day": 38, "in_per_day": 0.335, "in_per_week": 2.35},
+      "vs_current": "current 129.4 L/day = 7.99 in/week; proposed is a 71% cut in volume",
+      "step_down": "Do not jump 129 -> 38 L mid-heatwave. Ramp over ~5 days (e.g. 90, 70, 55, 45, 38 L/day) and watch the overnight min.",
+      "caveats": [
+        "Plan-mode skip conditions (rain skip, temperature skip) are NOT implemented — manual p28 says 'under development'. Do not design around them.",
+        "Smart mode (auto-irrigate from the WH51 reading) requires the hub to be talking to the Ecowitt cloud. Hold off until a depth probe is installed; closing the loop on a 3-inch probe would just automate the current misread.",
+        "Scheduled plans ARE stored locally on the hub and survive network outages (manual p17).",
+        "The WFC01 manual is written for the GW2000 hub; this garden runs a GW1200. It works, but expect minor UI differences."
+      ]
+    },
+
+    "instrumentation_todo": {
+      "_comment": "Opened 2026-08-03 from docs/Ecowitt Sensor WH51L.pdf.",
+      "add_depth_probe": "The WH51L ships with a 1 m / 3.28 ft PVC cable specifically to 'enable the measurement of different depths of soil moisture' (manual sec 3.2). Installing one at 8-10 in in the tomato bed permanently settles whether extra run minutes are wasted or are charging the deep root zone — the current 3-inch probe cannot distinguish those. WH51 and WH51L share the same 8 soil channels; only 2 of 8 are in use.",
+      "soil_calibration": "Both probes are on FACTORY calibration. Back-solving the tomato AD/percent pairs gives 0%AD=124, 100%AD=352 (0.438 % per AD count). Pepper AD 211 predicts 38.3% against an observed 38%, so the two probes share one calibration and there is NO voltage-induced scale shift — the earlier lithium-battery theory in the Jul 26 log entry is wrong. Factory 0%AD is the AD in air and 100%AD is submerged in water, so both ends are wrong for real soil; manual states 'generally, the sensor must be calibrated to suit your soil type' (Custom mode, WH51L sec 3.3).",
+      "pepper_probe_real_issue": "Pepper's daily AD range of 4-6 counts is only ~2.2% of moisture swing — the probe is nearly flat, which is not credible for fabric bags in August. Note the WH51/WH51L working temperature range is -10 to 50 C (14 to 122 F). A black fabric bag in full Santa Clara sun plausibly exceeds 122 F, putting the probe outside spec. Check probe soil contact and shade/depth before assuming the sensor has failed.",
+      "wfc01_heat": "The WFC01's own temperature sensor read 123.1 F on 2026-08-03, its highest on record. The unit's Overheating alert fires at 60 C / 140 F (manual sec 7.4). It is sitting in direct sun and heading toward its own alarm threshold — shade it."
+    },
+
     "pepper_freq": "once daily",
     "pepper_time": "06:45",
     "pepper_run_min": 15,
