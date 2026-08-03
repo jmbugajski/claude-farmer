@@ -120,9 +120,11 @@
       "repeat": "daily",
       "cycle_mode": {
         "enabled": true,
-        "on_seconds": 20,
-        "off_seconds": 60,
+        "on_seconds": 45,
+        "off_seconds": 135,
         "duty_pct": 25,
+        "REVISED_2026-08-03": "Was 20/60. Lengthened to 45/135 (same 25% duty, same 1.65 in/hr effective rate) after Justin raised line-charge time. The hose must fill and the bubblers must reach pressure before real delivery starts; a 50-100 ft run holds 1.9-8.6 L depending on ID, which is 9-42 SECONDS of charge at 12.4 L/min. Against a 20 s pulse that is most of the pulse. Rule of thumb: ON >= 4-5x measured charge time. 45/135 cuts charge events per run by ~2.3x while keeping the effective application rate identical, because infiltration cares about the cycle-average rate, not pulse length. Per-pulse application at 45 s is 9.3 L = 0.082 in, which a 135 s soak clears comfortably at 1.65 in/hr.",
+        "charge_accounting": "The meter sits upstream of the valve, so it counts water ENTERING the line, not water reaching soil. Charge water is therefore not lost — it is counted at fill and dribbles out after the valve closes. The real costs are (a) a first-pulse deadband where little reaches the plants, and (b) uniformity: fill and drain-down water exits preferentially at the lowest and nearest emitters. Note this is a genuine argument AGAINST 2x daily that was missed earlier — splitting doubles the number of charge/drain events per day.",
         "_comment": "Manual: 'a duty cycle is introduced against the current working mode... can be used to regulate more precisely for lower water rate application.' Legal range 5-3600 s. 25% duty takes the 6.6 in/hr instantaneous rate down to ~1.65 in/hr effective, inside the raised-bed infiltration window. 20/60 gives ~4.1 L per pulse; 15/45 is a finer alternative at the same duty.",
         "UNVERIFIED": "It is not clear from the manual whether the Duration value under cycle mode counts total ELAPSED time or total ON time. This changes delivered volume by 4x at 25% duty. TEST ON THE FIRST RUN: note wall-clock start and end, and the WFC01 counter delta. If a 6-minute setting yields ~19 L and ends ~6 min later, Duration = elapsed. If it yields ~74 L and ends ~24 min later, Duration = ON time. Set the ramp table accordingly."
       },
@@ -131,15 +133,16 @@
         "control_variable": "overnight tomato minimum, target 58-60%",
         "steps_L_per_day": [90, 70, 55, 45, 38],
         "hold_days_per_step": 2,
-        "_units": "ALL THREE APP FIELDS IN SECONDS for consistency: On time 20 s, Off time 60 s, Duration in seconds. One cycle = 80 s and delivers 4.13 L at the measured 12.4 L/min. Duration is always a whole number of cycles (n x 80) so no run ends mid-pulse.",
+        "_units": "ALL THREE APP FIELDS IN SECONDS: On time 45 s, Off time 135 s, Duration in seconds. One cycle = 180 s and delivers 9.3 L at the measured 12.4 L/min. Duration is always a whole number of cycles (n x 180) so no run ends mid-pulse. To change VOLUME adjust the cycle count (Duration); to change RATE adjust Off time; leave On time alone once it is set from measured charge time.",
         "table_at_25pct_duty": [
-          {"step": "TEST", "cycles": 5, "duration_s": 400, "L_run": 20.7, "L_day": 41.3, "in_wk": 2.55, "elapsed_min": 6.7, "note": "single PM run on 2026-08-03 only, to resolve the Duration semantics"},
-          {"step": 1, "cycles": 11, "duration_s": 880, "L_run": 45.5, "L_day": 90.9, "in_wk": 5.62, "elapsed_min": 14.7},
-          {"step": 2, "cycles": 9, "duration_s": 720, "L_run": 37.2, "L_day": 74.4, "in_wk": 4.60, "elapsed_min": 12.0},
-          {"step": 3, "cycles": 7, "duration_s": 560, "L_run": 28.9, "L_day": 57.9, "in_wk": 3.58, "elapsed_min": 9.3},
-          {"step": 4, "cycles": 5, "duration_s": 400, "L_run": 20.7, "L_day": 41.3, "in_wk": 2.55, "elapsed_min": 6.7},
-          {"step": 5, "cycles": 4, "duration_s": 320, "L_run": 16.5, "L_day": 33.1, "in_wk": 2.04, "elapsed_min": 5.3}
+          {"step": "TEST", "cycles": 2, "duration_s": 360, "L_run": 18.6, "L_day": 18.6, "in_wk": 1.15, "elapsed_min": 6.0, "note": "single PM run on 2026-08-03 only — resolves BOTH the Duration semantics and the line-charge time"},
+          {"step": 1, "cycles": 5, "duration_s": 900, "L_run": 46.5, "L_day": 93.0, "in_wk": 5.75, "elapsed_min": 15.0},
+          {"step": 2, "cycles": 4, "duration_s": 720, "L_run": 37.2, "L_day": 74.4, "in_wk": 4.60, "elapsed_min": 12.0},
+          {"step": 3, "cycles": 3, "duration_s": 540, "L_run": 27.9, "L_day": 55.8, "in_wk": 3.45, "elapsed_min": 9.0},
+          {"step": 4, "cycles": 2, "duration_s": 360, "L_run": 18.6, "L_day": 37.2, "in_wk": 2.30, "elapsed_min": 6.0}
         ],
+        "low_end_note": "Steps 4 and 5 collapse at this cycle size — 2 cycles is the practical floor for a 2x daily schedule. If the probe asks for less than ~37 L/day, drop to ONE run per day at 2-3 cycles rather than shortening pulses, since shorter pulses would put charge overhead back in.",
+        "measure_charge_time": "On the test run: start a stopwatch at valve open, note (a) seconds until the FARTHEST bubbler is running full and (b) the meter delta at that moment — that is charge time and charge volume. Then at valve close, note how long emitters keep dribbling. If charge time exceeds ~11 s, raise On time to 4-5x it and raise Off time to keep the 25% duty.",
         "if_duration_means_on_time": "If the 2026-08-03 test shows Duration counts ON time rather than elapsed, DIVIDE every duration_s above by 4 (i.e. duration_s = cycles x 20). Setting 880 s under an ON-time reading would deliver ~182 L per run = ~364 L/day, roughly 3x the current over-application — which is why the test run comes first.",
         "tripwires": [
           "Overnight min falls more than 2 points the day after a step -> hold, or back up one step.",
