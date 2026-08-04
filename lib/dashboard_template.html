@@ -445,11 +445,34 @@ buildChart(null);
 
   // schedule change-log
   if(PLAN.schedule_log&&PLAN.schedule_log.length){
-    const rows=PLAN.schedule_log.slice().reverse().map(e=>
-      `<div style="display:flex;gap:10px;padding:3px 0"><span style="color:var(--wx);font-family:'IBM Plex Mono';white-space:nowrap">${new Date(e.date+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span><span>${e.change}</span></div>`).join('');
+    // explicit sort: newest EVENT date first, then newest LOGGED time. Never rely on array order.
+    const KC={change:'var(--leaf)',decision:'var(--wx)',finding:'var(--tom)',fix:'var(--pep)',note:'var(--mut)'};
+    const L=PLAN.schedule_log.slice().sort((a,b)=>
+      (b.date||'').localeCompare(a.date||'') || (b.logged||'').localeCompare(a.logged||''));
+    let last=null, rows='';
+    L.forEach(e=>{
+      if(e.date!==last){
+        last=e.date;
+        rows+=`<div style="margin:9px 0 3px;padding-top:6px;border-top:1px solid rgba(217,213,200,.15);
+          color:var(--ink);font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.04em">
+          ${new Date(e.date+'T00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</div>`;
+      }
+      const k=e.kind||'note';
+      rows+=`<div style="display:flex;gap:9px;padding:3px 0;align-items:baseline">
+        <span style="flex:0 0 62px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;
+          letter-spacing:.06em;color:${KC[k]||'var(--mut)'}">${k}</span>
+        <span>${e.change}${e.logged?`<span style="color:var(--mut);font-family:'IBM Plex Mono';font-size:10px"> &nbsp;· logged ${e.logged.replace('T',' ').slice(0,16)}</span>`:''}</span></div>`;
+    });
     document.getElementById('plan-note').innerHTML+=
       `<div class="caveat" style="border-left-color:var(--wx);color:#D7D5C8;margin-top:10px">
-        <b style="color:var(--ink)">Schedule change-log</b>${rows}</div>`;
+        <b style="color:var(--ink)">Schedule change-log</b>
+        <div style="color:var(--mut);font-size:11px;margin:2px 0 4px">grouped by event date, newest first ·
+        <span style="color:${KC.change}">change</span> = what the timer actually does ·
+        <span style="color:${KC.decision}">decision</span> ·
+        <span style="color:${KC.finding}">finding</span> ·
+        <span style="color:${KC.fix}">fix</span> ·
+        <span style="color:${KC.note}">note</span> · "logged" is the git commit that recorded it</div>
+        ${rows}</div>`;
   }
 
   // weekly actual from metered daily draws (7-day bins from first metered day)
