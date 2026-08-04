@@ -338,12 +338,22 @@ buildChart(null);
 
 /* ---------- distribution ---------- */
 (function(){
-  const D=DATA.distribution;
+  const D=DATA.distribution, HH=DATA.health||{};
+  const card=(k,name,col,setp,dd,st)=>{
+    const h=HH[k];
+    if(h&&h.ok===false) return `<div class="cc" style="border-color:var(--tom)">
+       <div class="lab">${name} — share of readings <b>at or above</b> the ${setp}% setpoint</div>
+       <div class="r" style="color:var(--mut)">n/a</div>
+       <div class="rd" style="color:var(--tom)">sensor flagged — daily AD range ${h.ad_range_last} counts.
+       A probe that is not moving cannot be "above setpoint"; the figure would read
+       ${dd.pct_above}% and mean nothing. See Sensor health below.</div></div>`;
+    return `<div class="cc"><div class="lab">${name} — share of readings <b>at or above</b> the ${setp}% setpoint</div>
+       <div class="r" style="color:${col}">${dd.pct_above}%</div>
+       <div class="rd">${dd.pct_below}% below · min ${st.min}%</div></div>`;
+  };
   document.getElementById('dist-cards').innerHTML=
-    `<div class="cc"><div class="lab">Tomato — share of readings <b>at or above</b> the ${CFG.setpoints.tom}% setpoint</div>
-       <div class="r" style="color:var(--tom)">${D.tom.pct_above}%</div><div class="rd">${D.tom.pct_below}% below · min ${S.tom.min}%</div></div>
-     <div class="cc"><div class="lab">Pepper — share of readings <b>at or above</b> the ${CFG.setpoints.pep}% setpoint</div>
-       <div class="r" style="color:var(--pep)">${D.pep.pct_above}%</div><div class="rd">${D.pep.pct_below}% below · min ${S.pep.min}%</div></div>`;
+    card('tom','Tomato','var(--tom)',CFG.setpoints.tom,D.tom,S.tom)+
+    card('pep','Pepper','var(--pep)',CFG.setpoints.pep,D.pep,S.pep);
   function hist(id,h,col,setp){
     new Chart(document.getElementById(id),{type:'bar',
       data:{labels:h.map(b=>b.lo),datasets:[{data:h.map(b=>b.count),backgroundColor:col+'cc',borderColor:col,borderWidth:1,barPercentage:1,categoryPercentage:1}]},
@@ -571,8 +581,10 @@ function computeCorrelation(){
 function writeFindings(noWx){
   document.getElementById('f-tom').innerHTML=
     `Tomato bed mean is <b>${S.tom.mean}%</b> (range ${S.tom.min}–${S.tom.max}%), latest <b>${S.tom.last}%</b>, trending ${DATA.trend.per_week} pts/week (R²=${DATA.trend.r2}) against the ${CFG.setpoints.tom}% setpoint. ${DATA.distribution.tom.pct_above}% of readings sat at or above setpoint.`;
-  document.getElementById('f-pep').innerHTML=
-    `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%), with ${DATA.distribution.pep.pct_above}% of readings at or above the ${CFG.setpoints.pep}% setpoint. Stable and dialed in.`;
+  const hp=(DATA.health||{}).pep;
+  document.getElementById('f-pep').innerHTML= (hp&&hp.ok===false)
+    ? `<b style="color:var(--tom)">Pepper readings are not usable.</b> The channel reports a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}), which earlier readings of this dashboard mistook for a well-dialed bed. It is the opposite: the daily AD range has collapsed to <b>${hp.ad_range_last} counts</b> and the daily swing is 0–1 points, against 22–26 points on the tomato channel over the same days. Soil breathes on a daily cycle; a flat trace is a sensor, not a substrate. The decisive test came from the garden — pepper water was <b>halved</b> on Jul 24 (every-12 h → once daily) and the daily swing did not change at all, staying pinned at 1.0 point. A real probe would have shown a deeper dry-down. The smooth ~0.7 pt/day decline since is instrument drift, not the bed drying out. <b>Do not act on any pepper number until the probe is re-batteried (alkaline, 1.5 V nominal) and the AD range is confirmed to recover.</b>`
+    : `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%), with ${DATA.distribution.pep.pct_above}% of readings at or above the ${CFG.setpoints.pep}% setpoint.`;
   document.getElementById('f-wx').innerHTML= noWx
     ? `Live weather didn&rsquo;t load. Reopen online to populate the ET₀/temp overlay and the ${DATA.daily.length}-day correlation for 95050.`
     : `Over ${DATA.daily.length} days, ET₀ and peak temperature track the pepper dry-down in the expected direction. Toggle <b>ET₀</b> on the chart to see drying demand against the dips; the tomato line is dominated by its own downtrend, so weather reads cleaner on peppers.`;
