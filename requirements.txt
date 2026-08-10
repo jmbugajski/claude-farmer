@@ -1,0 +1,27 @@
+# Farm Water Analysis -- Python dependencies
+#
+# Homebrew's Python is PEP 668 "externally managed", so system-wide pip installs
+# are refused. Use a venv (already gitignored):
+#
+#   python3 -m venv .venv
+#   .venv/bin/python -m pip install -r requirements.txt
+#
+# Then run everything through it, no `activate` needed:
+#
+#   .venv/bin/python lib/build_dashboard.py
+#   .venv/bin/python lib/fetch_weather.py
+#
+# If numpy/pandas have no wheels for your python3 and pip tries to compile from
+# source, build the venv on an older interpreter instead:  python3.11 -m venv .venv
+
+# --- Dashboard build (lib/build_dashboard.py) -- the weekly pipeline ---
+openpyxl
+
+# --- Weather fetch (lib/fetch_weather.py) -- only to refresh inputs/weather.csv ---
+# Deliberately NOT imported by the build pipeline: analyze.py reads weather.csv
+# with the stdlib csv module, so the weekly build never needs pandas.
+openmeteo-requests
+requests-cache
+retry-requests
+numpy
+pandas

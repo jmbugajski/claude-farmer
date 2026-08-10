@@ -15,10 +15,12 @@ exports, which is the METER'S OWN BODY TEMPERATURE sitting in direct sun -- it
 runs 110-123 F while real Santa Clara ambient is 30-40 F lower. That column is
 not ambient and must never be used as a weather proxy.
 
-Run this yourself (it needs network access that the agent sandbox does not have):
+Run this yourself (it needs network access that the agent sandbox does not have).
+Homebrew Python is PEP 668 "externally managed", so install into a venv:
 
-    pip install openmeteo-requests requests-cache retry-requests numpy pandas
-    python3 lib/fetch_weather.py
+    python3 -m venv .venv
+    .venv/bin/python -m pip install -r requirements.txt
+    .venv/bin/python lib/fetch_weather.py
 
 Date range defaults to the span of the EcoWitt exports already in inputs/, so
 it always lines up with the soil data. Override with --start / --end.
