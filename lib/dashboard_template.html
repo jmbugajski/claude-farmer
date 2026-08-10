@@ -605,12 +605,20 @@ function writeFindings(noWx){
   document.getElementById('f-tom').innerHTML=
     `Tomato bed mean is <b>${S.tom.mean}%</b> (range ${S.tom.min}–${S.tom.max}%), latest <b>${S.tom.last}%</b>, trending ${DATA.trend.per_week} pts/week (R²=${DATA.trend.r2}) against the ${CFG.setpoints.tom}% setpoint. ${DATA.distribution.tom.pct_above}% of readings sat at or above setpoint.`;
   const hp=(DATA.health||{}).pep;
-  document.getElementById('f-pep').innerHTML= (hp&&hp.ok===false)
-    ? `<b style="color:var(--tom)">Pepper readings are not usable.</b> The channel reports a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}), which earlier readings of this dashboard mistook for a well-dialed bed. It is the opposite: the daily AD range has collapsed to <b>${hp.ad_range_last} counts</b> and the daily swing is 0–1 points, against 22–26 points on the tomato channel over the same days. Soil breathes on a daily cycle; a flat trace is a sensor, not a substrate. The decisive test came from the garden — pepper water was <b>halved</b> on Jul 24 (every-12 h → once daily) and the daily swing did not change at all, staying pinned at 1.0 point. A real probe would have shown a deeper dry-down. The smooth ~0.7 pt/day decline since is instrument drift, not the bed drying out. <b>Do not act on any pepper number until the probe is re-batteried (alkaline, 1.5 V nominal) and the AD range is confirmed to recover.</b>`
+  document.getElementById('f-pep').innerHTML= (hp&&hp.has_bad)
+    ? `<b style="color:var(--tom)">Pepper readings are not usable right now.</b> The daily AD range has collapsed to <b>${hp.ad_range_last} counts</b>, against a healthy norm many times that. Soil breathes on a daily cycle; a flat trace is a sensor, not a substrate — so the reported <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}) describes the instrument, not the bed. <b>Do not act on pepper numbers until the AD range recovers.</b> First check the battery: this channel must run on alkaline (~1.5 V nominal). A lithium AA reads ~1.7 V and has previously pinned this probe flat for two weeks while the derived % drifted smoothly downward, which reads convincingly like a bed drying out and is not.`
+    : (hp&&hp.ok===false)
+    ? `Pepper channel is <b>measuring normally</b> (daily AD range ${hp.ad_range_last} counts) but carries a calibration caveat: ${hp.flags[0].msg} Day-to-day <em>swings</em> are trustworthy; absolute % is comparable only within a single battery era. Current mean <b>${S.pep.mean}%</b> (range ${S.pep.min}–${S.pep.max}%).`
     : `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%), with ${DATA.distribution.pep.pct_above}% of readings at or above the ${CFG.setpoints.pep}% setpoint.`;
-  document.getElementById('f-wx').innerHTML= noWx
-    ? `Live weather didn&rsquo;t load. Reopen online to populate the ET₀/temp overlay and the ${DATA.daily.length}-day correlation for 95050.`
-    : `Over ${DATA.daily.length} days, ET₀ and peak temperature track the pepper dry-down in the expected direction. Toggle <b>ET₀</b> on the chart to see drying demand against the dips; the tomato line is dominated by its own downtrend, so weather reads cleaner on peppers.`;
+  // Prefer the server-side analysis baked in from inputs/weather.csv: it is
+  // computed from cached data, so it survives being opened offline, and it
+  // reports what the numbers actually say instead of asserting a direction.
+  const WXA=DATA.weather;
+  document.getElementById('f-wx').innerHTML= WXA
+    ? `${WXA.narrative} Toggle <b>ET₀</b> on the chart to see drying demand against the dips.`
+    : (noWx
+      ? `Live weather didn&rsquo;t load. Reopen online to populate the ET₀/temp overlay and the ${DATA.daily.length}-day correlation for 95050, or run <code>./pull_weather_data.sh</code> to cache it into the build.`
+      : `Over ${DATA.daily.length} days, toggle <b>ET₀</b> on the chart to see drying demand against the dips; the tomato line is dominated by its own downtrend, so weather reads cleaner on peppers.`);
   document.getElementById('f-act').innerHTML=
     `<b>Tomatoes:</b> ${CFG.advice.tom} <b>Peppers:</b> ${CFG.advice.pep} <b>Water:</b> ${CFG.advice.water}`;
 }

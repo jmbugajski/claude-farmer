@@ -46,6 +46,12 @@ ROOT = os.path.dirname(HERE)
 HOURLY_VARS = [
     "temperature_2m",
     "relative_humidity_2m",
+    # FAO-56 reference evapotranspiration. This is the important one: it is the
+    # physically correct measure of how hard the air was pulling water out of
+    # the soil, and analyze.py normalises dry-down against it. Without this
+    # column weather.py falls back to a cruder Hargreaves estimate.
+    "et0_fao_evapotranspiration",
+    "shortwave_radiation",
     "precipitation",
     "cloud_cover",
     "wind_speed_10m",

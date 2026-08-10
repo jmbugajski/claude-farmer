@@ -40,6 +40,7 @@ sys.path.insert(0, HERE)
 import analyze          # noqa: E402
 import parse_ecowitt    # noqa: E402
 import render           # noqa: E402
+import weather          # noqa: E402
 
 
 def main() -> int:
@@ -60,7 +61,14 @@ def main() -> int:
     print(f"  {len(readings)} raw readings "
           f"({readings[0]['dt']:%Y-%m-%d %H:%M} → {readings[-1]['dt']:%Y-%m-%d %H:%M})")
 
-    data, cfg = analyze.build(readings, config)
+    wx_hourly = weather.load(args.inputs)
+    if wx_hourly:
+        print(f"  weather: {len(wx_hourly)} hourly rows from inputs/weather.csv")
+    else:
+        print("  weather: inputs/weather.csv not found — run ./pull_weather_data.sh "
+              "(dashboard falls back to a client-side fetch)")
+
+    data, cfg = analyze.build(readings, config, wx_hourly=wx_hourly)
     s = data["stats"]
     print(f"  resampled to {s['n']} points @ {s['interval_hr']} h")
     print(f"  tomato: mean {s['tom']['mean']}%  last {s['tom']['last']}%  "

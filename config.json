@@ -78,9 +78,9 @@
   },
 
   "health": {
-    "_comment": "Sensor-trust thresholds. nominal_volts is the voltage the probe's factory calibration assumes (1.5 V alkaline); a lithium AA reads ~1.7 V and shifts the derived moisture %. range_collapse_frac flags a probe whose daily AD swing drops below this fraction of its trailing norm (failing sensor or lost soil contact).",
+    "_comment": "Sensor-trust thresholds. nominal_volts is the voltage the probe's factory calibration assumes (1.5 V alkaline); a lithium AA reads ~1.7 V and shifts the derived moisture %. range_collapse_frac flags a probe whose daily AD swing drops below this fraction of its trailing norm (failing sensor or lost soil contact). volt_tolerance widened 0.08 -> 0.15 on 2026-08-09: a FRESH alkaline genuinely sits at 1.55-1.65 V, so 0.08 raised a false 'bad calibration' alarm on a healthy probe the day after the battery was restored. 0.15 still catches lithium (0.20 off nominal) while leaving normal alkaline headroom alone -- that gap is the whole discrimination this check exists to make.",
     "nominal_volts": 1.5,
-    "volt_tolerance": 0.08,
+    "volt_tolerance": 0.15,
     "range_collapse_frac": 0.35
   },
 

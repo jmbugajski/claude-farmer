@@ -16,8 +16,11 @@ cumulative meter reading.
 
 from __future__ import annotations
 
+import math
 import statistics
 from datetime import datetime, timedelta
+
+import weather as weather_mod
 
 
 # ----------------------------------------------------------------------------- helpers
@@ -436,12 +439,154 @@ def _sensor_health(readings, config):
             "ad_range_last": days[-1]["ad_range"],
             "flags": flags,
             "ok": not flags,
+            # Severity matters for presentation. A "warn" (voltage a little off
+            # nominal) means absolute % may be shifted; a "bad" (AD range
+            # collapsed) means the channel is not measuring at all. Collapsing
+            # both into ok=False once left the published page telling the reader
+            # to distrust a probe that had already recovered.
+            "has_bad": any(f["level"] == "bad" for f in flags),
         }
     return out
 
 
+# ----------------------------------------------------------------------------- weather
+def _pearson(xs, ys):
+    pairs = [(x, y) for x, y in zip(xs, ys) if x is not None and y is not None]
+    n = len(pairs)
+    if n < 3:
+        return None
+    mx = sum(p[0] for p in pairs) / n
+    my = sum(p[1] for p in pairs) / n
+    num = sum((a - mx) * (b - my) for a, b in pairs)
+    dx = sum((a - mx) ** 2 for a, _ in pairs)
+    dy = sum((b - my) ** 2 for _, b in pairs)
+    if dx <= 0 or dy <= 0:
+        return None
+    return round(num / math.sqrt(dx * dy), 3)
+
+
+def _weather_analysis(daily_soil, wx_daily):
+    """
+    Join daily soil stats to daily weather and answer the question the raw trend
+    cannot: was the bed drying because it was HOT, or because it was UNDERWATERED?
+
+    The headline number is normalised dry-down -- points of moisture lost per mm
+    of ET0. Raw dry-down conflates weather with irrigation, so a cool week and a
+    heavily-watered week look identical in the trend line. Dividing by
+    evaporative demand removes the weather term, and what is left moves only when
+    irrigation or soil condition changes.
+    """
+    if not wx_daily:
+        return None
+    wx_by = {w["date"]: w for w in wx_daily}
+    rows = []
+    for r in daily_soil:
+        w = wx_by.get(r["date"])
+        if not w:
+            continue
+        draw = (round(r["tom_max"] - r["tom_min"], 1)
+                if r["tom_max"] is not None and r["tom_min"] is not None else None)
+        pdraw = (round(r["pep_max"] - r["pep_min"], 1)
+                 if r["pep_max"] is not None and r["pep_min"] is not None else None)
+        et0 = w["et0_mm"]
+        rows.append({
+            "date": r["date"],
+            "tmax_f": w["tmax_f"], "vpd_mean": w["vpd_mean"],
+            "et0_mm": et0, "precip_mm": w["precip_mm"],
+            "tom_mean": r["tom_mean"], "pep_mean": r["pep_mean"],
+            "tom_draw": draw, "pep_draw": pdraw,
+            # points of moisture per mm of evaporative demand
+            "tom_draw_per_et0": (round(draw / et0, 2)
+                                 if draw is not None and et0 else None),
+            "pep_draw_per_et0": (round(pdraw / et0, 2)
+                                 if pdraw is not None and et0 else None),
+        })
+    if len(rows) < 3:
+        return None
+
+    et0s = [r["et0_mm"] for r in rows]
+    corr = {
+        "tom_draw_vs_et0": _pearson(et0s, [r["tom_draw"] for r in rows]),
+        "pep_draw_vs_et0": _pearson(et0s, [r["pep_draw"] for r in rows]),
+        "tom_mean_vs_tmax": _pearson([r["tmax_f"] for r in rows],
+                                     [r["tom_mean"] for r in rows]),
+        "pep_mean_vs_tmax": _pearson([r["tmax_f"] for r in rows],
+                                     [r["pep_mean"] for r in rows]),
+    }
+
+    # Weekly normalised dry-down, most recent last. This is the series to watch:
+    # a rise means the bed is losing more per unit of demand, i.e. genuinely
+    # drying out rather than merely enduring a hot spell.
+    weeks = []
+    chunk = [r for r in rows if r["tom_draw_per_et0"] is not None]
+    for i in range(0, len(chunk), 7):
+        blk = chunk[i:i + 7]
+        if len(blk) < 3:
+            continue
+        weeks.append({
+            "start": blk[0]["date"], "end": blk[-1]["date"], "n": len(blk),
+            "et0_mean": round(statistics.fmean([b["et0_mm"] for b in blk]), 2),
+            "tmax_mean": round(statistics.fmean([b["tmax_f"] for b in blk]), 1),
+            "draw_mean": round(statistics.fmean([b["tom_draw"] for b in blk]), 1),
+            "norm_draw": round(statistics.fmean(
+                [b["tom_draw_per_et0"] for b in blk]), 2),
+        })
+
+    sources = {w["et0_source"] for w in wx_daily}
+
+    # Narrative, generated from the numbers rather than asserted. The template
+    # previously hardcoded "ET0 and peak temperature track the pepper dry-down
+    # in the expected direction" -- which happens not to be true for this data.
+    et0_vals = [r["et0_mm"] for r in rows if r["et0_mm"] is not None]
+    et0_spread = (max(et0_vals) - min(et0_vals)) if et0_vals else 0
+    et0_mean = statistics.fmean(et0_vals) if et0_vals else 0
+    r_tom = corr["tom_draw_vs_et0"]
+
+    def _mag(r):
+        if r is None:
+            return "unmeasurable"
+        a = abs(r)
+        return ("strong" if a >= .6 else "moderate" if a >= .35
+                else "weak" if a >= .15 else "negligible")
+
+    bits = [
+        f"Over {len(rows)} days, evaporative demand held remarkably steady "
+        f"(ET₀ {min(et0_vals):.1f}–{max(et0_vals):.1f} mm/day, mean "
+        f"{et0_mean:.1f}), so weather explains little of the variation here: "
+        f"ET₀ vs tomato dry-down is {_mag(r_tom)} (r={r_tom})."
+    ]
+    if weeks:
+        first, last = weeks[0], weeks[-1]
+        direction = ("less" if last["norm_draw"] < first["norm_draw"] else "more")
+        bits.append(
+            f"Normalised dry-down — points of moisture lost per mm of ET₀, "
+            f"which strips the weather term out — moved "
+            f"{first['norm_draw']} → {last['norm_draw']} across the window, so the bed "
+            f"is giving up {direction} water per unit of demand than it was. "
+            f"Because demand barely moved, this is an irrigation and soil signal, "
+            f"not a hot-spell artefact."
+        )
+    if sources == {"hargreaves"}:
+        bits.append(
+            "ET₀ here is the cruder Hargreaves estimate — inputs/weather.csv "
+            "predates the FAO-56 column. Re-run ./pull_weather_data.sh --force "
+            "for the better figure."
+        )
+
+    return {
+        "narrative": " ".join(bits),
+        "et0_spread": round(et0_spread, 2),
+        "daily": rows,
+        "corr": corr,
+        "weekly_norm": weeks,
+        "et0_source": "fao56" if sources == {"fao56"} else sorted(sources)[0],
+        "n_days": len(rows),
+        "span": [rows[0]["date"], rows[-1]["date"]],
+    }
+
+
 # ----------------------------------------------------------------------------- top-level
-def build(readings, config):
+def build(readings, config, wx_hourly=None):
     interval = config["sample_interval_minutes"]
     series = resample(readings, interval)
 
@@ -454,6 +599,8 @@ def build(readings, config):
     weekly = _weekly(series)
     trend = _trend(daily, tom_cfg["setpoint"])
     water = _water(readings)
+    wx_daily = weather_mod.daily(wx_hourly, config["location"]["lat"]) if wx_hourly else []
+    wx = _weather_analysis(daily, wx_daily)
 
     t0, t1 = series[0]["dt"], series[-1]["dt"]
     interval_hr = round(interval / 60, 2)
@@ -472,6 +619,9 @@ def build(readings, config):
             "pep": _distribution(series, "pep", pep_cfg["setpoint"], pep_cfg["hist_bin"]),
         },
         "health": _sensor_health(readings, config),
+        # None when inputs/weather.csv is absent -- the template falls back to
+        # its client-side Open-Meteo fetch in that case.
+        "weather": wx,
         "stats": {
             "range_start": t0.strftime("%Y-%m-%d %H:%M"),
             "range_end": t1.strftime("%Y-%m-%d %H:%M"),
