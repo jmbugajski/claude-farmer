@@ -75,6 +75,9 @@ def main() -> int:
     ap.add_argument("--out", default=None, help="default: <inputs>/weather.csv")
     ap.add_argument("--start", default=None, help="YYYY-MM-DD")
     ap.add_argument("--end", default=None, help="YYYY-MM-DD")
+    ap.add_argument("--archive", action="store_true",
+                    help="use the archive endpoint (needed once the window "
+                         "reaches back further than ~92 days; lags ~5 days)")
     args = ap.parse_args()
 
     out_path = args.out or os.path.join(args.inputs, "weather.csv")
@@ -130,10 +133,25 @@ def main() -> int:
         "end_date": end,
     }
 
+    # The forecast endpoint only reaches ~92 days into the past. This dataset
+    # starts 2026-06-29, so plain --forecast pulls stop covering the full window
+    # around late September 2026. Warn loudly rather than silently truncating.
+    import datetime as _dt
+    base = ("https://archive-api.open-meteo.com/v1/archive" if args.archive
+            else "https://api.open-meteo.com/v1/forecast")
+    if not args.archive:
+        age = (_dt.date.today() - _dt.date.fromisoformat(start)).days
+        if age > 88:
+            print(f"\n  WARNING: requested start is {age} days ago, and the "
+                  "forecast endpoint only\n  reaches back ~92 days. Re-run with "
+                  "--archive for the older portion.\n"
+                  "  (archive lags ~5 days, so a full window will eventually "
+                  "need both endpoints\n  merged -- not implemented yet.)\n",
+                  file=sys.stderr)
+
     print(f"Open-Meteo: {loc['name']} ({loc['lat']}, {loc['lon']})  {start} -> {end}")
     try:
-        response = client.weather_api(
-            "https://api.open-meteo.com/v1/forecast", params=params)[0]
+        response = client.weather_api(base, params=params)[0]
     except Exception as exc:
         print(f"\nRequest failed: {exc}\n"
               "If this is a network/allowlist error, run it from a machine with\n"
