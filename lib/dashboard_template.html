@@ -341,12 +341,22 @@ buildChart(null);
   const D=DATA.distribution, HH=DATA.health||{};
   const card=(k,name,col,setp,dd,st)=>{
     const h=HH[k];
-    if(h&&h.ok===false) return `<div class="cc" style="border-color:var(--tom)">
+    // Only a *bad* flag (AD range collapsed) invalidates the figure. A warn
+    // flag means the probe is measuring but on a shifted calibration, which
+    // makes the number worth showing with a caveat rather than suppressing.
+    if(h&&h.has_bad) return `<div class="cc" style="border-color:var(--tom)">
        <div class="lab">${name} — share of readings <b>at or above</b> the ${setp}% setpoint</div>
        <div class="r" style="color:var(--mut)">n/a</div>
-       <div class="rd" style="color:var(--tom)">sensor flagged — daily AD range ${h.ad_range_last} counts.
-       A probe that is not moving cannot be "above setpoint"; the figure would read
-       ${dd.pct_above}% and mean nothing. See Sensor health below.</div></div>`;
+       <div class="rd" style="color:var(--tom)">sensor flagged — daily AD range collapsed to
+       ${h.ad_range_last} counts. A probe that is not moving cannot be "above setpoint"; the
+       figure would read ${dd.pct_above}% and mean nothing. See Sensor health below.</div></div>`;
+    if(h&&h.ok===false) return `<div class="cc" style="border-color:var(--mut)">
+       <div class="lab">${name} — share of readings <b>at or above</b> the ${setp}% setpoint</div>
+       <div class="r" style="color:${col}">${dd.pct_above}%</div>
+       <div class="rd" style="color:var(--mut)">${dd.pct_below}% below · min ${st.min}% —
+       <b>read with care:</b> this window spans a calibration break, so it mixes readings from
+       different battery eras and includes a stretch when the probe was not resolving the daily
+       cycle. Arithmetically correct, physically misleading.</div></div>`;
     return `<div class="cc"><div class="lab">${name} — share of readings <b>at or above</b> the ${setp}% setpoint</div>
        <div class="r" style="color:${col}">${dd.pct_above}%</div>
        <div class="rd">${dd.pct_below}% below · min ${st.min}%</div></div>`;
