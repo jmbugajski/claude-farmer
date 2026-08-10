@@ -24,11 +24,21 @@ is opened with an internet connection.
 ## Run it
 
 ```bash
-python3 lib/build_dashboard.py
+./pull_weather_data.sh              # refresh inputs/weather.csv if stale
+.venv/bin/python lib/build_dashboard.py
 ```
 
-Requires Python 3 with `openpyxl` (`pip install openpyxl`). Options:
-`--inputs DIR`, `--outputs DIR`, `--config FILE` (all default to the repo root).
+**Use the venv's interpreter, not bare `python3`.** Homebrew's Python is PEP 668
+"externally managed" and refuses system-wide installs, so the dependencies live
+in `.venv`. First-time setup:
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Options: `--inputs DIR`, `--outputs DIR`, `--config FILE` (all default to the
+repo root).
 
 There is also a one-click task in `tasks/` — see **Weekly update** below.
 
@@ -37,7 +47,8 @@ There is also a one-click task in `tasks/` — see **Weekly update** below.
 After downloading the new daily logs from the EcoWitt cloud:
 
 1. Save the `.xlsx` files into `inputs/`.
-2. Run the task in `tasks/update_dashboard.md` (or just `python3 lib/build_dashboard.py`).
+2. Run the task in `tasks/update_dashboard.md` (or `./pull_weather_data.sh &&
+   .venv/bin/python lib/build_dashboard.py`).
 3. Open the newest file in `outputs/`.
 
 It's built to be run manually, roughly weekly, whenever fresh logs are downloaded.

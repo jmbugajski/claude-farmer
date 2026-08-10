@@ -6,9 +6,11 @@ End-to-end build for the Farm Water Analysis dashboard.
 
     inputs/*.xlsx  ->  parse  ->  analyze  ->  render  ->  outputs/farm-water-dashboard-<date>.html
 
-Run it after dropping fresh EcoWitt daily-log exports into inputs/:
+Run it after dropping fresh EcoWitt daily-log exports into inputs/. Use the
+venv's interpreter -- Homebrew's python3 is PEP 668 managed and will not have
+openpyxl installed:
 
-    python3 lib/build_dashboard.py
+    .venv/bin/python lib/build_dashboard.py
 
 Options:
     --inputs DIR    folder of EcoWitt .xlsx exports (default: <repo>/inputs)
@@ -37,10 +39,54 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
-import analyze          # noqa: E402
-import parse_ecowitt    # noqa: E402
-import render           # noqa: E402
-import weather          # noqa: E402
+
+def _dependency_help(exc: ModuleNotFoundError) -> str:
+    """
+    Turn a bare ModuleNotFoundError into something actionable. On macOS this is
+    almost always the wrong interpreter rather than a genuinely missing package:
+    Homebrew's python3 is PEP 668 managed, so the deps live in .venv while
+    `python3 lib/build_dashboard.py` runs against Homebrew and finds nothing.
+    """
+    venv = os.path.join(REPO, ".venv", "bin", "python")
+    lines = [
+        f"Missing dependency: {exc.name}",
+        "",
+        f"  Running under: {sys.executable}",
+        f"  Python:        {sys.version_info.major}.{sys.version_info.minor}"
+        f".{sys.version_info.micro}",
+        "",
+    ]
+    # lexists, not exists: a venv binary is a symlink chain into the base
+    # interpreter, and exists() reports False whenever that target is missing
+    # from the current environment (e.g. inspecting a macOS repo from Linux).
+    # We only need to know the venv was created here.
+    if os.path.lexists(venv):
+        lines += [
+            "  The project venv exists and is probably where the packages are.",
+            "  Re-run with it:",
+            "",
+            f"    {venv} lib/build_dashboard.py",
+        ]
+    else:
+        lines += [
+            "  No .venv found. Create one (Homebrew Python refuses system-wide",
+            "  installs under PEP 668):",
+            "",
+            "    python3 -m venv .venv",
+            "    .venv/bin/python -m pip install -r requirements.txt",
+            "    .venv/bin/python lib/build_dashboard.py",
+        ]
+    return "\n".join(lines)
+
+
+try:
+    import analyze          # noqa: E402
+    import parse_ecowitt    # noqa: E402
+    import render           # noqa: E402
+    import weather          # noqa: E402
+except ModuleNotFoundError as exc:
+    print(_dependency_help(exc), file=sys.stderr)
+    raise SystemExit(1)
 
 
 def main() -> int:

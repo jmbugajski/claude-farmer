@@ -18,13 +18,25 @@ dashboard. It is intentionally manual — nothing runs on a schedule.
    uses the full history it finds. Filenames look like
    `all_GW1200B-WIFIECD0(202607150000-202607152359).xlsx`.
 
-3. **Build** the dashboard from the repo root:
+3. **Refresh weather and build** the dashboard from the repo root:
 
    ```bash
-   python3 lib/build_dashboard.py
+   ./pull_weather_data.sh
+   .venv/bin/python lib/build_dashboard.py
    ```
 
-   (First time only: `pip install openpyxl`.)
+   `pull_weather_data.sh` re-pulls `inputs/weather.csv` to cover whatever date
+   range the `.xlsx` exports span, and no-ops if it is already current. The
+   build then normalises soil dry-down against ET₀ (evaporative demand), so a
+   hot week and an under-watered week stop looking alike.
+
+   Use the venv's interpreter — Homebrew's `python3` is PEP 668 managed and will
+   not have `openpyxl`. First time only:
+
+   ```bash
+   python3 -m venv .venv
+   .venv/bin/python -m pip install -r requirements.txt
+   ```
 
 4. **Open** the newest file in `outputs/`, named
    `farm-water-dashboard-<latest-date>.html`. Open it with an internet
