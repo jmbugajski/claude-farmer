@@ -20,3 +20,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# requests-cache sqlite from lib/fetch_weather.py (older versions wrote it here;
+# it now lives in the system temp dir)
+.cache.sqlite*
