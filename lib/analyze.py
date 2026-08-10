@@ -210,7 +210,7 @@ def _distribution(series, key, setpoint, bin_w):
     }
 
 
-def _water(readings):
+def _water(readings, since=None):
     wr = [(r["dt"], r["water"]) for r in readings if r["water"] is not None]
     if not wr:
         return None
@@ -259,6 +259,20 @@ def _water(readings):
         total += draws[d]
         daily_out.append({"date": d, "cum": round(cum, 1), "draw": round(draws[d], 1)})
     active = sum(1 for d in display_days if draws[d] > 0)
+
+    # Average since the current schedule took effect, separate from the all-time
+    # one. The whole-window mean is dominated by the OLD regime -- it reported
+    # ~140 L/day for days after the bed had actually dropped to ~78 -- so advice
+    # must quote the current-regime figure. Anchoring on the plan's effective
+    # date rather than a rolling 7 days matters: a fixed window straddles the
+    # change and silently mixes both regimes.
+    if since:
+        recent_days = [d for d in display_days if d >= since and draws[d] > 0]
+    else:
+        recent_days = [d for d in display_days[-7:] if draws[d] > 0]
+    recent_avg = (round(sum(draws[d] for d in recent_days) / len(recent_days), 1)
+                  if recent_days else None)
+
     return {
         "meter_online": meter_online,
         "first_flow": first_flow_dt.strftime("%Y-%m-%d %H:%M"),
@@ -266,6 +280,9 @@ def _water(readings):
         "total_L": round(total, 1),
         "active_days": active,
         "avg_active_L": round(total / active, 1) if active else 0.0,
+        "recent_avg_L": recent_avg,
+        "recent_n": len(recent_days),
+        "recent_since": since,
         "daily": daily_out,
     }
 
@@ -283,13 +300,32 @@ def _advice(data, config):
     p_hi = pcfg["gauge"]["idealHi"]
     pw = tr["per_week"]
 
-    # Tomatoes
+    # Tomatoes. The overnight minimum is the honest retention read: it is the
+    # pre-irrigation trough, so unlike the 24 h mean it is not inflated by
+    # whatever was applied that morning.
+    # Median, not min: the last few days typically contain both a transitional
+    # day just after a schedule change and the odd meter-batching spike, and a
+    # bare min lets either one dictate the advice.
+    daily_rows = data["daily"][-5:]
+    ovn = [r["tom_min"] for r in daily_rows if r["tom_min"] is not None]
+    ovn_lo = round(statistics.median(ovn)) if ovn else None
+    headroom = round(ovn_lo - tsp) if ovn_lo is not None else None
+
     if t_last is not None and t_last < tsp - 2:
         drift = f" and still drying ({pw} %/wk)" if pw < -0.3 else " and roughly flat"
         tom = (f"the bed is now ~{t_last}% (24 h avg), below the {tsp}% setpoint{drift} — "
                f"lengthen the dose or add a cycle, then re-check next export.")
     elif t_last is not None and t_last > t_hi:
-        tom = f"sitting ~{t_last}%, above the healthy band — ease back on watering and let it dry down."
+        if headroom is not None and headroom >= 3:
+            tom = (f"sitting ~{t_last}% (24 h avg), above the {t_hi}% top of band, with a "
+                   f"median daily trough of {ovn_lo}% over the last {len(ovn)} days — "
+                   f"{headroom} points above the {tsp}% setpoint. There is room to trim, "
+                   f"but only {len(ovn)} days of data since the schedule changed and at "
+                   f"below-average evaporative demand. Hold one more week, then trim a "
+                   f"single pulse if the trough still clears setpoint on a hot week.")
+        else:
+            tom = (f"sitting ~{t_last}%, above the healthy band — ease back on watering "
+                   f"and let it dry down.")
     elif tr["set_reach_date"]:
         d = datetime.strptime(tr["set_reach_date"], "%Y-%m-%d").strftime("%b %-d")
         tom = f"trend projects the {tsp}% setpoint around {d} — hold the current timer and watch the daily min."
@@ -306,17 +342,36 @@ def _advice(data, config):
     else:
         pep = "in band and stable — no change."
 
-    # Water
+    # Water. Describe the schedule from config rather than hardcoding it -- this
+    # line claimed a "fixed 14-min daily timer" for days after the bed moved to
+    # a 4x90s pulsed plan, and quoted a lifetime average that no longer applied.
+    plan = config.get("plan", {})
+    runs = plan.get("runs") or []
+    if runs:
+        plan_desc = (f"{len(runs)} × {plan.get('run_seconds', 90)} s pulsed plan "
+                     f"({plan.get('run_min', 6)} min/day total)")
+    else:
+        plan_desc = f"{plan.get('run_min', '?')}-min daily timer"
+
     w = data["water"]
     if not w or not w["first_flow"]:
         water = "no metered flow yet — confirm the WFC01 meter is paired and reporting."
     elif w["active_days"] < 14:
-        water = ("let the WFC01 log a few more clean weeks before leaning on the L/day numbers; "
-                 "the tomato bed runs on a fixed 14-min daily timer (no volume target), "
-                 "and peppers are watered separately and not metered.")
+        water = (f"let the WFC01 log a few more clean weeks before leaning on the L/day "
+                 f"numbers; the tomato bed runs on a {plan_desc} with no volume target, "
+                 f"and peppers are watered separately and not metered.")
+    elif w.get("recent_avg_L"):
+        older = w["avg_active_L"]
+        shift = ""
+        if older and abs(older - w["recent_avg_L"]) / older > 0.15:
+            shift = (f" — down from a {older} L lifetime average, which still reflects "
+                     f"the pre-{plan.get('runs_effective', 'change')} flood dosing")
+        water = (f"metered ~{w['recent_avg_L']} L per watering day over the last "
+                 f"{w['recent_n']} active days on the tomato bed's {plan_desc}{shift}. "
+                 f"Read as delivered volume, not against a target.")
     else:
         water = (f"metered ~{w['avg_active_L']} L per watering day on the tomato bed's "
-                 f"fixed 14-min daily timer — read as delivered volume, not against a target.")
+                 f"{plan_desc} — read as delivered volume, not against a target.")
 
     return {"tom": tom, "pep": pep, "water": water}
 
@@ -617,7 +672,7 @@ def build(readings, config, wx_hourly=None):
     daily = _daily(series)
     weekly = _weekly(series)
     trend = _trend(daily, tom_cfg["setpoint"])
-    water = _water(readings)
+    water = _water(readings, since=config.get("plan", {}).get("runs_effective"))
     wx_daily = weather_mod.daily(wx_hourly, config["location"]["lat"]) if wx_hourly else []
     wx = _weather_analysis(daily, wx_daily)
 
