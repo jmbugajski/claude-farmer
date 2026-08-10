@@ -93,9 +93,20 @@ def main() -> int:
         import requests_cache
         from retry_requests import retry
     except ImportError as exc:
-        print(f"Missing dependency: {exc.name}\n"
-              "  pip install openmeteo-requests requests-cache retry-requests numpy pandas",
-              file=sys.stderr)
+        # Nearly always an interpreter/pip mismatch on macOS: `pip` belongs to a
+        # different Python than the `python3` on PATH, so "Requirement already
+        # satisfied" and "Missing dependency" are both true, of different Pythons.
+        v = sys.version_info
+        print(
+            f"Missing dependency: {exc.name}\n\n"
+            f"  This script is running:  {sys.executable}\n"
+            f"  Python version:          {v.major}.{v.minor}.{v.micro}\n\n"
+            "If `pip install` just told you the package was already satisfied, it\n"
+            "installed into a DIFFERENT Python than the one above. Install into\n"
+            "this exact interpreter instead -- `-m pip` guarantees they match:\n\n"
+            f"  {sys.executable} -m pip install openmeteo-requests requests-cache "
+            "retry-requests numpy pandas\n",
+            file=sys.stderr)
         return 1
 
     # Cache lives in the system temp dir, not the repo: keeps a stray sqlite
