@@ -549,22 +549,41 @@ def _weather_analysis(daily_soil, wx_daily):
         return ("strong" if a >= .6 else "moderate" if a >= .35
                 else "weak" if a >= .15 else "negligible")
 
+    # Two different spreads, two different conclusions -- keep them apart.
+    # DAILY ET0 varies plenty, so a near-zero daily correlation is a real
+    # finding (irrigation dominates the swing), not a range-restriction artefact.
+    # WEEKLY mean ET0 is nearly flat, which is what licenses week-over-week
+    # comparison without worrying that a hot spell explains the difference.
+    wk_et0 = [w["et0_mean"] for w in weeks] if weeks else []
     bits = [
-        f"Over {len(rows)} days, evaporative demand held remarkably steady "
-        f"(ET₀ {min(et0_vals):.1f}–{max(et0_vals):.1f} mm/day, mean "
-        f"{et0_mean:.1f}), so weather explains little of the variation here: "
-        f"ET₀ vs tomato dry-down is {_mag(r_tom)} (r={r_tom})."
+        f"Over {len(rows)} days, daily evaporative demand varied substantially "
+        f"(ET₀ {min(et0_vals):.1f}–{max(et0_vals):.1f} mm/day, mean {et0_mean:.1f}), "
+        f"yet ET₀ vs tomato daily dry-down is {_mag(r_tom)} (r={r_tom}). With that "
+        f"much variation in the predictor, a flat correlation is a real result: "
+        f"the daily swing is set by the irrigation pulse, not by the weather."
     ]
-    if weeks:
-        first, last = weeks[0], weeks[-1]
-        direction = ("less" if last["norm_draw"] < first["norm_draw"] else "more")
+    if wk_et0:
         bits.append(
-            f"Normalised dry-down — points of moisture lost per mm of ET₀, "
-            f"which strips the weather term out — moved "
-            f"{first['norm_draw']} → {last['norm_draw']} across the window, so the bed "
-            f"is giving up {direction} water per unit of demand than it was. "
-            f"Because demand barely moved, this is an irrigation and soil signal, "
-            f"not a hot-spell artefact."
+            f"Weekly mean demand, by contrast, barely moved "
+            f"({min(wk_et0):.1f}–{max(wk_et0):.1f} mm/day), so week-over-week "
+            f"changes below are not a hot-spell artefact."
+        )
+    if len(weeks) >= 3:
+        peak = max(weeks, key=lambda w: w["norm_draw"])
+        first, last = weeks[0], weeks[-1]
+        prev = weeks[-2]
+        arrow = "falling" if last["norm_draw"] < prev["norm_draw"] else "rising"
+        bits.append(
+            f"Normalised dry-down — points of moisture lost per mm of ET₀, which "
+            f"strips the weather term out — ran {first['norm_draw']} at the start, "
+            f"peaked at {peak['norm_draw']} ({peak['start']}), and is now "
+            f"{last['norm_draw']} and {arrow}."
+        )
+        bits.append(
+            "<em>Caveat:</em> daily dry-down is max−min, so it also shrinks when "
+            "less water is applied per event — a smaller pulse makes a smaller "
+            "peak. Treat it as directional and lean on the overnight minimum for "
+            "a clean read on retention."
         )
     if sources == {"hargreaves"}:
         bits.append(
