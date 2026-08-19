@@ -636,9 +636,14 @@ const NAT=DATA.native||{};
       <b style="color:var(--ink)">Actual watering — pulsed multi-start timer:</b>
       the <b>tomato raised bed</b> runs ${runList||PLAN.run_min+' min '+PLAN.freq}
       ${effD?'(<b>as of '+effD+'</b>)':''}, through <b>${PLAN.emitters}</b>, cycle mode off.
-      The three morning starts 15 min apart are a <b>manual cycle-and-soak</b>: each pulse infiltrates and
-      redistributes downward before the next arrives, which wets deeper per litre than one long run that
-      out-paces infiltration and channels through. Each 90 s pulse meters <b>~19.9 L</b>, so
+      ${(PLAN.runs||[]).filter(r=>r.time<'12:00').length>1
+        ? `The morning starts are a <b>manual cycle-and-soak</b>: each pulse infiltrates and redistributes
+           downward before the next arrives, which wets deeper per litre than one long run that out-paces
+           infiltration and channels through.`
+        : `<b>Single morning pulse.</b> The extra 05:20 and 05:35 starts were retired on Aug 19 &mdash; at
+           5-minute resolution the inter-pulse floor was pinned at 79&ndash;81% (field capacity), which pulse
+           one alone reached, so later pulses spiked ~10 points and shed every point back within 10 minutes.`}
+      Each 90 s pulse meters <b>~19.9 L</b>, so
       <b>~${PLAN.metered_daily} L/day</b> (~${PLAN.metered_weekly} L/wk).
       ${BED?`<br><br><b style="color:var(--ink)">Now expressible as depth:</b> the bed is
       <b>${BED.length_ft}×${BED.width_ft} ft (${BED.area_ft2} sq ft)</b> with soil <b>${BED.soil_depth_in} in</b> deep, so

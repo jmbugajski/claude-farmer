@@ -414,6 +414,22 @@ def _gauge_for(pkey, pcfg, stats, trend=None):
     return g
 
 
+def _scope(since, readings):
+    """
+    Guard a `since` date against being in the future.
+
+    Plan changes are entered the day BEFORE they first run, so an effective date
+    routinely sits ahead of the newest reading. Any panel filtered on it then
+    silently shows nothing -- which is how the onset table went blank when the
+    pepper duration cut was logged. Returns None (no filter) in that case, so the
+    panel keeps showing the schedule that has actually been running.
+    """
+    if not since or not readings:
+        return since
+    last = readings[-1]["dt"].strftime("%Y-%m-%d")
+    return since if since <= last else None
+
+
 def _trust_from(config, key, _cache={}):
     """
     Date after which a channel's readings are trustworthy: the day AFTER its
@@ -732,13 +748,24 @@ def build(readings, config, wx_hourly=None):
         # and for peppers also to the date the probe became trustworthy again --
         # a flatlined probe cannot register an onset, so scoring that window
         # would manufacture "late" runs out of a dead sensor.
+        # Onset checking compares START TIMES, so it must be scoped by the date
+        # the times last moved -- NOT by runs_effective/pepper_effective, which
+        # also advance on a DURATION change. Using the latter broke this panel
+        # the moment the 2026-08-20 pepper duration cut was entered: the "since"
+        # date was in the future, every event was filtered out, and the table
+        # silently rendered empty. A duration change does not reset onset
+        # history; only a time change does.
         "onset": {
             "tom": events_mod.onset_check(
-                ev_tom, sched_tom, since=plan_cfg.get("runs_effective")),
+                ev_tom, sched_tom,
+                since=_scope(plan_cfg.get("runs_time_effective")
+                             or plan_cfg.get("runs_effective"), readings)),
             "pep": events_mod.onset_check(
                 ev_pep, sched_pep,
-                since=max([d for d in (plan_cfg.get("pepper_effective"),
-                                       _trust_from(config, "pep")) if d] or [None])),
+                since=_scope(max([d for d in (plan_cfg.get("pepper_time_effective")
+                                              or plan_cfg.get("pepper_effective"),
+                                              _trust_from(config, "pep")) if d] or [None]),
+                             readings)),
         },
         "regimes": events_mod.regime_summary(
             plan_cfg.get("regimes"), ext_tom, water.get("daily") if water else None),
