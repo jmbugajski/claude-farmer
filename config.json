@@ -158,6 +158,30 @@
     "live_plan_note": "ACTIVE as of the 2026-08-19 17:05 run, entered in the app by Justin on 2026-08-19; the first FULL day on the new plan is 2026-08-20, so use Aug 20 onward for any before/after comparison. Two plain-duration entries of 90 s each at 05:05 and 17:05, cycle mode OFF. The 05:20 and 05:35 morning pulses were REMOVED — 5-minute native traces showed the inter-pulse floor pinned at 79-81% (field capacity at the 3-inch probe) with pulse 1 alone reaching it, so pulses 2 and 3 spiked to 89-90% and shed it all back within 10 minutes without adding retained storage. Each 90 s run meters ~19.9 L, so ~39.8 L/day = 2.46 in/week, down from ~79.6 L/day = 4.92 in/week (a 50% cut). This lands at the top of the estimated August ETc band (1.75-2.45 in/wk) and is effectively ramp step 4. Metered figures here are ARITHMETIC (2 x 19.9), not yet measured — re-derive metered_daily/metered_weekly from clean days once Aug 20+ exports land. PM start moved 17:00 -> 17:05 as an incidental of re-entering the plan; immaterial.",
     "schedule_log": [
       {
+        "date": "2026-08-20",
+        "logged": "2026-08-19T15:20:00",
+        "kind": "change",
+        "change": "PEPPER CUT LIVE: 15 min -> 7 min @ 06:45, entered by Justin 2026-08-19 15:15. Today's 06:40 run already happened at 15 min, so the first run on the new duration is 2026-08-20 and that is the date to compare from. Target was ~5 min of delivery plus line-charge margin, on the finding that the bags reach container capacity 5-8 minutes in and minutes 8-15 are leachate."
+      },
+      {
+        "date": "2026-08-20",
+        "logged": "2026-08-19T15:20:00",
+        "kind": "decision",
+        "change": "TEST DESIGN for the pepper cut, unchanged from the pending note: run 4-5 days, not 2-3, because ~27% of runs fire ~40 min late and a 3-day window is roughly a coin flip to catch one. MEASURE FROM ONSET, NOT CLOCK TIME — a displaced run shifts the whole curve without changing its shape, so onset-anchored it stays a usable data point. PASS CONDITION: value at onset+50 min still 46-47 AND next-morning floor still 39-40, which would confirm minutes 8-15 were pure drainage. FAIL: floor declining day over day -> split to 2 x 5 min rather than returning to 15, since fabric bags dry through the sidewalls and want frequency over volume. Keep one 15-min flush every 2-3 weeks for salt management."
+      },
+      {
+        "date": "2026-08-20",
+        "logged": "2026-08-19T15:20:00",
+        "kind": "note",
+        "change": "BOTH LINES NOW CHANGED FOR 2026-08-20 — tomato to 2 x 90 s and peppers to 7 min. This is NOT the confound the earlier 'do_not_confound' note warned about: the two lines are separate systems on separate probes, so each channel measures only its own change. What IS newly true is that neither channel has a stable baseline any more, so treat 2026-08-20 as day zero for both and do not read week-over-week comparisons that straddle it. FERTIGATION NOTE: the 7-min run is now the default follow-up, which is what the 2026-08-19 leaching finding asked for — fertigate late afternoon at the bags' daily floor (~40-41%), never mid-morning onto a wet bag."
+      },
+      {
+        "date": "2026-08-19",
+        "logged": "2026-08-19T15:35:00",
+        "kind": "fix",
+        "change": "ONSET PANEL WENT BLANK the moment the pepper cut was logged, and the bug is worth keeping visible. onset_check was scoped by runs_effective/pepper_effective, but those advance on a DURATION change too — setting pepper_effective to 2026-08-20 put the filter date in the FUTURE, excluded every event, and the table rendered empty with no error. Onset compares START TIMES, and a duration change does not reset start-time history. FIXED two ways: new runs_time_effective / pepper_time_effective keys track only when times moved (tomato 2026-08-04, pepper 2026-07-24, unchanged across both pepper durations), and a _scope() guard now drops any `since` date later than the newest reading so a future-dated plan can never silently empty a panel again. Also fixed stale plan copy that still described 'three morning starts 15 min apart' while rendering a two-run schedule — it now branches on the actual run list. GENERAL LESSON, third instance this session: a panel that can render EMPTY or STALE without erroring is the same failure class as the Aug 4 dead-sensor panel and the Aug 19 permanent-warning panel. Silence is not a safe default."
+      },
+      {
         "date": "2026-08-16",
         "logged": "2026-08-19T16:00:00",
         "kind": "note",
@@ -269,7 +293,7 @@
         "date": "2026-08-19",
         "logged": "2026-08-19T13:07:00",
         "kind": "note",
-        "change": "Pepper cut to ~7 min is PENDING, not entered — Justin is holding at 15 min for now, which also keeps the tomato two-run result unconfounded. Test over 4-5 days (not 2-3, given the ~27% late-fire rate) and measure from ONSET, not clock time: if the value at onset+50 min holds at 46-47 and the next-morning floor holds at 39-40, minutes 8-15 were pure drainage. Keep one 15-min flush every 2-3 weeks for salts, and if the floor starts declining split to 2 x 5 min rather than returning to 15."
+        "change": "SUPERSEDED 2026-08-19 15:15 — the cut is now live; see the change entry of the same date. Retained here for the test design it specifies: measure over 4-5 days from ONSET, not clock time, and hold the 15-min flush every 2-3 weeks for salts."
       },
       {
         "date": "2026-08-05",
@@ -511,8 +535,8 @@
     },
     "pepper_freq": "once daily",
     "pepper_time": "06:45",
-    "pepper_run_min": 15,
-    "pepper_effective": "2026-07-24",
+    "pepper_run_min": 7,
+    "pepper_effective": "2026-08-20",
     "pepper_system": {
       "_comment": "RECORDED 2026-08-19 after Justin corrected a wrong assumption in this file. The pepper fabric bags are NOT on EcoWitt hardware — they are a zone on the HOUSE MULTI-ZONE IRRIGATION CONTROLLER that also runs lawn, roses and trees. Every prior note that spoke of the pepper 'timer' as if it were an EcoWitt plan entry was wrong about the device, and the 2026-08-19 'count the schedule entries in the app' action pointed at the wrong system entirely. This is a separate troubleshooting domain: different controller, different valves, different failure modes, no API, no logging.",
       "controller": "house multi-zone irrigation controller (make/model NOT YET RECORDED — write it down on the next site visit, along with the zone number the peppers sit on and the full zone order)",
@@ -578,6 +602,10 @@
         "metered": false
       }
     ],
-    "_manual_events_comment": "Hand applications: fertigation, spot watering, anything poured by hand. LOG THEM HERE. Two reasons, both of which bit on 2026-08-16 before this key existed. (1) The WFC01 never sees hand-applied water, so the meter under-reports what the bed got while the probe records the full response — points-per-100L read 23.9 that day, the highest in the record, purely because the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, since a silently wrong efficiency figure is worse than a missing one. (2) They are not schedule violations, so onset_check() skips them; otherwise every fertigation shows up as a broken timer. Detection hint: a manual application shows as simultaneous off-schedule events on BOTH channels within a few minutes — that signature appears exactly once in the record (2026-08-16, 5 min apart)."
+    "_manual_events_comment": "Hand applications: fertigation, spot watering, anything poured by hand. LOG THEM HERE. Two reasons, both of which bit on 2026-08-16 before this key existed. (1) The WFC01 never sees hand-applied water, so the meter under-reports what the bed got while the probe records the full response — points-per-100L read 23.9 that day, the highest in the record, purely because the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, since a silently wrong efficiency figure is worse than a missing one. (2) They are not schedule violations, so onset_check() skips them; otherwise every fertigation shows up as a broken timer. Detection hint: a manual application shows as simultaneous off-schedule events on BOTH channels within a few minutes — that signature appears exactly once in the record (2026-08-16, 5 min apart).",
+    "pepper_prev_run_min": 15,
+    "runs_time_effective": "2026-08-04",
+    "pepper_time_effective": "2026-07-24",
+    "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations."
   }
 }
