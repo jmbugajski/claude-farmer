@@ -157,6 +157,24 @@
     "schedule_log": [
       {
         "date": "2026-08-19",
+        "logged": "2026-08-19T15:30:00",
+        "kind": "fix",
+        "change": "DASHBOARD REBUILT AROUND DECISIONS, not data sources. Root problem: sample_interval_minutes=60 while native data is 5-minute, so the hourly resample erased the pulse structure EVERY real finding came from — a 90 s pulse and a 15-min run both vanish into one bucket. New lib/events.py works on raw readings and drives six new panels: control variable (pre-irrigation floor + daily min, the quantity the log always steered on, previously never plotted), regime comparison, water budget vs ETc, per-run retained-vs-shed efficiency, 5-minute pulse detail, and onset verification. CUT: the dry-down trend + setpoint projection (one OLS across five irrigation regimes, R^2 0.28, projection undefined), distribution/time-in-band (scored against a hand-set alert threshold on a factory-calibrated index), the weather correlation panel (r=-0.001 is a stable null; ET0 kept where it works, as the budget denominator), and the week-over-week mean table (the mean averages the spike with the dry-down and hides both ends). Sensor health moved to panel 1 — it gates everything and used to sit sixth. Also fixed a hardcoded chart header that had read 'Jun 9 - Jul 7' for weeks against Jun 29 - Aug 19 data; nobody noticed, which is its own verdict on that panel."
+      },
+      {
+        "date": "2026-08-19",
+        "logged": "2026-08-19T15:30:00",
+        "kind": "finding",
+        "change": "REGIME TABLE MAKES THE WHOLE THESIS VISIBLE IN FIVE ROWS, and it should have existed in July. Mean pre-irrigation floor by regime: 14 min daily 189.4 L/day -> 56.4%; 10 min daily 118.8 -> 56.8%; 12 min 149.3 -> 50.0%; 4 x 90 s pulsed 78.3 -> 72.2%. That is 2.4x the water for 15.8 points LESS retained. Every regime before the pulsed plan sat in a narrow 50-57% band regardless of volume, which is the signature of a bed at its infiltration ceiling: past that point extra litres do not enter the soil, they run off and percolate. Water budget agrees — all 7 complete weeks came in ABOVE estimated ETc, from 1.9x to 4.2x, and the new two-run plan projects 2.46 in/wk, the first week that would land in band."
+      },
+      {
+        "date": "2026-08-19",
+        "logged": "2026-08-19T15:30:00",
+        "kind": "note",
+        "change": "OPEN QUESTION FROM THE REBUILD: event detection found a THIRD irrigation event on 2026-08-16 at ~09:20 on BOTH channels (tomato 71->81, pepper 09:25) — simultaneous, outside every schedule, on a Sunday. Not rain (precipitation is 0.0 across the entire weather record). Most likely hand-watering. Justin to confirm; if it was manual, note that manual events land in the retention and onset panels as schedule violations unless they are logged. Two smaller verification catches worth keeping: onset_check MUST be scoped with `since` (unscoped, it scored the whole history against the current schedule and reported 30 of 53 pepper runs late, burying the 3 real ones — now 5 of 14), and daily_extremes now flags `partial` days because today's export usually stops mid-morning, which made the day's 'minimum' the overnight value and read as a dramatic improvement that had not happened."
+      },
+      {
+        "date": "2026-08-19",
         "logged": "2026-08-19T14:00:00",
         "kind": "note",
         "change": "SETPOINTS ARE NOT DATA-DERIVED — they are the EcoWitt app alert thresholds Justin set (tomato 62%, pepper 35%), copied into probes.*.setpoint and only ever read by analyze.py, never computed. They also CANNOT be derived in absolute terms while both probes run factory calibration, where 0%AD is air and 100%AD is submerged in water: the '%' is an index on that calibration, not volumetric water content, so 62% has no agronomic meaning and should never be compared to published ideal-moisture figures. Note three different numbers are currently doing this job with no stated provenance — setpoint 62, gauge ideal band 60-68, and the 58-60% overnight-min target used to govern the ramp; treat all of them as operator judgement and read each probe against itself."
@@ -488,6 +506,45 @@
       "metering": "NONE. The WFC01 does not see this system. There is no flow data, no run log, and no remote status for any zone on it.",
       "telemetry_note": "IMPORTANT CONSEQUENCE: the WH51 pepper soil probe is the ONLY instrumentation of any kind on the entire house irrigation system. It was installed to watch pepper moisture, but because it registers each irrigation event it is in effect an accidental run-log for one zone — and the only observability into a controller that also waters the lawn, roses and trees. Treat pepper-probe anomalies as candidate house-system events, not just plant-moisture events. Corollary: the Jul 22 - Aug 6 lithium-battery flatline blinded not only the pepper channel but the only sensor on the whole system.",
       "shared_pressure_note": "The 05:05 EcoWitt tomato start was originally chosen to avoid overlapping this system's morning window (see the 2026-08-02 decision). That rationale is now MORE important, not less: the two systems share supply, so house-side zone changes can affect measured WFC01 flow on the tomato line."
-    }
+    },
+    "regimes": [
+      {
+        "label": "hand-timed (irregular)",
+        "start": "2026-06-29",
+        "end": "2026-07-15",
+        "note": "pre-timer; no fixed schedule"
+      },
+      {
+        "label": "14 min daily",
+        "start": "2026-07-16",
+        "end": "2026-07-23",
+        "note": "first fixed timer @05:05"
+      },
+      {
+        "label": "10 min daily",
+        "start": "2026-07-24",
+        "end": "2026-08-02",
+        "note": "trimmed to cut leaching; measured 118 L/day"
+      },
+      {
+        "label": "12 min daily",
+        "start": "2026-08-03",
+        "end": "2026-08-03",
+        "note": "one day only; overnight min had broken below band"
+      },
+      {
+        "label": "4 x 90 s pulsed",
+        "start": "2026-08-04",
+        "end": "2026-08-19",
+        "note": "application-rate fix; ~79.6 L/day"
+      },
+      {
+        "label": "2 x 90 s pulsed",
+        "start": "2026-08-20",
+        "end": null,
+        "note": "morning pulses 2-3 retired; ~39.8 L/day"
+      }
+    ],
+    "_regimes_comment": "Irrigation regime boundaries for the TOMATO line, maintained by hand from schedule_log. Charts shade by these and regime_summary() compares them side by side. This exists because the old dashboard fitted ONE linear trend across all of them and projected a setpoint crossing from it (R^2 0.28, projection undefined) — a slope fitted across regime changes is not a trend, it is an artefact. ADD A ROW HERE whenever the plan changes, or the comparison silently goes stale."
   }
 }
