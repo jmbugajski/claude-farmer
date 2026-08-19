@@ -421,6 +421,15 @@ buildChart(null);
   document.getElementById('health-flags').innerHTML=all.length
     ? all.map(f=>`<p class="caveat" style="border-left-color:${f.level==='bad'?'var(--tom)':'var(--wx)'};margin-top:10px"><b style="color:var(--ink)">${f.label}:</b> ${f.msg}</p>`).join('')
     : `<p class="caveat" style="border-left-color:var(--leaf);margin-top:10px">Both channels at nominal voltage with healthy diurnal AD range — moisture readings below can be taken at face value.</p>`;
+  // Past calibration breaks: resolved history, not a live fault. Rendered muted
+  // and separately so a healed channel reads OK while the reader is still told
+  // which dates absolute % cannot be compared across.
+  const brk=[];
+  keys.forEach(k=>(H[k].breaks||[]).forEach(b=>brk.push({label:H[k].label,...b})));
+  if(brk.length) document.getElementById('health-flags').innerHTML+=
+    `<p class="caveat" style="border-left-color:var(--mut);margin-top:8px;color:var(--mut)">
+     <b>Past calibration breaks</b> (resolved &mdash; absolute % is comparable only within a battery era, but the channel is healthy now):
+     ${brk.map(b=>`${b.label} &middot; ${b.date} (${b.age_days} d ago)`).join(' &nbsp;|&nbsp; ')}</p>`;
 })();
 
 /* ---------- irrigation plan + target vs actual ---------- */

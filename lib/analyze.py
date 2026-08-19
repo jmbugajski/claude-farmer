@@ -431,6 +431,7 @@ def _sensor_health(readings, config):
     v_tol = hc.get("volt_tolerance", 0.08)
     range_frac = hc.get("range_collapse_frac", 0.35)
     nominal = hc.get("nominal_volts", 1.5)
+    step_days = hc.get("step_recent_days", 14)
 
     by_day = {}
     for r in readings:
@@ -464,14 +465,30 @@ def _sensor_health(readings, config):
                         f"nominal — derived % is on a shifted calibration, so "
                         f"absolute values aren't comparable to earlier history."),
             })
+        # A voltage step is a property of the TIMELINE, not of the sensor's
+        # current state: it marks a date across which absolute % values are not
+        # comparable. It is not evidence that the probe is unhealthy today, and
+        # left in `flags` forever it makes `ok` permanently False. That is the
+        # Aug 4 lesson inverted — a panel crying wolf about a channel that
+        # recovered six weeks ago trains the reader to ignore the flag, which is
+        # exactly how the NEXT real failure gets missed. So steps older than
+        # step_recent_days are demoted to `breaks` (chart annotations) and only
+        # a RECENT step, where the reader may still be comparing across it,
+        # stays in `flags`.
+        breaks = []
+        last_day = days[-1]["date"]
         for a, b in zip(days, days[1:]):
             if a["v"] is not None and b["v"] is not None and abs(b["v"] - a["v"]) > v_tol:
-                flags.append({
-                    "level": "warn",
-                    "msg": (f"voltage stepped {a['v']:.2f} → {b['v']:.2f} V on "
-                            f"{b['date']} (battery change?) — treat that date as a "
-                            f"calibration break, not a moisture event."),
-                })
+                age = (datetime.fromisoformat(last_day)
+                       - datetime.fromisoformat(b["date"])).days
+                msg = (f"voltage stepped {a['v']:.2f} → {b['v']:.2f} V on "
+                       f"{b['date']} (battery change?) — treat that date as a "
+                       f"calibration break, not a moisture event.")
+                if age <= step_days:
+                    flags.append({"level": "warn", "msg": msg})
+                else:
+                    breaks.append({"level": "info", "date": b["date"],
+                                   "age_days": age, "msg": msg})
 
         # --- AD dynamic range: compare latest vs trailing median of prior days
         rngs = [d["ad_range"] for d in days if d["ad_range"] is not None]
@@ -493,6 +510,7 @@ def _sensor_health(readings, config):
             "v_last": last_v,
             "ad_range_last": days[-1]["ad_range"],
             "flags": flags,
+            "breaks": breaks,
             "ok": not flags,
             # Severity matters for presentation. A "warn" (voltage a little off
             # nominal) means absolute % may be shifted; a "bad" (AD range
