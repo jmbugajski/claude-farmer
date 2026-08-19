@@ -145,7 +145,13 @@ footer a{color:var(--mut)}
 </section>
 
 <section class="panel">
-  <div class="phead"><h3>Distribution &amp; time in band</h3><div class="hint">every reading, whole window &middot; dashed line = setpoint</div></div>
+  <div class="phead"><h3>Distribution &amp; time in band</h3><div class="hint" id="dist-hint">every reading, whole window &middot; dashed line = setpoint</div></div>
+  <p class="caveat" style="border-left-color:var(--mut);color:var(--mut);margin:0 0 10px">
+    <b>Where these setpoints come from:</b> they are the <b>Ecowitt app alert thresholds</b>, set by hand &mdash;
+    <b>not derived from this data</b>. They also can't be, while both probes run factory calibration
+    (0%&nbsp;AD = air, 100%&nbsp;AD = submerged): the &ldquo;%&rdquo; is an index on that calibration, not volumetric
+    water content, so the absolute number has no agronomic meaning and shouldn't be compared to published
+    ideal-moisture figures. <b>Read each probe against itself</b> &mdash; trends and daily swings are the real signal.</p>
   <div class="grid3" style="grid-template-columns:1fr 1fr" id="dist-cards"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
     <div class="chartbox sm"><canvas id="histTom"></canvas></div>
@@ -194,7 +200,7 @@ footer a{color:var(--mut)}
   Moisture data: Ecowitt GW1200 export, __FOOTER_META__. &nbsp;|&nbsp;
   Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Forecast API (past_days), fetched live in your browser &mdash; CC BY 4.0. &nbsp;|&nbsp;
   Onboard hub temp/humidity/dew point are indoor readings and are not used for correlation. &nbsp;|&nbsp;
-  Setpoints (62% tomato, 35% pepper) are the Ecowitt alert thresholds, not universal ideals; read each probe against itself.
+  Setpoints are hand-set Ecowitt alert thresholds, not universal ideals &mdash; see the note in Distribution &amp; time in band.
 </footer>
 </div>
 
