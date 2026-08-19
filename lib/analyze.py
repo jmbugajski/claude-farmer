@@ -717,8 +717,9 @@ def build(readings, config, wx_hourly=None):
     # irrigation decision in plan.schedule_log was actually made from).
     plan_cfg = config.get("plan", {})
     bed_cfg = config.get("bed", {})
-    ev_tom = events_mod.detect_events(readings, "tom")
-    ev_pep = events_mod.detect_events(readings, "pep")
+    manual = plan_cfg.get("manual_events") or []
+    ev_tom = events_mod.tag_manual(events_mod.detect_events(readings, "tom"), manual)
+    ev_pep = events_mod.tag_manual(events_mod.detect_events(readings, "pep"), manual)
     ext_tom = events_mod.daily_extremes(readings, "tom", ev_tom)
     ext_pep = events_mod.daily_extremes(readings, "pep", ev_pep)
     sched_tom = [r["time"] for r in plan_cfg.get("runs", [])]

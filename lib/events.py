@@ -55,6 +55,46 @@ def _by_day(readings):
     return days
 
 
+def tag_manual(evs, manual, window_min=45):
+    """
+    Mark events that were hand-applied (fertigation, spot watering) rather than
+    delivered by a timer.
+
+    This matters more than bookkeeping tidiness. Hand-applied water DOES NOT PASS
+    THE WFC01, so on those days the meter under-reports what the bed received
+    while the probe still records the full response. Any litres-denominated
+    metric — points per 100 L above all — is inflated on a manual day, because
+    the numerator saw water the denominator did not. They are excluded from
+    retention() rather than shown with an asterisk, since a silently wrong
+    efficiency figure is worse than a missing one.
+
+    Manual events are also not schedule violations, so onset_check() skips them.
+    """
+    idx = {(m["date"], m.get("time")) for m in (manual or [])}
+    dates = {m["date"] for m in (manual or [])}
+    for e in evs:
+        e["manual"] = False
+        if e["date"] not in dates:
+            continue
+        for m in manual:
+            if m["date"] != e["date"]:
+                continue
+            t = m.get("time")
+            if not t:
+                e["manual"] = True
+                break
+            hh, mm = t.split(":")
+            if abs(e["onset_min"] - (int(hh) * 60 + int(mm))) <= window_min:
+                e["manual"] = True
+                e["manual_note"] = m.get("what", "manual application")
+                break
+    return evs
+
+
+def manual_days(evs):
+    return {e["date"] for e in evs if e.get("manual")}
+
+
 def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
                   settle_min=SETTLE_MIN):
     """
@@ -224,6 +264,7 @@ def retention(events, water_daily):
     number computed once, by hand, on a single pair of runs.
     """
     draw = {r["date"]: r["draw"] for r in (water_daily or [])}
+    skip = manual_days(events)          # meter is blind to hand-applied water
     by_day: dict[str, float] = {}
     for e in events:
         if e["retained"] is None:
@@ -233,7 +274,7 @@ def retention(events, water_daily):
     out = []
     for d in sorted(by_day):
         litres = draw.get(d)
-        if not litres or litres <= 0:
+        if not litres or litres <= 0 or d in skip:
             continue
         out.append({
             "date": d,
@@ -268,6 +309,8 @@ def onset_check(events, scheduled, tol_min=15, since=None):
     # Callers pass the date the current schedule took effect.
     for e in events:
         if since and e["date"] < since:
+            continue
+        if e.get("manual"):     # hand-applied: not a schedule violation
             continue
         nearest = min(sched, key=lambda s: abs(s - e["onset_min"]))
         delta = e["onset_min"] - nearest

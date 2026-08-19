@@ -473,7 +473,7 @@ const NAT=DATA.native||{};
     const col=eff==null?'var(--mut)':(eff<40?'#C4643C':(eff<60?'#C9A227':'#7FA650'));
     return `<tr>
       <td><span style="color:${e.k==='tom'?'var(--tom)':'var(--pep)'}">${e.k==='tom'?'Tomato':'Pepper'}</span>
-          <span style="color:var(--faint)">${e.date} ${e.onset}</span></td>
+          <span style="color:var(--faint)">${e.date} ${e.onset}</span>${e.manual?' <span style="color:var(--wx);font-size:10px">HAND-APPLIED</span>':''}</td>
       <td class="num">${e.pre_floor}</td>
       <td class="num">${e.peak}</td>
       <td class="num">${e.settled==null?'—':e.settled}</td>
@@ -484,7 +484,7 @@ const NAT=DATA.native||{};
   document.getElementById('event-table').innerHTML=
     `<thead><tr><th>Run</th><th>Before</th><th>Peak</th><th>Settled</th><th>Retained</th><th>Shed</th><th>Kept</th></tr></thead><tbody>${tr}</tbody>`;
 
-  const summ=k=>{const es=(EV[k]||[]).filter(e=>e.retained!=null).slice(-7);
+  const summ=k=>{const es=(EV[k]||[]).filter(e=>e.retained!=null&&!e.manual).slice(-7);
     if(!es.length)return null;
     const r=es.reduce((a,e)=>a+e.retained,0)/es.length, s=es.reduce((a,e)=>a+e.shed,0)/es.length;
     return{r:r.toFixed(1),s:s.toFixed(1),eff:Math.round(r/(r+s)*100)};};
@@ -505,7 +505,11 @@ const NAT=DATA.native||{};
      ${p&&p.eff<45?`<b>The pepper figure (${p.eff}%) is the washout signature</b> — the bags reach container capacity part-way through the run and pass the rest straight through.`:''}
      <span style="color:var(--mut)">Both probes sit near the surface (tomato ~3 in, pepper ~2 in), so &ldquo;shed&rdquo; strictly means
      &ldquo;left this depth&rdquo; — water charging the zone below a 3-inch probe is counted as shed here. That ambiguity is exactly
-     what a WH51L at 8&ndash;10 in would resolve.</span>`;
+     what a WH51L at 8&ndash;10 in would resolve.</span>
+     ${(NAT.events&&[].concat(NAT.events.tom||[],NAT.events.pep||[]).some(e=>e.manual))?`<br><span style="color:var(--wx)">
+     Rows marked <b>HAND-APPLIED</b> are fertigation or spot watering from <code>plan.manual_events</code>. They are excluded
+     from the averages above and from points-per-100&nbsp;L entirely, because the WFC01 never saw that water &mdash; the probe
+     records the response but the meter records nothing, which inflates any litres-denominated figure.</span>`:''}`;
 })();
 
 /* ---------- 6 · pulse detail, native resolution ---------- */
@@ -811,7 +815,7 @@ function writeFindings(noWx){
     : (hp&&hp.ok===false)
     ? `Pepper channel is <b>measuring normally</b> (daily AD range ${hp.ad_range_last} counts) but carries a calibration caveat: ${hp.flags[0].msg} Day-to-day <em>swings</em> are trustworthy; absolute % is comparable only within a single battery era. Current mean <b>${S.pep.mean}%</b> (range ${S.pep.min}–${S.pep.max}%).`
     : (()=>{const PE=((DATA.native||{}).events||{}).pep||[];
-        const es=PE.filter(e=>e.retained!=null).slice(-7);
+        const es=PE.filter(e=>e.retained!=null&&!e.manual).slice(-7);
         if(!es.length) return `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%).`;
         const r=es.reduce((a,e)=>a+e.retained,0)/es.length, sh=es.reduce((a,e)=>a+e.shed,0)/es.length;
         const eff=Math.round(r/(r+sh)*100);
