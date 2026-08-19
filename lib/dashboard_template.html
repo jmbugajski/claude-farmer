@@ -449,9 +449,12 @@ buildChart(null);
       <b>${BED.target.august_etc_in_per_week[0]}–${BED.target.august_etc_in_per_week[1]} in/week</b> — i.e. roughly 6× over.
       A 2026-08-03 test settled it: <b>90 s / 19.9 L took the probe 53%→87%</b>, while 129 L that morning took it
       50%→90%. 6.5× the water for 6 more points.`:''}
-      <br><br><b style="color:var(--ink)">Peppers are not on this line or in this data:</b>
-      the 6× fabric bags run on a <b>separate</b> timer — now <b>${PLAN.pepper_run_min} min, ${PLAN.pepper_freq}${PLAN.pepper_time?' @ '+PLAN.pepper_time+' PT':''}</b>${PLAN.pepper_effective?' (<b>as of '+new Date(PLAN.pepper_effective+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</b>, was every 12 h)':''},
-      <b>unmetered and unlogged</b> — so nothing below reflects pepper watering.</div>`;
+      <br><br><b style="color:var(--ink)">Peppers are on a different system entirely:</b>
+      the 6× fabric bags are a zone on the <b>house multi-zone irrigation controller</b> (which also runs lawn, roses and trees) —
+      <b>not EcoWitt hardware</b>. Currently <b>${PLAN.pepper_run_min} min, ${PLAN.pepper_freq}${PLAN.pepper_time?' @ '+PLAN.pepper_time+' PT':''}</b>${PLAN.pepper_effective?' (<b>as of '+new Date(PLAN.pepper_effective+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</b>, was every 12 h)':''},
+      <b>unmetered and unlogged</b> — so nothing below reflects pepper watering, and pepper faults are a
+      separate troubleshooting domain. Note the pepper soil probe is the <b>only sensor of any kind</b> on that
+      house system, which makes it an accidental run-log for one of its zones.</div>`;
 
   // schedule change-log
   if(PLAN.schedule_log&&PLAN.schedule_log.length){
