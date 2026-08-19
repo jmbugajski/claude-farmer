@@ -118,72 +118,106 @@ footer a{color:var(--mut)}
 
 <section class="gauges" id="gauges"></section>
 
+<!-- 1. INSTRUMENT TRUST FIRST. Moved to the top on 2026-08-19: every number below
+     is conditional on the probes being believable, and this panel used to sit
+     sixth, under three panels that would happily report a dead sensor as a
+     healthy bed. Read this, then read the rest. -->
+<section class="panel">
+  <div class="phead"><h3>1 &middot; Sensor health</h3><div class="hint" id="health-hint">instrument trust &middot; nothing below means anything if this is red</div></div>
+  <div class="grid3" id="health-cards"></div>
+  <div id="health-flags"></div>
+</section>
+
+<!-- 2. THE CONTROL VARIABLE. Every decision in the change log was made on the
+     pre-irrigation floor ("hold until the overnight min returns to 58-60%"),
+     which the old dashboard never plotted -- it tracked the daily MEAN. -->
+<section class="panel">
+  <div class="phead"><h3>2 &middot; Control variable &mdash; what the bed holds</h3>
+    <div class="hint" id="cv-hint">native 5-min data &middot; shaded bands = irrigation regimes</div></div>
+  <div class="grid3" id="cv-cards"></div>
+  <div class="chartbox"><canvas id="cvChart"></canvas></div>
+  <p class="caveat" id="cv-caveat"></p>
+</section>
+
+<!-- 3. REGIME COMPARISON. Replaces the old single-trend-plus-projection panel,
+     which fitted ONE line across five different irrigation regimes (R^2 0.28)
+     and then projected a setpoint crossing from that slope. -->
+<section class="panel">
+  <div class="phead"><h3>3 &middot; Did the change work? Regime comparison</h3>
+    <div class="hint">each plan side by side &middot; the only fair way to read a plan change</div></div>
+  <div style="overflow-x:auto"><table class="wk" id="regime-table"></table></div>
+  <p class="caveat" id="regime-caveat"></p>
+</section>
+
+<!-- 4. WATER BUDGET. Litres only became agronomically meaningful once bed
+     geometry was measured (2026-08-03); this is that conversion, weekly. -->
+<section class="panel">
+  <div class="phead"><h3>4 &middot; Water budget &mdash; applied vs crop demand</h3>
+    <div class="hint" id="budget-hint">metered litres converted to inches over the bed, against estimated August ET<sub>c</sub></div></div>
+  <div class="chartbox sm"><canvas id="budgetChart"></canvas></div>
+  <p class="caveat" id="budget-caveat"></p>
+</section>
+
+<!-- 5. PER-RUN EFFICIENCY. retained vs shed is the diagnostic that broke the
+     flood regime open on 2026-08-03, computed by hand at the time. -->
+<section class="panel">
+  <div class="phead"><h3>5 &middot; Is each run earning its water?</h3>
+    <div class="hint">per irrigation event &middot; <b>retained</b> = what the soil kept &middot; <b>shed</b> = arrived and left</div></div>
+  <div class="grid3" id="event-cards"></div>
+  <div style="overflow-x:auto"><table class="wk" id="event-table"></table></div>
+  <p class="caveat" id="event-caveat"></p>
+</section>
+
+<!-- 6. PULSE DETAIL at native resolution -- the view the hourly resample
+     destroyed, and where both the tomato and pepper findings came from. -->
+<section class="panel">
+  <div class="phead"><h3>6 &middot; Pulse detail &mdash; last 7 days, 5-minute</h3>
+    <div class="hint">overlaid by time of day &middot; this is the resolution the decisions are actually made at</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="chartbox sm"><canvas id="pulseTom"></canvas></div>
+    <div class="chartbox sm"><canvas id="pulsePep"></canvas></div>
+  </div>
+  <p class="caveat" id="pulse-caveat"></p>
+</section>
+
+<!-- 7. RUN VERIFICATION. The only run-log that exists for the pepper line,
+     which sits on the unmetered, unlogged house multi-zone controller. -->
+<section class="panel">
+  <div class="phead"><h3>7 &middot; Did the runs fire on time?</h3>
+    <div class="hint" id="onset-hint">detected onset vs scheduled start</div></div>
+  <div style="overflow-x:auto"><table class="wk" id="onset-table"></table></div>
+  <p class="caveat" id="onset-caveat"></p>
+</section>
+
+<!-- 8. Long view. Weather overlays retained as opt-in toggles (ET0 still earns
+     its place in the budget above) but OFF by default: ET0 vs dry-down
+     correlates at r = -0.001, so it is not a default-on explanatory variable. -->
 <section class="panel">
   <div class="phead">
-    <h3>Moisture vs Weather &mdash; Jun 9 &ndash; Jul 7</h3>
+    <h3>8 &middot; Full history</h3>
     <div class="toggles" role="group" aria-label="Overlay">
-      <button class="tg" id="tg-trend" aria-pressed="true">Tomato trend</button>
       <button class="tg" id="tg-temp" aria-pressed="false">Air temp &deg;F</button>
       <button class="tg" id="tg-et0" aria-pressed="false">ET&#8320; (drying)</button>
       <button class="tg" id="tg-rad" aria-pressed="false">Solar</button>
     </div>
   </div>
-  <div class="phead"><div class="hint">Left axis: soil moisture %. Right axis: live weather. Dashed lines mark each crop&rsquo;s setpoint; violet line is the tomato dry-down regression.</div></div>
+  <div class="phead"><div class="hint" id="main-hint">hourly resample &middot; context only &mdash; read panels 2&ndash;6 for anything decision-grade</div></div>
   <div class="chartbox"><canvas id="mainChart"></canvas></div>
 </section>
 
 <section class="panel">
-  <div class="phead"><h3>Week-over-week</h3><div class="hint">7-day bins from Jun 9 &middot; &Delta; = change in mean vs prior week</div></div>
-  <div style="overflow-x:auto"><table class="wk" id="wk-table"></table></div>
-  <p class="wk-cap" id="wk-cap"></p>
-</section>
-
-<section class="panel">
-  <div class="phead"><h3>Tomato dry-down trend</h3><div class="hint" id="trend-hint"></div></div>
-  <div class="grid3" id="trend-cards"></div>
-  <p class="caveat" id="trend-caveat"></p>
-</section>
-
-<section class="panel">
-  <div class="phead"><h3>Distribution &amp; time in band</h3><div class="hint" id="dist-hint">every reading, whole window &middot; dashed line = setpoint</div></div>
-  <p class="caveat" style="border-left-color:var(--mut);color:var(--mut);margin:0 0 10px">
-    <b>Where these setpoints come from:</b> they are the <b>Ecowitt app alert thresholds</b>, set by hand &mdash;
-    <b>not derived from this data</b>. They also can't be, while both probes run factory calibration
-    (0%&nbsp;AD = air, 100%&nbsp;AD = submerged): the &ldquo;%&rdquo; is an index on that calibration, not volumetric
-    water content, so the absolute number has no agronomic meaning and shouldn't be compared to published
-    ideal-moisture figures. <b>Read each probe against itself</b> &mdash; trends and daily swings are the real signal.</p>
-  <div class="grid3" style="grid-template-columns:1fr 1fr" id="dist-cards"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
-    <div class="chartbox sm"><canvas id="histTom"></canvas></div>
-    <div class="chartbox sm"><canvas id="histPep"></canvas></div>
-  </div>
-</section>
-
-<section class="panel">
-  <div class="phead"><h3>Water usage &mdash; WFC01 flow meter</h3><div class="hint" id="water-hint"></div></div>
+  <div class="phead"><h3>9 &middot; Water usage &mdash; WFC01 flow meter</h3><div class="hint" id="water-hint"></div></div>
   <div class="grid3" id="water-cards"></div>
   <div class="chartbox sm"><canvas id="waterChart"></canvas></div>
   <p class="caveat" id="water-caveat"></p>
 </section>
 
 <section class="panel">
-  <div class="phead"><h3>Sensor health</h3><div class="hint" id="health-hint">instrument trust &middot; check before reading anything below</div></div>
-  <div class="grid3" id="health-cards"></div>
-  <div id="health-flags"></div>
-</section>
-
-<section class="panel">
-  <div class="phead"><h3>Irrigation schedule &amp; metered water</h3><div class="hint" id="plan-hint"></div></div>
+  <div class="phead"><h3>10 &middot; Irrigation schedule</h3><div class="hint" id="plan-hint"></div></div>
   <div id="plan-note"></div>
   <div class="grid3" id="tva-cards" style="margin-top:14px"></div>
   <div class="chartbox sm"><canvas id="tvaChart"></canvas></div>
   <p class="caveat" id="tva-caveat"></p>
-</section>
-
-<section class="panel">
-  <div class="phead"><h3>Weather &harr; Moisture Correlation</h3><div class="hint" id="corr-hint">computing&hellip;</div></div>
-  <div class="grid3" id="corr"></div>
-  <p class="caveat" id="corr-caveat"></p>
 </section>
 
 <section class="panel">
@@ -264,7 +298,7 @@ const setpointPlugin={id:'setpoints',afterDatasetsDraw(c){
     ctx.textBaseline='bottom';ctx.fillText(lab,left+6,yy-2);ctx.restore();});
 }};
 
-let chart, showTrend=true;
+let chart, showTrend=false;   // regression retired from the default view: one OLS across five irrigation regimes is an artefact, not a trend (see panel 3)
 function buildChart(weather){
   const ds=[
     {label:'Tomato %',data:tom,borderColor:COL.tom,backgroundColor:'transparent',borderWidth:1.6,pointRadius:0,yAxisID:'y',tension:.25},
@@ -297,93 +331,240 @@ function buildChart(weather){
 let curWeather=null;
 buildChart(null);
 
-/* ---------- weekly table ---------- */
+const NAT=DATA.native||{};
+
+/* ---------- 2 · control variable ----------
+   The pre-irrigation floor is the quantity every entry in the change log
+   actually steered on. Plotting it next to the daily minimum shows both ends
+   of the cycle; the old dashboard plotted the daily MEAN, which is the one
+   statistic that hides both. */
 (function(){
-  const W=DATA.weekly;
-  const delta=(cur,prev)=>{if(prev==null)return '<span class="delta-0">—</span>';
-    const d=+(cur-prev).toFixed(1);const cls=d<-0.05?'delta-dn':d>0.05?'delta-up':'delta-0';
-    const sign=d>0?'+':'';return `<span class="${cls}">${sign}${d}</span>`;};
-  let rows='';
-  W.forEach((w,i)=>{
-    const pv=W[i-1];
-    rows+=`<tr>
-      <td>Wk ${w.idx} <span style="color:var(--faint)">${w.label}</span></td>
-      <td class="num">${w.tom_mean}</td>
-      <td class="num">${delta(w.tom_mean,pv?pv.tom_mean:null)}</td>
-      <td class="num">${w.tom_min}–${w.tom_max}</td>
-      <td class="num">±${w.tom_std}</td>
-      <td class="num">${w.pep_mean}</td>
-      <td class="num">${delta(w.pep_mean,pv?pv.pep_mean:null)}</td>
-      <td class="num">${w.pep_min}–${w.pep_max}</td>
-      <td class="num">±${w.pep_std}</td>
-    </tr>`;
-  });
-  document.getElementById('wk-table').innerHTML=
-    `<thead><tr><th>Week</th><th>Tom mean</th><th>&Delta;</th><th>Tom range</th><th>Tom &sigma;</th>
-      <th>Pep mean</th><th>&Delta;</th><th>Pep range</th><th>Pep &sigma;</th></tr></thead><tbody>${rows}</tbody>`;
-  const first=W[0], last=W[W.length-1];
-  document.getElementById('wk-cap').innerHTML=
-    `Tomato mean fell <b style="color:var(--leaf)">${(first.tom_mean-last.tom_mean).toFixed(1)} points</b> across the window (Wk ${first.idx} ${first.tom_mean}% → Wk ${last.idx} ${last.tom_mean}%), while pepper drifted <b style="color:var(--pep)">+${(last.pep_mean-first.pep_mean).toFixed(1)}</b> and tightened. Wk ${W.length} is a partial week (n=${last.n}).`;
+  const Eall=(NAT.extremes||{}).tom||[]; if(!Eall.length) return;
+  // Chart every day, but headline the last COMPLETE one: today's export usually
+  // stops mid-morning, and a partial day's "minimum" is just the overnight
+  // value, which would read as a dramatic improvement that has not happened.
+  const E=Eall, comp=Eall.filter(r=>!r.partial);
+  const last=comp.length?comp[comp.length-1]:Eall[Eall.length-1];
+  const prev=comp.length>7?comp[comp.length-8]:null;
+  const isPartial=Eall[Eall.length-1].partial;
+  const sp=CFG.setpoints.tom;
+  const d=(a,b)=>b==null?'':` <span style="color:var(--mut)">(${a-b>0?'+':''}${(a-b).toFixed(1)} vs 7 d ago)</span>`;
+  document.getElementById('cv-cards').innerHTML=[
+    ['Pre-irrigation floor',last.pre_irrigation,'what the bed held before today&rsquo;s first run',
+      prev?prev.pre_irrigation:null,'var(--tom)'],
+    ['Daily minimum',last.day_min,`lowest point &middot; ${last.day_min_t} &middot; setpoint ${sp}%`,
+      prev?prev.day_min:null,'var(--leaf)'],
+    ['Daily swing',last.swing,'max &minus; min &mdash; set by the pulse, not the weather',
+      prev?prev.swing:null,'var(--mut)'],
+  ].map(c=>`<div class="cc"><div class="lab">${c[2]}</div>
+      <div class="r" style="color:${c[4]}">${c[1]==null?'&mdash;':c[1]}<span style="font-size:14px;color:var(--mut)">%</span></div>
+      <div class="rd">${c[0]}${c[1]!=null?d(c[1],c[3]):''}</div></div>`).join('');
+
+  const bands=(NAT.regime_bands||[]);
+  new Chart(document.getElementById('cvChart'),{type:'line',
+    data:{labels:E.map(r=>r.date),datasets:[
+      {label:'Pre-irrigation floor',data:E.map(r=>r.pre_irrigation),borderColor:COL.tom,backgroundColor:COL.tom+'22',
+       borderWidth:2,pointRadius:0,tension:.25,spanGaps:true},
+      {label:'Daily minimum',data:E.map(r=>r.day_min),borderColor:COL.leaf||'#7FA650',borderWidth:2,
+       borderDash:[5,3],pointRadius:0,tension:.25,spanGaps:true},
+      {label:'Daily maximum',data:E.map(r=>r.day_max),borderColor:COL.mut,borderWidth:1,
+       pointRadius:0,tension:.25,spanGaps:true},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:COL.mut,font:{family:'IBM Plex Sans',size:11},boxWidth:12}}},
+      scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},
+        y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(46,51,34,.5)'}}}},
+    plugins:[{id:'regimeBands',beforeDatasetsDraw(c){
+      const{ctx,chartArea:{top,bottom},scales:{x}}=c; ctx.save();
+      bands.forEach((b,i)=>{
+        const i0=E.findIndex(r=>r.date>=b.start);
+        let i1=b.end?E.map(r=>r.date).filter(dd=>dd<=b.end).length-1:E.length-1;
+        if(i0<0||i1<i0) return;
+        const x0=x.getPixelForValue(i0), x1=x.getPixelForValue(i1);
+        ctx.fillStyle=i%2?'rgba(127,166,80,.07)':'rgba(127,166,80,.13)';
+        ctx.fillRect(x0,top,x1-x0,bottom-top);
+        ctx.fillStyle=COL.mut;ctx.font='9px "IBM Plex Mono"';
+        ctx.fillText(b.label,x0+4,top+11);
+      });
+      // setpoint line
+      const yy=c.scales.y.getPixelForValue(CFG.setpoints.tom);
+      ctx.strokeStyle='#E8E6DA';ctx.lineWidth=1;ctx.setLineDash([4,3]);
+      ctx.beginPath();ctx.moveTo(c.chartArea.left,yy);ctx.lineTo(c.chartArea.right,yy);ctx.stroke();
+      ctx.setLineDash([]);ctx.fillStyle='#E8E6DA';ctx.fillText('setpoint '+CFG.setpoints.tom,c.chartArea.left+4,yy-4);
+      ctx.restore();}}]});
+
+  if(isPartial) document.getElementById('cv-hint').innerHTML=
+    'native 5-min data &middot; shaded bands = irrigation regimes &middot; <b>cards show '+last.date+'</b>, the last complete day';
+  const gap=last.day_min!=null?(last.day_min-sp).toFixed(1):null;
+  document.getElementById('cv-caveat').innerHTML= gap==null?'' :
+    (last.day_min>sp
+      ? `The bed's <b>lowest</b> point of the day is <b>${gap} points above</b> the ${sp}% setpoint, so it never reaches target at any hour. Note the setpoint is a hand-set alert threshold on a factory-calibrated index, not a soil-science figure — the shape of these lines is the real signal, and the shape says the profile is parked near capacity.`
+      : `The daily minimum is <b>${Math.abs(gap)} points below</b> the ${sp}% setpoint. Watch whether the pre-irrigation floor follows it down over the next few days — the floor, not the minimum, is what the change log has always steered on.`);
 })();
 
-/* ---------- dry-down trend ---------- */
+/* ---------- 3 · regime comparison ----------
+   Replaces a single OLS fitted across every regime at once. */
 (function(){
-  const T=DATA.trend;
-  document.getElementById('trend-hint').textContent=`OLS on ${DATA.daily.length} daily means · R² = ${T.r2}`;
-  const cards=[
-    ['Slope',`${T.per_week}<span style="font-size:14px;color:var(--mut)"> %/wk</span>`,'linear rate of decline'],
-    ['Fit quality',`${(T.r2*100).toFixed(0)}<span style="font-size:14px;color:var(--mut)">%</span>`,`R² — variance explained`],
-    [`Reaches ${CFG.setpoints.tom}% setpoint`,`${T.set_reach_date?new Date(T.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):'n/a'}`,'projected at current rate'],
-  ];
-  document.getElementById('trend-cards').innerHTML=cards.map(c=>
-    `<div class="cc"><div class="lab">${c[2]}</div><div class="r" style="color:var(--trend)">${c[1]}</div><div class="rd">${c[0]}</div></div>`).join('');
-  document.getElementById('trend-caveat').innerHTML= (T.per_week<0
-    ? `The bed is trending <b>${Math.abs(T.per_week)} %/week drier</b> (R²=${T.r2}). ${T.set_reach_date?('If nothing changes it crosses the '+CFG.setpoints.tom+'% setpoint around <b>'+new Date(T.set_reach_date+'T00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'})+'</b>.'):('At this rate it stays above the '+CFG.setpoints.tom+'% setpoint across the projection window.')} This is a trailing trend, not a guarantee — as the bed nears the setpoint the dry-down usually flattens and any timer change resets the slope. Watch the daily min (recent low ${S.tom.min}%).`
-    : `The bed is trending <b>${Math.abs(T.per_week)} %/week wetter</b> (R²=${T.r2}) over this window — likely a watering-plan change or cooler weather. Read it as a short trailing trend; a few more weeks will show whether it holds. Recent daily min ${S.tom.min}%.`);
-})();
-
-/* ---------- distribution ---------- */
-(function(){
-  const D=DATA.distribution, HH=DATA.health||{};
-  const card=(k,name,col,setp,dd,st)=>{
-    const h=HH[k];
-    // Only a *bad* flag (AD range collapsed) invalidates the figure. A warn
-    // flag means the probe is measuring but on a shifted calibration, which
-    // makes the number worth showing with a caveat rather than suppressing.
-    if(h&&h.has_bad) return `<div class="cc" style="border-color:var(--tom)">
-       <div class="lab">${name} — share of readings <b>at or above</b> the ${setp}% setpoint</div>
-       <div class="r" style="color:var(--mut)">n/a</div>
-       <div class="rd" style="color:var(--tom)">sensor flagged — daily AD range collapsed to
-       ${h.ad_range_last} counts. A probe that is not moving cannot be "above setpoint"; the
-       figure would read ${dd.pct_above}% and mean nothing. See Sensor health below.</div></div>`;
-    if(h&&h.ok===false) return `<div class="cc" style="border-color:var(--mut)">
-       <div class="lab">${name} — share of readings <b>at or above</b> the ${setp}% setpoint</div>
-       <div class="r" style="color:${col}">${dd.pct_above}%</div>
-       <div class="rd" style="color:var(--mut)">${dd.pct_below}% below · min ${st.min}% —
-       <b>read with care:</b> this window spans a calibration break, so it mixes readings from
-       different battery eras and includes a stretch when the probe was not resolving the daily
-       cycle. Arithmetically correct, physically misleading.</div></div>`;
-    return `<div class="cc"><div class="lab">${name} — share of readings <b>at or above</b> the ${setp}% setpoint</div>
-       <div class="r" style="color:${col}">${dd.pct_above}%</div>
-       <div class="rd">${dd.pct_below}% below · min ${st.min}%</div></div>`;
-  };
-  document.getElementById('dist-cards').innerHTML=
-    card('tom','Tomato','var(--tom)',CFG.setpoints.tom,D.tom,S.tom)+
-    card('pep','Pepper','var(--pep)',CFG.setpoints.pep,D.pep,S.pep);
-  function hist(id,h,col,setp){
-    new Chart(document.getElementById(id),{type:'bar',
-      data:{labels:h.map(b=>b.lo),datasets:[{data:h.map(b=>b.count),backgroundColor:col+'cc',borderColor:col,borderWidth:1,barPercentage:1,categoryPercentage:1}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-        title:{display:true,text:(id==='histTom'?'Tomato %':'Pepper %')+' — reading count',color:COL.mut,font:{family:'IBM Plex Sans',size:12}}},
-        scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{display:false}},
-          y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(46,51,34,.5)'}}}},
-      plugins:[{id:'sp'+id,afterDatasetsDraw(c){const{ctx,chartArea:{top,bottom},scales:{x}}=c;
-        const xx=x.getPixelForValue(setp);ctx.save();ctx.strokeStyle='#E8E6DA';ctx.lineWidth=1;ctx.setLineDash([4,3]);
-        ctx.beginPath();ctx.moveTo(xx,top);ctx.lineTo(xx,bottom);ctx.stroke();
-        ctx.setLineDash([]);ctx.fillStyle='#E8E6DA';ctx.font='9px "IBM Plex Mono"';ctx.fillText('setpoint '+setp,xx+3,top+10);ctx.restore();}}]});
+  const R=NAT.regimes||[]; if(!R.length) return;
+  const rows=R.map(r=>`<tr>
+      <td>${r.label} <span style="color:var(--faint)">${r.start}${r.end?'→'+r.end:'→ now'}</span></td>
+      <td class="num">${r.days}</td>
+      <td class="num">${r.liters_day==null?'—':r.liters_day}</td>
+      <td class="num"><b>${r.pre_irrigation==null?'—':r.pre_irrigation}</b></td>
+      <td class="num">${r.day_min==null?'—':r.day_min}</td>
+    </tr>`).join('');
+  document.getElementById('regime-table').innerHTML=
+    `<thead><tr><th>Regime</th><th>Days</th><th>L/day</th><th>Pre-irrig. floor</th><th>Daily min</th></tr></thead><tbody>${rows}</tbody>`;
+  const wet=R.filter(r=>r.liters_day!=null&&r.pre_irrigation!=null);
+  let msg='';
+  if(wet.length>=2){
+    const most=wet.reduce((a,b)=>b.liters_day>a.liters_day?b:a);
+    const least=wet.reduce((a,b)=>b.liters_day<a.liters_day?b:a);
+    msg=`<b>The headline of this whole project is in this table.</b> The wettest regime (${most.label},
+      <b>${most.liters_day} L/day</b>) held a pre-irrigation floor of <b>${most.pre_irrigation}%</b>;
+      the driest (${least.label}, <b>${least.liters_day} L/day</b>) holds <b>${least.pre_irrigation}%</b>.
+      That is <b>${(most.liters_day/least.liters_day).toFixed(1)}&times; the water for
+      ${Math.abs(most.pre_irrigation-least.pre_irrigation).toFixed(1)} points
+      ${most.pre_irrigation>least.pre_irrigation?'MORE':'LESS'}</b> retained —
+      the application-rate diagnosis, visible without any statistics.`;
   }
-  hist('histTom',D.tom.hist,COL.tom,CFG.setpoints.tom);
-  hist('histPep',D.pep.hist,COL.pep,CFG.setpoints.pep);
+  document.getElementById('regime-caveat').innerHTML=msg+
+    ` <span style="color:var(--mut)">Regime boundaries are maintained by hand in <code>plan.regimes</code>; add a row when the plan changes or this comparison goes stale.</span>`;
+})();
+
+/* ---------- 4 · water budget ---------- */
+(function(){
+  const B=NAT.budget||[]; if(!B.length) return;
+  const lo=B[0].etc_lo, hi=B[0].etc_hi;
+  new Chart(document.getElementById('budgetChart'),{type:'bar',
+    data:{labels:B.map(b=>b.start.slice(5)),datasets:[
+      {label:'Applied in/week',data:B.map(b=>b.inches),
+       backgroundColor:B.map(b=>b.verdict==='over'?'#C4643Ccc':(b.verdict==='under'?'#8A7BB8cc':'#7FA650cc')),
+       borderColor:B.map(b=>b.verdict==='over'?'#C4643C':(b.verdict==='under'?'#8A7BB8':'#7FA650')),borderWidth:1},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      title:{display:true,text:'inches of water over the bed per week',color:COL.mut,font:{family:'IBM Plex Sans',size:12}}},
+      scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{display:false}},
+        y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(46,51,34,.5)'}}}},
+    plugins:[{id:'etcBand',beforeDatasetsDraw(c){
+      const{ctx,chartArea:{left,right},scales:{y}}=c;ctx.save();
+      ctx.fillStyle='rgba(127,166,80,.18)';
+      ctx.fillRect(left,y.getPixelForValue(hi),right-left,y.getPixelForValue(lo)-y.getPixelForValue(hi));
+      ctx.fillStyle=COL.mut;ctx.font='9px "IBM Plex Mono"';
+      ctx.fillText('est. August ETc '+lo+'–'+hi+' in/wk',left+4,y.getPixelForValue(hi)-3);ctx.restore();}}]});
+  const lastB=B[B.length-1];
+  const over=B.filter(b=>b.verdict==='over').length;
+  document.getElementById('budget-caveat').innerHTML=
+    `<b>${over} of ${B.length}</b> complete weeks came in above estimated crop demand. The most recent full week applied
+     <b>${lastB.inches} in</b> (${lastB.liters} L) = <b>${lastB.x_etc}&times;</b> the top of the ET<sub>c</sub> band.
+     The current two-run plan projects to <b>${CFG.plan.expected_in_per_week} in/week</b>, which would be the first week in band.
+     <span style="color:var(--mut)">ET<sub>c</sub> here is an estimate (ET₀ × a mid-season tomato crop coefficient), not a measurement — treat the band as a sanity check, not a target to hit precisely.</span>`;
+})();
+
+/* ---------- 5 · per-run efficiency ---------- */
+(function(){
+  const EV=(NAT.events||{}), HH=DATA.health||{};
+  const rows=[];
+  ['tom','pep'].forEach(k=>(EV[k]||[]).slice(-10).forEach(e=>rows.push({k,...e})));
+  rows.sort((a,b)=>(a.date+a.onset)<(b.date+b.onset)?1:-1);
+  const tr=rows.slice(0,14).map(e=>{
+    const eff=(e.retained!=null&&e.shed!=null&&(e.retained+e.shed)>0)
+      ? Math.round(e.retained/(e.retained+e.shed)*100) : null;
+    const col=eff==null?'var(--mut)':(eff<40?'#C4643C':(eff<60?'#C9A227':'#7FA650'));
+    return `<tr>
+      <td><span style="color:${e.k==='tom'?'var(--tom)':'var(--pep)'}">${e.k==='tom'?'Tomato':'Pepper'}</span>
+          <span style="color:var(--faint)">${e.date} ${e.onset}</span></td>
+      <td class="num">${e.pre_floor}</td>
+      <td class="num">${e.peak}</td>
+      <td class="num">${e.settled==null?'—':e.settled}</td>
+      <td class="num"><b style="color:${col}">${e.retained==null?'—':(e.retained>0?'+':'')+e.retained}</b></td>
+      <td class="num" style="color:var(--mut)">${e.shed==null?'—':e.shed}</td>
+      <td class="num">${eff==null?'—':eff+'%'}</td>
+    </tr>`;}).join('');
+  document.getElementById('event-table').innerHTML=
+    `<thead><tr><th>Run</th><th>Before</th><th>Peak</th><th>Settled</th><th>Retained</th><th>Shed</th><th>Kept</th></tr></thead><tbody>${tr}</tbody>`;
+
+  const summ=k=>{const es=(EV[k]||[]).filter(e=>e.retained!=null).slice(-7);
+    if(!es.length)return null;
+    const r=es.reduce((a,e)=>a+e.retained,0)/es.length, s=es.reduce((a,e)=>a+e.shed,0)/es.length;
+    return{r:r.toFixed(1),s:s.toFixed(1),eff:Math.round(r/(r+s)*100)};};
+  const t=summ('tom'), p=summ('pep');
+  const ret=NAT.retention||[]; const lastR=ret.length?ret[ret.length-1]:null;
+  document.getElementById('event-cards').innerHTML=[
+    t?['Tomato &mdash; kept per run',t.eff+'%',`+${t.r} retained vs ${t.s} shed &middot; last 7 runs`,'var(--tom)']:null,
+    p?['Pepper &mdash; kept per run',p.eff+'%',`+${p.r} retained vs ${p.s} shed &middot; last 7 runs`,'var(--pep)']:null,
+    lastR?['Tomato points per 100 L',lastR.pts_per_100L,`${lastR.retained} points from ${lastR.liters} L &middot; ${lastR.date}`,'var(--leaf)']:null,
+  ].filter(Boolean).map(c=>`<div class="cc"><div class="lab">${c[2]}</div>
+      <div class="r" style="color:${c[3]}">${c[1]}</div><div class="rd">${c[0]}</div></div>`).join('');
+
+  document.getElementById('event-caveat').innerHTML=
+    `<b>&ldquo;Kept&rdquo; is retained &divide; (retained + shed)</b> &mdash; the share of a run's moisture excursion the soil
+     still held ~50 minutes later. A low figure does not mean the run was useless, but it does mean most of the water
+     moved past the probe: in a raised bed that is deep percolation, and in a fabric bag it is drainage out the base,
+     carrying dissolved nutrients with it.
+     ${p&&p.eff<45?`<b>The pepper figure (${p.eff}%) is the washout signature</b> — the bags reach container capacity part-way through the run and pass the rest straight through.`:''}
+     <span style="color:var(--mut)">Both probes sit near the surface (tomato ~3 in, pepper ~2 in), so &ldquo;shed&rdquo; strictly means
+     &ldquo;left this depth&rdquo; — water charging the zone below a 3-inch probe is counted as shed here. That ambiguity is exactly
+     what a WH51L at 8&ndash;10 in would resolve.</span>`;
+})();
+
+/* ---------- 6 · pulse detail, native resolution ---------- */
+(function(){
+  const S5=DATA.series5||[]; if(!S5.length) return;
+  const days=[...new Set(S5.map(r=>r.t.slice(0,10)))].slice(-7);
+  const mins=t=>+t.slice(11,13)*60+ +t.slice(14,16);
+  function draw(id,key,col,title){
+    const ds=days.map((d,i)=>{
+      const pts=S5.filter(r=>r.t.slice(0,10)===d&&r[key]!=null).map(r=>({x:mins(r.t),y:r[key]}));
+      const fresh=i===days.length-1;
+      return{label:d.slice(5),data:pts,borderColor:col,borderWidth:fresh?2.2:1,
+        pointRadius:0,tension:.2,borderDash:fresh?[]:[2,2],
+        // older days fade back so the most recent trace reads first
+        borderColor:fresh?col:col+Math.max(30,90-i*10).toString(16).slice(0,2)};
+    });
+    new Chart(document.getElementById(id),{type:'line',data:{datasets:ds},
+      options:{responsive:true,maintainAspectRatio:false,parsing:false,
+        plugins:{legend:{display:false},title:{display:true,text:title,color:COL.mut,font:{family:'IBM Plex Sans',size:12}},
+          tooltip:{callbacks:{title:c=>{const m=c[0].parsed.x;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}}}},
+        scales:{x:{type:'linear',min:0,max:1440,
+          ticks:{stepSize:180,color:COL.mut,font:{family:'IBM Plex Mono',size:9},
+            callback:v=>String(Math.floor(v/60)).padStart(2,'0')+':00'},grid:{color:'rgba(46,51,34,.35)'}},
+          y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(46,51,34,.5)'}}}}});
+  }
+  draw('pulseTom','tom',COL.tom,'Tomato — last 7 days overlaid by time of day');
+  draw('pulsePep','pep',COL.pep,'Pepper — last 7 days overlaid by time of day');
+  document.getElementById('pulse-caveat').innerHTML=
+    `Solid line is the most recent day. <b>This is the resolution every real finding in the change log came from</b>, and the
+     one the hourly resample in panel 8 destroys — a 90-second pulse and a 15-minute run both vanish into a single hourly bucket.
+     Look for: a peak that <b>collapses before the run ends</b> (the soil hit capacity and the rest ran through), and a
+     <b>flat floor between pulses</b> (later pulses are landing on an already-full profile).`;
+})();
+
+/* ---------- 7 · run verification ---------- */
+(function(){
+  const O=NAT.onset||{};
+  const rows=[];
+  ['tom','pep'].forEach(k=>(O[k]||[]).slice(-12).forEach(o=>rows.push({k,...o})));
+  rows.sort((a,b)=>a.date<b.date?1:-1);
+  if(!rows.length) return;
+  const tr=rows.slice(0,14).map(o=>`<tr>
+      <td><span style="color:${o.k==='tom'?'var(--tom)':'var(--pep)'}">${o.k==='tom'?'Tomato':'Pepper'}</span>
+          <span style="color:var(--faint)">${o.date}</span></td>
+      <td class="num">${o.scheduled}</td>
+      <td class="num">${o.onset}</td>
+      <td class="num" style="color:${o.late?'#C4643C':'var(--mut)'}">${o.delta_min>0?'+':''}${o.delta_min} min</td>
+      <td class="num">${o.retained==null?'—':(o.retained>0?'+':'')+o.retained}</td>
+    </tr>`).join('');
+  document.getElementById('onset-table').innerHTML=
+    `<thead><tr><th>Run</th><th>Scheduled</th><th>Actual</th><th>Delta</th><th>Retained</th></tr></thead><tbody>${tr}</tbody>`;
+  const lateP=(O.pep||[]).filter(o=>o.late).length, nP=(O.pep||[]).length;
+  document.getElementById('onset-caveat').innerHTML=
+    `The pepper bags are a zone on the <b>house multi-zone controller</b> (lawn, roses, trees), which is unmetered and keeps no
+     log — so this table is the <b>only run-log that exists</b> for that system.
+     ${nP?`<b>${lateP} of ${nP}</b> detected pepper runs fired outside tolerance.`:''}
+     Read <b>Delta</b> next to <b>Retained</b>: a run that fires late but retains a normal amount is a <b>displacement</b>
+     (something upstream in the zone sequence ran long, and that upstream zone is the one being over-watered), whereas a
+     late run that also retains less points at the valve itself.`;
 })();
 
 /* ---------- water usage ---------- */
@@ -558,13 +739,10 @@ async function loadWeather(){
     WX={time:H.time,temp:H.temperature_2m,rh:H.relative_humidity_2m,
         et0:H.et0_fao_evapotranspiration,rad:H.shortwave_radiation,precip:H.precipitation};
     pill.innerHTML='<span class="dot"></span>live · Open-Meteo';
-    computeCorrelation();
     writeFindings();
   }catch(e){
     pill.classList.remove('live'); pill.style.color='#C98A6B';
     pill.innerHTML='weather unavailable';
-    document.getElementById('corr-hint').textContent='needs live weather';
-    document.getElementById('corr').innerHTML='<div class="cc" style="grid-column:1/-1"><div class="lab">Couldn&rsquo;t reach Open-Meteo from this browser. Open the file with an internet connection to load weather and correlation. All moisture, trend, distribution and water analysis above is unaffected.</div></div>';
     writeFindings(true);
   }
 }
@@ -580,11 +758,6 @@ function setOverlay(key){
   curWeather={label:o.label,axis:o.axis,aligned:alignWeather(WX.time,o.pick()),dash:o.dash};
   buildChart(curWeather);
 }
-document.getElementById('tg-trend').onclick=()=>{
-  showTrend=!showTrend;
-  document.getElementById('tg-trend').setAttribute('aria-pressed',showTrend);
-  buildChart(curWeather);
-};
 document.getElementById('tg-temp').onclick=()=>setOverlay('temp');
 document.getElementById('tg-et0').onclick=()=>setOverlay('et0');
 document.getElementById('tg-rad').onclick=()=>setOverlay('rad');
@@ -613,37 +786,42 @@ function rcard(lab,r){
   return `<div class="cc"><div class="lab">${lab}</div><div class="r" style="color:${r<0?COL.wx:COL.pep}">${r>=0?'+':''}${r.toFixed(2)}</div><div class="rd">${s} ${dir}</div></div>`;
 }
 let CORR=null;
-function computeCorrelation(){
-  const w=dailyWx();
-  const rTomDrawEt=pearson(w.et0sum,w.tomDraw);
-  const rPepDrawEt=pearson(w.et0sum,w.pepDraw);
-  const rPepMeanT=pearson(w.tmax,w.pepMean);
-  CORR={rTomDrawEt,rPepDrawEt,rPepMeanT,w};
-  document.getElementById('corr-hint').textContent=`n = ${w.days.length} days`;
-  document.getElementById('corr').innerHTML=
-    rcard('Daily ET₀ (evaporative demand) vs <b>tomato</b> daily dry-down',rTomDrawEt)+
-    rcard('Daily ET₀ vs <b>pepper</b> daily dry-down',rPepDrawEt)+
-    rcard('Daily peak temp vs <b>pepper</b> mean moisture',rPepMeanT);
-  document.getElementById('corr-caveat').innerHTML=
-    `<b>Read with care:</b> at n = ${w.days.length} days this is more robust than the original 7-day look, but irrigation is still the dominant driver — weather only modulates the dry-down <em>between</em> waterings. Positive ET₀-vs-dry-down means hotter/drier-air days pulled more water from the soil, the physically expected direction. The tomato signal is partly confounded by its multi-week downtrend, so lean on the pepper relationships for the cleaner weather read.`;
-}
+// computeCorrelation() removed 2026-08-19. It rendered a three-card panel whose
+// headline result was r = -0.001 between ET0 and tomato dry-down -- a real and
+// well-established null (irrigation sets the daily swing, not the weather).
+// Re-reporting a stable null as a panel every week is noise; it now appears as
+// one sentence in the findings, and ET0 is retained where it does work: the
+// water budget in panel 4.
 
 /* ---------- findings ---------- */
 function writeFindings(noWx){
-  document.getElementById('f-tom').innerHTML=
-    `Tomato bed mean is <b>${S.tom.mean}%</b> (range ${S.tom.min}–${S.tom.max}%), latest <b>${S.tom.last}%</b>, trending ${DATA.trend.per_week} pts/week (R²=${DATA.trend.r2}) against the ${CFG.setpoints.tom}% setpoint. ${DATA.distribution.tom.pct_above}% of readings sat at or above setpoint.`;
+  // Written from the control variable (pre-irrigation floor / daily minimum),
+  // not from the window mean. The mean averages the irrigation spike together
+  // with the dry-down and so moves late and small; the floor is what every
+  // decision in the change log was actually made on.
+  const EXall=((DATA.native||{}).extremes||{}).tom||[];
+  const EX=EXall.filter(r=>!r.partial);
+  const lx=EX.length?EX[EX.length-1]:null, px=EX.length>7?EX[EX.length-8]:null;
+  document.getElementById('f-tom').innerHTML= lx
+    ? `Pre-irrigation floor is <b>${lx.pre_irrigation}%</b>${px?` (${lx.pre_irrigation-px.pre_irrigation>0?'+':''}${(lx.pre_irrigation-px.pre_irrigation).toFixed(1)} vs a week ago)`:''} and the daily minimum is <b>${lx.day_min}%</b> at ${lx.day_min_t}, against a ${CFG.setpoints.tom}% setpoint — so the bed's <b>driest moment of the day</b> still sits ${(lx.day_min-CFG.setpoints.tom).toFixed(1)} points ${lx.day_min>CFG.setpoints.tom?'above':'below'} target. Daily swing ${lx.swing} points. <span style="color:var(--mut)">(${lx.date}, last complete day.)</span>`
+    : `Tomato bed mean is <b>${S.tom.mean}%</b> (range ${S.tom.min}–${S.tom.max}%), latest <b>${S.tom.last}%</b>.`;
   const hp=(DATA.health||{}).pep;
   document.getElementById('f-pep').innerHTML= (hp&&hp.has_bad)
     ? `<b style="color:var(--tom)">Pepper readings are not usable right now.</b> The daily AD range has collapsed to <b>${hp.ad_range_last} counts</b>, against a healthy norm many times that. Soil breathes on a daily cycle; a flat trace is a sensor, not a substrate — so the reported <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}) describes the instrument, not the bed. <b>Do not act on pepper numbers until the AD range recovers.</b> First check the battery: this channel must run on alkaline (~1.5 V nominal). A lithium AA reads ~1.7 V and has previously pinned this probe flat for two weeks while the derived % drifted smoothly downward, which reads convincingly like a bed drying out and is not.`
     : (hp&&hp.ok===false)
     ? `Pepper channel is <b>measuring normally</b> (daily AD range ${hp.ad_range_last} counts) but carries a calibration caveat: ${hp.flags[0].msg} Day-to-day <em>swings</em> are trustworthy; absolute % is comparable only within a single battery era. Current mean <b>${S.pep.mean}%</b> (range ${S.pep.min}–${S.pep.max}%).`
-    : `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%), with ${DATA.distribution.pep.pct_above}% of readings at or above the ${CFG.setpoints.pep}% setpoint.`;
+    : (()=>{const PE=((DATA.native||{}).events||{}).pep||[];
+        const es=PE.filter(e=>e.retained!=null).slice(-7);
+        if(!es.length) return `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%).`;
+        const r=es.reduce((a,e)=>a+e.retained,0)/es.length, sh=es.reduce((a,e)=>a+e.shed,0)/es.length;
+        const eff=Math.round(r/(r+sh)*100);
+        return `Across the last ${es.length} runs the bags gained <b>+${r.toFixed(1)} points</b> and shed <b>${sh.toFixed(1)}</b>, keeping <b>${eff}%</b> of each run's excursion. ${eff<45?`That is the washout signature: the media reaches container capacity part-way through the run and passes the remainder straight through, carrying dissolved nutrients out the base.`:``} Bags cycle ${Math.min(...es.map(e=>e.pre_floor))}–${Math.max(...es.map(e=>e.peak))}% against a ${CFG.setpoints.pep}% alert threshold.`;})();
   // Prefer the server-side analysis baked in from inputs/weather.csv: it is
   // computed from cached data, so it survives being opened offline, and it
   // reports what the numbers actually say instead of asserting a direction.
   const WXA=DATA.weather;
   document.getElementById('f-wx').innerHTML= WXA
-    ? `${WXA.narrative} Toggle <b>ET₀</b> on the chart to see drying demand against the dips.`
+    ? `${WXA.narrative} <b>This is why there is no correlation panel:</b> ET₀ vs tomato dry-down measures r ≈ 0, a stable and well-understood null — the daily swing is set by the irrigation pulse, not the weather. ET₀ still earns its place as the denominator of the water budget in panel 4.`
     : (noWx
       ? `Live weather didn&rsquo;t load. Reopen online to populate the ET₀/temp overlay and the ${DATA.daily.length}-day correlation for 95050, or run <code>./pull_weather_data.sh</code> to cache it into the build.`
       : `Over ${DATA.daily.length} days, toggle <b>ET₀</b> on the chart to see drying demand against the dips; the tomato line is dominated by its own downtrend, so weather reads cleaner on peppers.`);

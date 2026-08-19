@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import math
 import statistics
+
+import events as events_mod
 from datetime import datetime, timedelta
 
 import weather as weather_mod
@@ -412,6 +414,15 @@ def _gauge_for(pkey, pcfg, stats, trend=None):
     return g
 
 
+def _trust_from(config, key, _cache={}):
+    """
+    Date after which a channel's readings are trustworthy: the day AFTER its
+    most recent calibration break. Set by _sensor_health as a side effect, so
+    this just reads what that computed; returns None if there was no break.
+    """
+    return _cache.get(key)
+
+
 def _sensor_health(readings, config):
     """
     Per-channel instrument trust check. Two failure modes matter for remote
@@ -504,11 +515,20 @@ def _sensor_health(readings, config):
                             f"contact; verify with an air-vs-water span test."),
                 })
 
+        # Publish the trust boundary for other panels (see _trust_from): the
+        # date of the most recent calibration break, recent or historical.
+        all_breaks = [b["date"] for b in breaks] + \
+                     [d["date"] for d in days for f in flags
+                      if d["date"] in f.get("msg", "")]
+        if all_breaks:
+            _trust_from.__defaults__[0][key] = max(all_breaks)
+
         out[key] = {
             "label": label,
             "days": days[-14:],
             "v_last": last_v,
             "ad_range_last": days[-1]["ad_range"],
+            "trust_from": max(all_breaks) if all_breaks else None,
             "flags": flags,
             "breaks": breaks,
             "ok": not flags,
@@ -691,6 +711,42 @@ def build(readings, config, wx_hourly=None):
     weekly = _weekly(series)
     trend = _trend(daily, tom_cfg["setpoint"])
     water = _water(readings, since=config.get("plan", {}).get("runs_effective"))
+
+    # ---- native-resolution analytics (see lib/events.py for why these do NOT
+    # use `series`: hourly resampling erases the pulse structure that every
+    # irrigation decision in plan.schedule_log was actually made from).
+    plan_cfg = config.get("plan", {})
+    bed_cfg = config.get("bed", {})
+    ev_tom = events_mod.detect_events(readings, "tom")
+    ev_pep = events_mod.detect_events(readings, "pep")
+    ext_tom = events_mod.daily_extremes(readings, "tom", ev_tom)
+    ext_pep = events_mod.daily_extremes(readings, "pep", ev_pep)
+    sched_tom = [r["time"] for r in plan_cfg.get("runs", [])]
+    sched_pep = [plan_cfg["pepper_time"]] if plan_cfg.get("pepper_time") else []
+    native = {
+        "events": {"tom": ev_tom, "pep": ev_pep},
+        "extremes": {"tom": ext_tom, "pep": ext_pep},
+        "retention": events_mod.retention(ev_tom, water.get("daily") if water else None),
+        # Scope each onset check to the date its CURRENT schedule took effect,
+        # and for peppers also to the date the probe became trustworthy again --
+        # a flatlined probe cannot register an onset, so scoring that window
+        # would manufacture "late" runs out of a dead sensor.
+        "onset": {
+            "tom": events_mod.onset_check(
+                ev_tom, sched_tom, since=plan_cfg.get("runs_effective")),
+            "pep": events_mod.onset_check(
+                ev_pep, sched_pep,
+                since=max([d for d in (plan_cfg.get("pepper_effective"),
+                                       _trust_from(config, "pep")) if d] or [None])),
+        },
+        "regimes": events_mod.regime_summary(
+            plan_cfg.get("regimes"), ext_tom, water.get("daily") if water else None),
+        "budget": events_mod.water_budget(
+            water.get("daily") if water else None,
+            bed_cfg.get("liters_per_inch_of_water"),
+            (bed_cfg.get("target") or {}).get("august_etc_in_per_week")),
+        "regime_bands": plan_cfg.get("regimes") or [],
+    }
     wx_daily = weather_mod.daily(wx_hourly, config["location"]["lat"]) if wx_hourly else []
     wx = _weather_analysis(daily, wx_daily)
 
@@ -701,15 +757,20 @@ def build(readings, config, wx_hourly=None):
     DATA = {
         "series": [{"t": p["dt"].strftime("%Y-%m-%dT%H:%M"),
                     "tom": p["tom"], "pep": p["pep"]} for p in series],
+        # Native-resolution tail for the pulse-detail panel. Deliberately only
+        # the last 7 days: full history at 5 min is ~14.6k points, which bloats
+        # the published page for no analytical gain -- pulse shape is a
+        # short-horizon question, and the long view is the hourly `series`.
+        "series5": [{"t": r["dt"].strftime("%Y-%m-%dT%H:%M"),
+                     "tom": r["tom"], "pep": r["pep"]}
+                    for r in readings
+                    if (readings[-1]["dt"] - r["dt"]).days < 7],
         "daily": daily,
         "weekly": weekly,
         "diurnal": _diurnal(series),
         "trend": trend,
         "water": water,
-        "distribution": {
-            "tom": _distribution(series, "tom", tom_cfg["setpoint"], tom_cfg["hist_bin"]),
-            "pep": _distribution(series, "pep", pep_cfg["setpoint"], pep_cfg["hist_bin"]),
-        },
+        "native": native,
         "health": _sensor_health(readings, config),
         # None when inputs/weather.csv is absent -- the template falls back to
         # its client-side Open-Meteo fetch in that case.
