@@ -184,6 +184,12 @@
     "schedule_log": [
       {
         "date": "2026-08-22",
+        "logged": "2026-08-22T21:05:00",
+        "kind": "finding",
+        "change": "PEPPER LATE-FIRING IS NOW A CLEAN DISPLACEMENT SIGNATURE, once both manual events are excluded. Justin confirmed the 2026-08-07 09:15 pour (battery-swap hand-watering) and the 2026-08-19 13:45 run (bubbler function test); tagging them drops pepper onset violations from 7 of 17 to 5 of 15 (~33%). The point is not the count, it is the SHAPE of what remains: every surviving violation is +35 to +55 min (Aug 8 +40, Aug 12 +35, Aug 14 +35, Aug 20 +55, Aug 22 +40) with a full-size run. The two discarded outliers were +150 and +420 — an order of magnitude away and the only two that ever looked like a failing valve. A tight 35-55 min band of full-size displaced runs is what an upstream zone running long looks like on a sequential controller, and it is not what a failing pepper valve looks like (that would give short or missed runs). The house-system zone order is now the single highest-value unknown in the file: the hypothesis predicts the culprit zone runs BEFORE the peppers and overruns by ~40 min roughly one day in three. GENERAL LESSON: two unlogged manual events were enough to hide a clean bimodal signal inside what looked like scattered noise, and both were only recoverable by asking Justin — a hand application leaves no trace the meter or the controller can see."
+      },
+      {
+        "date": "2026-08-22",
         "logged": "2026-08-22T20:30:00",
         "kind": "finding",
         "change": "FIELD CAPACITY AND THE STRESS FLOOR ARE NOW DERIVED, and the setpoint is retired. Method needs no soil calibration, which is what made this look impossible for three weeks: partition moisture loss by whether the atmosphere was demanding water. At NIGHT (ET0 = 0) nothing transpires, so anything leaving the soil is drainage — binned by level, night loss is flat at 0.17-0.76 %AD/hr up to 74 then steps to 1.66 at 75-79 and 12.07 at 80-84. That discontinuity IS field capacity, read straight off the factory-calibrated index with no conversion. By DAY, loss per mm ET0 is flat at ~4-5 %AD across 50-74 (demand-limited uptake) and falls to 1.30 at 45-49, which is the plant restricting uptake. TOMATO: ceiling 75, floor 50 (floor LOW confidence, n=105 — the bed has never been allowed to get dry). PEPPER: ceiling 48, floor 36; note the retired hand-set pepper threshold was 35, a good guess. New lib/derive_bands.py reproduces all of it; re-run if a probe is reseated or moved."
@@ -640,6 +646,15 @@
         "what": "liquid fertiliser, hand-poured, ~0.5 gal (1.9 L) per plant, all plants",
         "channels": [
           "tom",
+          "pep"
+        ],
+        "metered": false
+      },
+      {
+        "date": "2026-08-07",
+        "time": "09:15",
+        "what": "HAND-WATERING DURING THE PEPPER BATTERY SWAP, pepper zone only — confirmed by Justin 2026-08-22, resolving the 'left untagged pending confirmation' note that had stood since 2026-08-19. Bags were at 34% (their lowest in the record, the probe having just come back from the lithium flatline) and took the water well: 34 -> 49 peak, 11 retained against only 4 shed, which is the best retention ratio of any pepper event and exactly what a slow hand-pour onto genuinely dry media should look like. It was scored as a +150 min onset violation. NOTE the tomato 10:25 event the same morning is NOT covered by this entry and stays untagged: it ran 80 -> 92 with 2 retained against 10 shed onto a bed already at field capacity, which is a different signature, and Justin confirmed only the pepper pour.",
+        "channels": [
           "pep"
         ],
         "metered": false
