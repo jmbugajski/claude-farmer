@@ -643,6 +643,15 @@
           "pep"
         ],
         "metered": false
+      },
+      {
+        "date": "2026-08-19",
+        "time": "13:45",
+        "what": "MANUAL BUBBLER FUNCTION TEST, pepper zone only — run by hand while adjusting the pepper timer 15 -> 7 min, to confirm the bubblers were emitting properly. Confirmed by Justin 2026-08-22. Not a scheduled run and not a controller fault: it was scored as a +420 min onset violation, which is the single largest 'late run' in the record and pure artefact. Also excluded from retention, where it read 3 points retained against 18 shed (14% efficiency) — a diagnostic squirt onto bags already near capacity from the 06:40 run, not a failed irrigation.",
+        "channels": [
+          "pep"
+        ],
+        "metered": false
       }
     ],
     "_manual_events_comment": "Hand applications: fertigation, spot watering, anything poured by hand. LOG THEM HERE. Two reasons, both of which bit on 2026-08-16 before this key existed. (1) The WFC01 never sees hand-applied water, so the meter under-reports what the bed got while the probe records the full response — points-per-100L read 23.9 that day, the highest in the record, purely because the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, since a silently wrong efficiency figure is worse than a missing one. (2) They are not schedule violations, so onset_check() skips them; otherwise every fertigation shows up as a broken timer. Detection hint: a manual application shows as simultaneous off-schedule events on BOTH channels within a few minutes — that signature appears exactly once in the record (2026-08-16, 5 min apart).",

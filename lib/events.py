@@ -55,7 +55,7 @@ def _by_day(readings):
     return days
 
 
-def tag_manual(evs, manual, window_min=45):
+def tag_manual(evs, manual, window_min=45, channel=None):
     """
     Mark events that were hand-applied (fertigation, spot watering) rather than
     delivered by a timer.
@@ -69,8 +69,19 @@ def tag_manual(evs, manual, window_min=45):
     efficiency figure is worse than a missing one.
 
     Manual events are also not schedule violations, so onset_check() skips them.
+
+    `channel` ("tom"/"pep") is matched against each entry's `channels` list. This
+    was a latent bug until 2026-08-22: the list was written in config from the
+    start but never read, so a manual event on ONE line would tag a coincidental
+    event on the OTHER line as manual too, provided it fell inside window_min.
+    It had not bitten because the only logged event (the 2026-08-16 fertigation)
+    genuinely hit both channels. Adding the pepper-only bubbler test made the
+    difference real -- a tomato run within 45 minutes of it would have been
+    silently written off as hand-applied and dropped from retention.
+
+    Passing channel=None preserves the old match-any behaviour, so an entry that
+    omits `channels` still tags every line.
     """
-    idx = {(m["date"], m.get("time")) for m in (manual or [])}
     dates = {m["date"] for m in (manual or [])}
     for e in evs:
         e["manual"] = False
@@ -78,6 +89,9 @@ def tag_manual(evs, manual, window_min=45):
             continue
         for m in manual:
             if m["date"] != e["date"]:
+                continue
+            chans = m.get("channels")
+            if channel is not None and chans and channel not in chans:
                 continue
             t = m.get("time")
             if not t:
