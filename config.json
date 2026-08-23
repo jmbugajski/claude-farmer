@@ -184,6 +184,18 @@
     "schedule_log": [
       {
         "date": "2026-08-22",
+        "logged": "2026-08-22T21:25:00",
+        "kind": "decision",
+        "change": "PEPPER DISPLACEMENT CLOSED AS EXPECTED BEHAVIOUR, and onset_check now says so in code. Justin confirmed 2026-08-22 that other house zones run serially ahead of the peppers on those days and this is not a concern. All 5 surviving late runs classify as `displaced` (late, full-size retained gain); zero classify as `fault`; tomato is 36 of 36 on time. onset_check() gained a `kind` field — on_time / displaced / fault / late_unclassified — where fault means late AND retained below 0.6x the median of on-time runs in the same window, i.e. the problem is at THIS valve rather than upstream. The distinction previously existed only in a docstring and a sentence under the table, leaving the reader to eyeball Delta against Retained; the dashboard now styles displaced as muted information and reserves the warning colour for a short run. RATIONALE, and it is the same one as the 2026-08-19 permanent-warning health-panel fix: a panel that flags expected behaviour in alarm colours trains the reader to skip it, and then it will not be read on the day something genuinely breaks. WHAT THE PANEL IS STILL FOR: the pepper probe remains the only instrumentation on the entire house irrigation system, so displacement is worth RECORDING even though it needs no action — it is the only visibility into how much extra water the upstream zone is taking (~41 min average, roughly one day in three)."
+      },
+      {
+        "date": "2026-08-22",
+        "logged": "2026-08-22T21:15:00",
+        "kind": "finding",
+        "change": "TWO HAND-POURS ON THE SAME MORNING ARE THE CLEANEST DEMONSTRATION OF THE CEILING IN THE RECORD. Justin confirmed both 2026-08-07 events as manual: pepper 09:15 and tomato 10:25, same operator, same method, 70 minutes apart. The DRY pepper bags (34%, just off the lithium flatline) took 11 points and shed 4. The tomato bed, already sitting at 80% — above the 75% drainage ceiling — took 2 points and shed 10. Identical action, opposite result, and the only variable is whether the medium had capacity to accept water. This is the retained-vs-shed diagnostic and the derived ceiling agreeing with each other on a natural experiment neither was fitted to. Practical corollary for fertigation: the value of a hand application is set almost entirely by the moisture level you pour onto, which is why the 2026-08-19 timing fix (fertigate late afternoon at the daily floor, never onto a wet medium) matters more than the dose."
+      },
+      {
+        "date": "2026-08-22",
         "logged": "2026-08-22T21:05:00",
         "kind": "finding",
         "change": "PEPPER LATE-FIRING IS NOW A CLEAN DISPLACEMENT SIGNATURE, once both manual events are excluded. Justin confirmed the 2026-08-07 09:15 pour (battery-swap hand-watering) and the 2026-08-19 13:45 run (bubbler function test); tagging them drops pepper onset violations from 7 of 17 to 5 of 15 (~33%). The point is not the count, it is the SHAPE of what remains: every surviving violation is +35 to +55 min (Aug 8 +40, Aug 12 +35, Aug 14 +35, Aug 20 +55, Aug 22 +40) with a full-size run. The two discarded outliers were +150 and +420 — an order of magnitude away and the only two that ever looked like a failing valve. A tight 35-55 min band of full-size displaced runs is what an upstream zone running long looks like on a sequential controller, and it is not what a failing pepper valve looks like (that would give short or missed runs). The house-system zone order is now the single highest-value unknown in the file: the hypothesis predicts the culprit zone runs BEFORE the peppers and overruns by ~40 min roughly one day in three. GENERAL LESSON: two unlogged manual events were enough to hide a clean bimodal signal inside what looked like scattered noise, and both were only recoverable by asking Justin — a hand application leaves no trace the meter or the controller can see."
@@ -653,9 +665,18 @@
       {
         "date": "2026-08-07",
         "time": "09:15",
-        "what": "HAND-WATERING DURING THE PEPPER BATTERY SWAP, pepper zone only — confirmed by Justin 2026-08-22, resolving the 'left untagged pending confirmation' note that had stood since 2026-08-19. Bags were at 34% (their lowest in the record, the probe having just come back from the lithium flatline) and took the water well: 34 -> 49 peak, 11 retained against only 4 shed, which is the best retention ratio of any pepper event and exactly what a slow hand-pour onto genuinely dry media should look like. It was scored as a +150 min onset violation. NOTE the tomato 10:25 event the same morning is NOT covered by this entry and stays untagged: it ran 80 -> 92 with 2 retained against 10 shed onto a bed already at field capacity, which is a different signature, and Justin confirmed only the pepper pour.",
+        "what": "HAND-WATERING DURING THE PEPPER BATTERY SWAP, pepper zone only — confirmed by Justin 2026-08-22, resolving the 'left untagged pending confirmation' note that had stood since 2026-08-19. Bags were at 34% (their lowest in the record, the probe having just come back from the lithium flatline) and took the water well: 34 -> 49 peak, 11 retained against only 4 shed, which is the best retention ratio of any pepper event and exactly what a slow hand-pour onto genuinely dry media should look like. It was scored as a +150 min onset violation. See the paired tomato entry at 10:25 the same morning.",
         "channels": [
           "pep"
+        ],
+        "metered": false
+      },
+      {
+        "date": "2026-08-07",
+        "time": "10:25",
+        "what": "HAND-WATERING, tomato bed, same morning as the pepper pour above — confirmed by Justin 2026-08-22. Separate entry rather than adding 'tom' to the 09:15 record because the two are 70 minutes apart, outside tag_manual's 45-minute window; one entry cannot cover both. The contrast between them is the useful part and worth keeping visible: the DRY pepper bags took 11 points and shed 4, while this pour went onto a bed already sitting at 80% (at the 75% drainage ceiling) and returned 2 points retained against 10 shed. Same operator, same morning, same method — the difference is entirely whether the medium had capacity to accept water. It is the cleanest natural experiment in the record for why the ceiling matters, and it also means the 2026-08-19 'detection signature for anything unlogged' note (simultaneous off-schedule events on BOTH channels) now has a second instance, not one.",
+        "channels": [
+          "tom"
         ],
         "metered": false
       },

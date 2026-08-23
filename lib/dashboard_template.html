@@ -530,24 +530,37 @@ const NAT=DATA.native||{};
   ['tom','pep'].forEach(k=>(O[k]||[]).slice(-12).forEach(o=>rows.push({k,...o})));
   rows.sort((a,b)=>a.date<b.date?1:-1);
   if(!rows.length) return;
-  const tr=rows.slice(0,14).map(o=>`<tr>
+  // Displacement is EXPECTED here (Justin confirmed 2026-08-22: other house
+  // zones run serially ahead of the peppers), so it is styled as information,
+  // not as a fault. Only `fault` -- late AND short on retained -- gets the
+  // warning colour. A table that shouts on normal behaviour stops being read.
+  const KIND={on_time:['',''],displaced:['var(--mut)','displaced'],
+              fault:['#C4643C','SHORT RUN'],late_unclassified:['var(--mut)','late']};
+  const tr=rows.slice(0,14).map(o=>{
+    const [col,lab]=KIND[o.kind]||KIND.late_unclassified;
+    return `<tr>
       <td><span style="color:${o.k==='tom'?'var(--tom)':'var(--pep)'}">${o.k==='tom'?'Tomato':'Pepper'}</span>
           <span style="color:var(--faint)">${o.date}</span></td>
       <td class="num">${o.scheduled}</td>
       <td class="num">${o.onset}</td>
-      <td class="num" style="color:${o.late?'#C4643C':'var(--mut)'}">${o.delta_min>0?'+':''}${o.delta_min} min</td>
+      <td class="num" style="color:${col||'var(--mut)'}">${o.delta_min>0?'+':''}${o.delta_min} min</td>
       <td class="num">${o.retained==null?'—':(o.retained>0?'+':'')+o.retained}</td>
-    </tr>`).join('');
+      <td style="color:${col||'var(--faint)'};font-size:11px">${lab||'on time'}</td>
+    </tr>`;}).join('');
   document.getElementById('onset-table').innerHTML=
-    `<thead><tr><th>Run</th><th>Scheduled</th><th>Actual</th><th>Delta</th><th>Retained</th></tr></thead><tbody>${tr}</tbody>`;
-  const lateP=(O.pep||[]).filter(o=>o.late).length, nP=(O.pep||[]).length;
+    `<thead><tr><th>Run</th><th>Scheduled</th><th>Actual</th><th>Delta</th><th>Retained</th><th></th></tr></thead><tbody>${tr}</tbody>`;
+  const P=(O.pep||[]), nP=P.length;
+  const disp=P.filter(o=>o.kind==='displaced'), fault=P.filter(o=>o.kind==='fault');
+  const ds=disp.map(o=>o.delta_min).sort((a,b)=>a-b);
   document.getElementById('onset-caveat').innerHTML=
     `The pepper bags are a zone on the <b>house multi-zone controller</b> (lawn, roses, trees), which is unmetered and keeps no
      log — so this table is the <b>only run-log that exists</b> for that system.
-     ${nP?`<b>${lateP} of ${nP}</b> detected pepper runs fired outside tolerance.`:''}
-     Read <b>Delta</b> next to <b>Retained</b>: a run that fires late but retains a normal amount is a <b>displacement</b>
-     (something upstream in the zone sequence ran long, and that upstream zone is the one being over-watered), whereas a
-     late run that also retains less points at the valve itself.`;
+     ${disp.length?`<b>${disp.length} of ${nP}</b> pepper runs were <b>displaced</b> by ${ds[0]}–${ds[ds.length-1]} min but fired full size.
+       That is an upstream zone overrunning, confirmed by Justin and not a concern for the peppers — though it does mean
+       whichever zone runs <b>before</b> them is taking ~${Math.round(ds.reduce((a,b)=>a+b,0)/ds.length)} extra minutes of water
+       roughly one day in ${Math.max(2,Math.round(nP/disp.length))}. `:''}
+     ${fault.length?`<b style="color:#C4643C">${fault.length} run(s) fired late AND short</b> — that points at the pepper valve itself, not upstream.`
+       :`<b>No short runs:</b> every late run still delivered a normal retained gain, which is what separates a displaced schedule from a failing valve.`}`;
 })();
 
 /* water-usage panel removed with panel 9 -- see the HTML comment above panel 8.

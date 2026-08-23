@@ -299,15 +299,38 @@ def retention(events, water_daily):
     return out
 
 
-def onset_check(events, scheduled, tol_min=15, since=None):
+def onset_check(events, scheduled, tol_min=15, since=None, fault_frac=0.6):
     """
     Did each run fire when the schedule says it should?
 
     Cheap, and the only run-log that exists for the pepper line, which sits on
     the house multi-zone controller with no metering and no logging of its own.
     A run that fires late but FULL SIZE is a displacement (something upstream in
-    the zone sequence ran long), not a valve failure -- so `late` days are worth
-    reading next to `retained`, which should be unchanged if it is displacement.
+    the zone sequence ran long), not a valve failure.
+
+    That distinction used to live only in this docstring and in a sentence under
+    the table, leaving the reader to eyeball Delta against Retained. It is now
+    computed, as `kind`:
+
+        on_time    -- within tol_min
+        displaced  -- late, but retained a normal amount: an upstream zone
+                      overran. The pepper valve is fine; the zone AHEAD of it is
+                      the one being over-watered.
+        fault      -- late AND retained materially less than normal: the run
+                      itself was short or partial, i.e. the problem is at this
+                      valve.
+
+    Justin confirmed on 2026-08-22 that the surviving pepper displacements are
+    exactly this -- other house zones running serially ahead of the peppers -- and
+    are not a concern. Encoding it keeps the panel honest without crying wolf: a
+    warning that fires on expected behaviour is one the reader learns to skip,
+    which is the same failure as the permanent-warning health panel fixed on
+    2026-08-19. `displaced` stays in the table because this is the only run-log
+    the house system has, but it is not styled as an alarm.
+
+    The `retained` reference is the median of on-time runs in the same scoped
+    window, so it tracks the current schedule rather than a historical constant;
+    `fault_frac` is how far below that a run must land to count as a fault.
     """
     sched = []
     for s in (scheduled or []):
@@ -335,6 +358,21 @@ def onset_check(events, scheduled, tol_min=15, since=None):
             "late": abs(delta) > tol_min,
             "retained": e["retained"],
         })
+
+    # Second pass: classify. Needs the whole set first, because "normal
+    # retained" is defined by the on-time runs in this same window.
+    ref = [r["retained"] for r in out if not r["late"] and r["retained"] is not None]
+    ref_med = statistics.median(ref) if ref else None
+    for r in out:
+        if not r["late"]:
+            r["kind"] = "on_time"
+        elif ref_med is None or r["retained"] is None or ref_med <= 0:
+            # No usable baseline -- say so rather than guessing a category.
+            r["kind"] = "late_unclassified"
+        elif r["retained"] >= fault_frac * ref_med:
+            r["kind"] = "displaced"
+        else:
+            r["kind"] = "fault"
     return out
 
 
