@@ -79,7 +79,134 @@ def resample(readings, interval_min):
 
 
 # ----------------------------------------------------------------------------- soil stats
-def _probe_stats(series, key, setpoint):
+def _regime_split(series, key, bands):
+    """Share of readings in each irrigation regime: draining / working / dry.
+
+    This replaces pct_above/pct_below a setpoint. The old figure answered "how
+    often were we above a number Justin typed into the EcoWitt app", which is
+    unanswerable in agronomic terms on a factory-calibrated index. These three
+    answer "how often was applied water being wasted, used, or short" -- which
+    is the only question the dashboard exists to serve.
+    """
+    vals = [p[key] for p in series if p[key] is not None]
+    if not vals:
+        return {"pct_draining": None, "pct_working": None, "pct_dry": None, "n": 0}
+    ceiling, floor = bands["drainage_ceiling"], bands["stress_floor"]
+    n = len(vals)
+    drain = sum(1 for v in vals if v >= ceiling)
+    dry = sum(1 for v in vals if v < floor)
+    return {
+        "pct_draining": round(drain / n * 100, 1),
+        "pct_working": round((n - drain - dry) / n * 100, 1),
+        "pct_dry": round(dry / n * 100, 1),
+        "n": n,
+    }
+
+
+def _regime_start(config, readings):
+    """Date the CURRENT irrigation regime began, as a datetime.
+
+    Everything that judges the present schedule must be scoped by this. A fixed
+    trailing window silently averages across plan changes: on 2026-08-22 a 14-day
+    partition put 11 days of the retired 4x90s flood plan alongside 3 days of the
+    2x90s plan and reported 52% drainage, which described a schedule that no
+    longer existed. config._regimes_comment already warns that comparisons
+    straddling a regime boundary are meaningless; this is the guard that enforces
+    it instead of trusting the reader to remember.
+    """
+    regimes = (config.get("plan", {}) or {}).get("regimes") or []
+    start = None
+    for r in regimes:
+        if r.get("end") is None and r.get("start"):
+            start = r["start"]
+    if not start:
+        start = (config.get("plan", {}) or {}).get("runs_effective")
+    if not start:
+        return None
+    try:
+        dt = datetime.strptime(start, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return None
+    # Never let a future-dated plan empty the window -- same failure mode that
+    # blanked the onset panel on 2026-08-19. See _scope().
+    if readings and dt > readings[-1]["dt"]:
+        return None
+    return dt
+
+
+def _partition(readings, wx_hourly, key, bands, since=None):
+    """Split observed moisture loss into drainage vs plant uptake.
+
+    The method that makes the bands derivable in the first place, run forward as
+    a live metric. Night intervals (ET0 = 0) carry no transpiration, so whatever
+    leaves the soil then is drainage; day intervals scale with atmospheric
+    demand.
+
+    Scoped to the CURRENT regime (see _regime_start), falling back to 14 days
+    when no regime is recorded. `days` in the result is the actual window length
+    so the dashboard can state it rather than implying a fixed fortnight.
+
+    Returns None when there is no weather series -- the whole calculation is
+    keyed on ET0, and a partition computed without it would be a guess wearing a
+    number's clothes.
+    """
+    if not wx_hourly or not readings:
+        return None
+    # weather.load() yields {"dt": datetime, "et0": mm, ...}. et0 is optional --
+    # an older weather.csv predating the et0 column loads fine but cannot support
+    # this calculation, hence the explicit None below rather than a silent zero.
+    et = {}
+    for row in wx_hourly:
+        dt, v = row.get("dt"), row.get("et0")
+        if dt is None or v is None:
+            continue
+        et[dt.strftime("%Y-%m-%d %H")] = v
+    if not et:
+        return None
+
+    t_end = readings[-1]["dt"]
+    cutoff = since or (t_end - timedelta(days=14))
+    ceiling = bands["drainage_ceiling"]
+    night_loss = day_loss = 0.0
+    night_hi = 0.0   # night loss occurring at or above the ceiling = clear waste
+    n_night = n_day = 0
+    for a, b in zip(readings, readings[1:]):
+        if a["dt"] < cutoff:
+            continue
+        hrs = (b["dt"] - a["dt"]).total_seconds() / 3600.0
+        if not 0 < hrs <= 0.35:
+            continue
+        if a[key] is None or b[key] is None or b[key] > a[key]:
+            continue
+        drop = a[key] - b[key]
+        e = et.get(a["dt"].strftime("%Y-%m-%d %H"), 0.0)
+        if e <= 0.01:
+            night_loss += drop
+            n_night += 1
+            if a[key] >= ceiling:
+                night_hi += drop
+        else:
+            day_loss += drop
+            n_day += 1
+    total = night_loss + day_loss
+    if total <= 0:
+        return None
+    span_days = max(1, round((t_end - cutoff).total_seconds() / 86400))
+    return {
+        "days": span_days,
+        "since": cutoff.strftime("%Y-%m-%d"),
+        "scoped_to_regime": since is not None,
+        "night_pts": round(night_loss, 1),
+        "day_pts": round(day_loss, 1),
+        "pct_drainage": round(night_loss / total * 100, 1),
+        "pct_uptake": round(day_loss / total * 100, 1),
+        "above_ceiling_pts": round(night_hi, 1),
+        "n_night": n_night,
+        "n_day": n_day,
+    }
+
+
+def _probe_stats(series, key, bands):
     vals = [p[key] for p in series if p[key] is not None]
     # "current" reading = trailing 24-hour mean, not the single last sample.
     # With sub-hourly data a lone last reading often lands on a post-irrigation
@@ -99,7 +226,10 @@ def _probe_stats(series, key, setpoint):
         "max": round(max(vals), 1),
         "std": _std(vals),
         "median": round(statistics.median(vals), 1),
-        "setpoint": setpoint,
+        "ceiling": bands["drainage_ceiling"],
+        "floor": bands["stress_floor"],
+        "working_lo": bands["working_lo"],
+        "refill_target": bands["refill_target"],
         "last": last,
     }
 
@@ -126,90 +256,21 @@ def _daily(series):
     return out
 
 
-def _weekly(series):
-    if not series:
-        return []
-    d0 = series[0]["dt"].replace(hour=0, minute=0, second=0, microsecond=0)
-    weeks: dict[int, dict] = {}
-    for p in series:
-        wi = (p["dt"] - d0).days // 7
-        w = weeks.setdefault(wi, {"tom": [], "pep": [], "dts": []})
-        w["dts"].append(p["dt"])
-        if p["tom"] is not None:
-            w["tom"].append(p["tom"])
-        if p["pep"] is not None:
-            w["pep"].append(p["pep"])
-    out = []
-    for i, wi in enumerate(sorted(weeks), start=1):
-        w = weeks[wi]
-        lo, hi = min(w["dts"]), max(w["dts"])
-        out.append({
-            "idx": i,
-            "label": f"{_fmt_md(lo)}–{hi.strftime('%-d') if lo.month == hi.month else _fmt_md(hi)}",
-            "tom_mean": _mean(w["tom"]), "tom_min": round(min(w["tom"]), 1), "tom_max": round(max(w["tom"]), 1), "tom_std": _std(w["tom"]),
-            "pep_mean": _mean(w["pep"]), "pep_min": round(min(w["pep"]), 1), "pep_max": round(max(w["pep"]), 1), "pep_std": _std(w["pep"]),
-            "n": len(w["dts"]),
-        })
-    return out
-
-
-def _diurnal(series):
-    by_h: dict[int, dict] = {}
-    for p in series:
-        h = p["dt"].hour
-        b = by_h.setdefault(h, {"tom": [], "pep": []})
-        if p["tom"] is not None:
-            b["tom"].append(p["tom"])
-        if p["pep"] is not None:
-            b["pep"].append(p["pep"])
-    return [{"h": h, "tom": _mean(by_h[h]["tom"]), "pep": _mean(by_h[h]["pep"])}
-            for h in sorted(by_h)]
-
-
-def _trend(daily, setpoint):
-    pts = [(i, r["tom_mean"]) for i, r in enumerate(daily) if r["tom_mean"] is not None]
-    if len(pts) < 2:
-        return {"slope": 0, "intercept": daily[0]["tom_mean"] if daily else 0, "r2": 0,
-                "per_week": 0, "start_fit": None, "end_fit": None,
-                "set_reach_date": None, "days_from_start": 0, "last_daily": None}
-    xs = [p[0] for p in pts]
-    ys = [p[1] for p in pts]
-    slope, intercept, r2 = _linreg(xs, ys)
-    d0 = datetime.strptime(daily[0]["date"], "%Y-%m-%d")
-    last_x = xs[-1]
-    set_reach = None
-    if slope < -1e-6:
-        x_reach = (setpoint - intercept) / slope
-        if x_reach > last_x:
-            set_reach = (d0 + timedelta(days=x_reach)).strftime("%Y-%m-%d")
-    return {
-        "slope": round(slope, 3), "intercept": round(intercept, 1), "r2": round(r2, 3),
-        "per_week": round(slope * 7, 1),
-        "start_fit": round(intercept, 1),
-        "end_fit": round(intercept + slope * last_x, 1),
-        "set_reach_date": set_reach,
-        "days_from_start": round(last_x, 1),
-        "last_daily": ys[-1],
-    }
-
-
-def _distribution(series, key, setpoint, bin_w):
-    vals = [p[key] for p in series if p[key] is not None]
-    lo = int(min(vals) // bin_w * bin_w)
-    hi = int(-(-max(vals) // bin_w) * bin_w)  # ceil to bin
-    hist = []
-    b = lo
-    while b < hi:
-        cnt = sum(1 for v in vals if b <= v < b + bin_w)
-        hist.append({"bin": f"{b}-{b + bin_w}", "lo": b, "hi": b + bin_w, "count": cnt})
-        b += bin_w
-    n = len(vals)
-    below = sum(1 for v in vals if v < setpoint)
-    return {
-        "pct_below": round(below / n * 100, 1),
-        "pct_above": round((n - below) / n * 100, 1),
-        "hist": hist,
-    }
+# _weekly / _diurnal / _trend / _distribution REMOVED 2026-08-22.
+#
+# _trend fitted ONE ordinary least squares line across five different irrigation
+# regimes (R^2 = 0.29) and projected a setpoint crossing from that slope. A slope
+# fitted across regime changes is not a trend, it is an artefact of when the plan
+# happened to change; regime_summary() in events.py compares the regimes side by
+# side instead, which is the only fair reading of a plan change.
+#
+# _distribution scored time-in-band against the hand-set setpoint -- see
+# probes._setpoint_removed in config.json. _regime_split() above replaces it and
+# bins against the derived drainage ceiling and stress floor instead.
+#
+# _weekly and _diurnal both averaged the post-irrigation spike together with the
+# dry-down, which hides the only two numbers that matter (the peak and the
+# floor). Neither was rendered by the dashboard.
 
 
 def _water(readings, since=None):
@@ -295,54 +356,80 @@ def _advice(data, config):
     tcfg = config["probes"]["tomato"]
     pcfg = config["probes"]["pepper"]
     S = data["stats"]
-    tr = data["trend"]
-    tsp, psp = tcfg["setpoint"], pcfg["setpoint"]
     t_last, p_last = S["tom"]["last"], S["pep"]["last"]
-    t_hi = tcfg["gauge"]["idealHi"]
-    p_hi = pcfg["gauge"]["idealHi"]
-    pw = tr["per_week"]
 
-    # Tomatoes. The overnight minimum is the honest retention read: it is the
-    # pre-irrigation trough, so unlike the 24 h mean it is not inflated by
-    # whatever was applied that morning.
-    # Median, not min: the last few days typically contain both a transitional
-    # day just after a schedule change and the odd meter-batching spike, and a
-    # bare min lets either one dictate the advice.
-    daily_rows = data["daily"][-5:]
-    ovn = [r["tom_min"] for r in daily_rows if r["tom_min"] is not None]
-    ovn_lo = round(statistics.median(ovn)) if ovn else None
-    headroom = round(ovn_lo - tsp) if ovn_lo is not None else None
+    def _line(key, cfg, label, last, unit_desc):
+        """Advice against the derived ceiling/floor rather than a setpoint.
 
-    if t_last is not None and t_last < tsp - 2:
-        drift = f" and still drying ({pw} %/wk)" if pw < -0.3 else " and roughly flat"
-        tom = (f"the bed is now ~{t_last}% (24 h avg), below the {tsp}% setpoint{drift} — "
-               f"lengthen the dose or add a cycle, then re-check next export.")
-    elif t_last is not None and t_last > t_hi:
-        if headroom is not None and headroom >= 3:
-            tom = (f"sitting ~{t_last}% (24 h avg), above the {t_hi}% top of band, with a "
-                   f"median daily trough of {ovn_lo}% over the last {len(ovn)} days — "
-                   f"{headroom} points above the {tsp}% setpoint. There is room to trim, "
-                   f"but only {len(ovn)} days of data since the schedule changed and at "
-                   f"below-average evaporative demand. Hold one more week, then trim a "
-                   f"single pulse if the trough still clears setpoint on a hot week.")
-        else:
-            tom = (f"sitting ~{t_last}%, above the healthy band — ease back on watering "
-                   f"and let it dry down.")
-    elif tr["set_reach_date"]:
-        d = datetime.strptime(tr["set_reach_date"], "%Y-%m-%d").strftime("%b %-d")
-        tom = f"trend projects the {tsp}% setpoint around {d} — hold the current timer and watch the daily min."
-    else:
-        tom = f"sitting ~{t_last}%, near the {tsp}% setpoint — hold the timer and watch the daily min."
+        The order of tests matters and is deliberate: DRAINAGE IS CHECKED FIRST.
+        A bed can be simultaneously above the drainage ceiling and trending down,
+        and the old code would report the downtrend and advise adding water --
+        which is precisely backwards when the problem is that water is running
+        past the roots. Waste is the more actionable finding, so it wins.
+        """
+        b = cfg["bands"]
+        ceiling, floor, work_lo = b["drainage_ceiling"], b["stress_floor"], b["working_lo"]
+        if last is None:
+            return "no recent probe reading — check the sensor before reading anything else."
 
-    # Peppers
-    if p_last is None:
-        pep = "no recent probe reading — check the sensor."
-    elif p_last < psp:
-        pep = f"~{p_last}%, below the {psp}% setpoint — nudge water up."
-    elif p_last > p_hi:
-        pep = f"~{p_last}%, above the healthy band — ease back slightly."
-    else:
-        pep = "in band and stable — no change."
+        part = (data.get("partition") or {}).get(key)
+        # Scope peaks/troughs to the current regime, for the same reason the
+        # partition is scoped: a flat "last 5 days" window straddles a plan
+        # change and describes a schedule that is no longer running.
+        rows = data["daily"]
+        if part and part.get("since"):
+            in_regime = [r for r in rows if r["date"] >= part["since"]]
+            if in_regime:
+                rows = in_regime
+        rows = rows[-7:]
+        peaks = [r[f"{key}_max"] for r in rows if r.get(f"{key}_max") is not None]
+        troughs = [r[f"{key}_min"] for r in rows if r.get(f"{key}_min") is not None]
+        peak = round(statistics.median(peaks)) if peaks else None
+        trough = round(statistics.median(troughs)) if troughs else None
+        n_days = len(rows)
+        thin = (f" Only {n_days} day{'s' if n_days != 1 else ''} on this schedule so far, so treat "
+                f"this as provisional." if n_days < 5 else "")
+
+        # 1. Are the peaks pushing PAST field capacity? Strictly greater than:
+        # landing exactly on the ceiling is the target, not a fault, and a `>=`
+        # here produced the nonsense "0 points past the ceiling".
+        if peak is not None and peak > ceiling:
+            over = peak - ceiling
+            waste = ""
+            if part and part.get("above_ceiling_pts"):
+                waste = (f" Since {part['since']}, {part['above_ceiling_pts']:.0f} points of moisture "
+                         f"drained away overnight from above the ceiling — water that never reached "
+                         f"a root.")
+            return (f"peaks are hitting ~{peak}%, {over} point{'s' if over != 1 else ''} past the "
+                    f"{ceiling}% drainage ceiling — everything above that line leaves the {unit_desc} "
+                    f"whether or not the plant wants it.{waste} Shorten the run rather than the "
+                    f"frequency; the goal is to land the peak just under {ceiling}.{thin}")
+
+        # 2. Are the troughs approaching the point where uptake falls off?
+        if trough is not None and trough < floor:
+            return (f"troughs are down to ~{trough}%, below the {floor}% stress floor where uptake "
+                    f"measurably falls off — add water now, and add it as an extra run rather than "
+                    f"a longer one so the peak stays under {ceiling}%.{thin}")
+        if trough is not None and trough < work_lo:
+            return (f"troughs at ~{trough}% are inside the {work_lo}–{ceiling}% working band but "
+                    f"heading for the {floor}% floor. Every point of loss here is going through a "
+                    f"plant, so this is demand, not waste — add ~10–15 s to one run if the trough "
+                    f"keeps sliding, and re-check next export.{thin}")
+
+        # 3. Peak under the ceiling, trough above the working floor: this is the target.
+        if peak is not None and trough is not None:
+            extra = ""
+            if part and part.get("pct_uptake") is not None:
+                extra = (f" Since {part['since']}, {part['pct_uptake']}% of moisture loss has happened "
+                         f"under daytime demand, i.e. through the plants.")
+            return (f"cycling {trough}–{peak}% against a {ceiling}% ceiling and a {floor}% floor — "
+                    f"the whole band sits in plant-fed territory, which is the target.{extra} "
+                    f"Hold the schedule and watch the trough.{thin}")
+        return (f"~{last}% (24 h avg), inside the {work_lo}–{ceiling}% working band. Hold and watch "
+                f"the daily trough — the trough is the control variable, not the mean.")
+
+    tom = _line("tom", tcfg, "Tomatoes", t_last, "root zone")
+    pep = _line("pep", pcfg, "Peppers", p_last, "bags")
 
     # Water. Describe the schedule from config rather than hardcoding it -- this
     # line claimed a "fixed 14-min daily timer" for days after the bed moved to
@@ -378,39 +465,50 @@ def _advice(data, config):
     return {"tom": tom, "pep": pep, "water": water}
 
 
-def _gauge_for(pkey, pcfg, stats, trend=None):
+def _gauge_for(pkey, pcfg, stats, split=None, partition=None):
+    """Gauge verdict stated as an irrigation regime, not a distance from a number.
+
+    The old verdict read "+8 vs setpoint", which is a true statement about an
+    arbitrary index and tells the reader nothing about what to do. These four
+    states map one-to-one onto an action: DRAINING means shorten the run, DRY
+    means add one, WORKING means hold.
+    """
     g = dict(pcfg["gauge"])
-    sp = pcfg["setpoint"]
+    b = pcfg["bands"]
+    ceiling, floor, work_lo = b["drainage_ceiling"], b["stress_floor"], b["working_lo"]
     last = stats["last"]
-    over = round(last - sp)
-    over_txt = f"{'+' if over >= 0 else ''}{over} vs setpoint"
 
-    if trend is not None and trend["per_week"] <= -0.6:
-        state = "DRYING DOWN"
-        vclass = "v-trend"
-    elif trend is not None and trend["per_week"] >= 0.6:
-        state = "WETTING"
-        vclass = "v-wet"
-    elif g["idealLo"] <= last <= g["idealHi"]:
-        state = "IN BAND"
-        vclass = "v-ok"
-    elif last > g["idealHi"]:
-        state = "MOIST"
-        vclass = "v-wet"
+    if last is None:
+        g["verdict"] = "NO READING"
+        g["vclass"] = "v-trend"
+        g["note"] = "No recent probe reading — nothing below this is trustworthy."
+        return g
+
+    if last >= ceiling:
+        state, vclass = "DRAINING", "v-wet"
+        detail = f"{round(last - ceiling)} pt above the {ceiling}% ceiling"
+    elif last < floor:
+        state, vclass = "STRESS RISK", "v-trend"
+        detail = f"{round(floor - last)} pt below the {floor}% floor"
+    elif last < work_lo:
+        state, vclass = "DRYING", "v-ok"
+        detail = f"{round(last - floor)} pt above the {floor}% floor"
     else:
-        state = "DRY"
-        vclass = "v-ok"
-
-    g["verdict"] = f"{state} · {over_txt}"
+        state, vclass = "WORKING", "v-ok"
+        detail = f"in the {work_lo}–{ceiling}% plant-fed band"
+    g["verdict"] = f"{state} · {detail}"
     g["vclass"] = vclass
 
-    if trend is not None:
-        note = (f"Mean {stats['mean']}%, latest {last}% (range {stats['min']}–{stats['max']}%). "
-                f"Trending {trend['per_week']} %/wk vs the {sp}% setpoint (R²={trend['r2']}).")
-    else:
-        note = (f"Mean {stats['mean']}% in a ±{stats['std']} band (range {stats['min']}–{stats['max']}%), "
-                f"latest {last}%, holding {'above' if last >= sp else 'below'} the {sp}% setpoint.")
-    g["note"] = note
+    bits = [f"Latest {last}% (24 h avg), range {stats['min']}–{stats['max']}%."]
+    if split and split.get("pct_working") is not None:
+        bits.append(f"{split['pct_working']}% of readings sit in the plant-fed band, "
+                    f"{split['pct_draining']}% at or above the drainage ceiling.")
+    if partition and partition.get("pct_uptake") is not None:
+        bits.append(f"Last {partition['days']} d: {partition['pct_uptake']}% of moisture loss "
+                    f"under daytime demand, {partition['pct_drainage']}% overnight.")
+    g["note"] = " ".join(bits)
+    g["bands"] = {"ceiling": ceiling, "floor": floor, "working_lo": work_lo,
+                  "refill_target": b["refill_target"]}
     return g
 
 
@@ -721,12 +819,20 @@ def build(readings, config, wx_hourly=None):
     tom_cfg = config["probes"]["tomato"]
     pep_cfg = config["probes"]["pepper"]
 
-    tom_stats = _probe_stats(series, "tom", tom_cfg["setpoint"])
-    pep_stats = _probe_stats(series, "pep", pep_cfg["setpoint"])
+    tom_stats = _probe_stats(series, "tom", tom_cfg["bands"])
+    pep_stats = _probe_stats(series, "pep", pep_cfg["bands"])
     daily = _daily(series)
-    weekly = _weekly(series)
-    trend = _trend(daily, tom_cfg["setpoint"])
     water = _water(readings, since=config.get("plan", {}).get("runs_effective"))
+
+    # Regime split and drainage/uptake partition -- the two figures that replace
+    # the setpoint. Partition is computed on RAW readings, not `series`: it needs
+    # the native 5-minute resolution to catch the post-irrigation shed, which an
+    # hourly resample averages straight out of existence.
+    split = {"tom": _regime_split(series, "tom", tom_cfg["bands"]),
+             "pep": _regime_split(series, "pep", pep_cfg["bands"])}
+    regime_since = _regime_start(config, readings)
+    partition = {"tom": _partition(readings, wx_hourly, "tom", tom_cfg["bands"], regime_since),
+                 "pep": _partition(readings, wx_hourly, "pep", pep_cfg["bands"], regime_since)}
 
     # ---- native-resolution analytics (see lib/events.py for why these do NOT
     # use `series`: hourly resampling erases the pulse structure that every
@@ -794,9 +900,8 @@ def build(readings, config, wx_hourly=None):
                     for r in readings
                     if (readings[-1]["dt"] - r["dt"]).days < 7],
         "daily": daily,
-        "weekly": weekly,
-        "diurnal": _diurnal(series),
-        "trend": trend,
+        "split": split,
+        "partition": partition,
         "water": water,
         "native": native,
         "health": _sensor_health(readings, config),
@@ -824,11 +929,13 @@ def build(readings, config, wx_hourly=None):
         "interval_label": f" @ {interval_hr_disp} h",
         "wx_start": t0.strftime("%Y-%m-%d"),
         "wx_end": t1.strftime("%Y-%m-%d"),
-        "setpoints": {"tom": tom_cfg["setpoint"], "pep": pep_cfg["setpoint"]},
+        # Derived thresholds, replacing the retired `setpoints` key. See
+        # probes._bands_provenance in config.json and lib/derive_bands.py.
+        "bands": {"tom": tom_cfg["bands"], "pep": pep_cfg["bands"]},
         "plan": config["plan"],
         "gauge": {
-            "tom": _gauge_for("tom", tom_cfg, tom_stats, trend),
-            "pep": _gauge_for("pep", pep_cfg, pep_stats, None),
+            "tom": _gauge_for("tom", tom_cfg, tom_stats, split["tom"], partition["tom"]),
+            "pep": _gauge_for("pep", pep_cfg, pep_stats, split["pep"], partition["pep"]),
         },
         "footer_meta": footer_meta,
         "location_desc": loc["name"],

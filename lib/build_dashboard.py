@@ -117,9 +117,17 @@ def main() -> int:
     data, cfg = analyze.build(readings, config, wx_hourly=wx_hourly)
     s = data["stats"]
     print(f"  resampled to {s['n']} points @ {s['interval_hr']} h")
-    print(f"  tomato: mean {s['tom']['mean']}%  last {s['tom']['last']}%  "
-          f"trend {data['trend']['per_week']} %/wk (R²={data['trend']['r2']})")
-    print(f"  pepper: mean {s['pep']['mean']}%  last {s['pep']['last']}%")
+    # Report against the derived bands rather than a trend slope: the slope was
+    # one OLS across five irrigation regimes (R^2 0.29) and is retired. See
+    # probes._bands_provenance in config.json.
+    for key, label in (("tom", "tomato"), ("pep", "pepper")):
+        st, sp = s[key], data["split"][key]
+        pt = data["partition"][key]
+        line = (f"  {label}: last {st['last']}%  band {st['floor']}–{st['ceiling']}%  "
+                f"working {sp['pct_working']}%  draining {sp['pct_draining']}%")
+        if pt:
+            line += f"  |  since {pt['since']}: {pt['pct_uptake']}% uptake / {pt['pct_drainage']}% drainage"
+        print(line)
     if data["water"]:
         w = data["water"]
         print(f"  water : {w['total_L']} L over {w['active_days']} metered day(s)")

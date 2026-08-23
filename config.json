@@ -13,31 +13,56 @@
     "water_total_sub": "Water Total(L)"
   },
   "probes": {
-    "_setpoint_provenance": "RECORDED 2026-08-19. The setpoints below (tomato 62, pepper 35) are the EcoWitt APP ALERT THRESHOLDS, hand-set by Justin. They are NOT derived from this dataset — analyze.py only ever reads them, never computes them. They also cannot be derived in absolute terms while both probes run FACTORY calibration, where 0%AD is the reading in air and 100%AD is submerged in water: the '%' is an index on that calibration, not volumetric water content, so 62% has no agronomic meaning and must not be compared against published ideal-soil-moisture figures. Three different numbers currently do this job with no stated provenance — setpoint (62), the gauge ideal band (60-68), and the 58-60% overnight-minimum target that actually governed the August ramp. Treat all three as operator judgement, read each probe against itself, and note that a genuinely data-derived setpoint would need either soil-specific calibration (WH51L sec 3.3 Custom mode) or a plant-response anchor such as the moisture level at which dry-down rate falls off.",
+    "_setpoint_removed": "REMOVED 2026-08-22. `setpoint` (tomato 62, pepper 35) is gone from config, analyze.py and the dashboard. It was an EcoWitt app ALERT THRESHOLD hand-set by Justin, never derived from this dataset, and un-derivable in absolute terms while both probes run FACTORY calibration (0%AD = air, 100%AD = submerged), where '%' is an index on that calibration rather than volumetric water content. Scoring irrigation against it was measuring the operator's guess, not the soil. It is replaced by the `bands` block on each probe below, which IS derived from this dataset. Do not reintroduce a single-number setpoint; the two thresholds that matter are a ceiling and a floor, and they mean different things.",
+    "_bands_provenance": "DERIVED 2026-08-22 from 15,569 readings (2026-06-29 → 2026-08-22) against Open-Meteo hourly ET0, by lib/derive_bands.py. METHOD, and the reason this needs no soil calibration: partition moisture loss by whether the atmosphere was demanding water at the time. NIGHT (ET0 = 0) — any moisture leaving the soil in the dark is not being transpired, so it is drainage. Binning night loss rate by moisture level gives a flat near-zero floor that jumps by an order of magnitude at one specific level: that discontinuity IS field capacity, read directly off the probe's own index with no conversion. DAY (ET0 > 0) — moisture lost per mm of ET0 is flat across the plant-fed range (loss scales with atmospheric demand = transpiration-limited) and FALLS OFF at the dry end, where the plant starts restricting uptake; that falloff is the stress floor. Both numbers are properties of THIS soil, THIS probe and THIS calibration, and stay valid as long as the probe is not moved or recalibrated. RE-DERIVE (python3 lib/derive_bands.py) if a probe is reseated, moved to a new depth, switched to WH51L Custom calibration, or if the bed media is amended.",
     "tomato": {
       "group": "Tomato Probe",
-      "setpoint": 62,
       "hist_bin": 2,
+      "bands": {
+        "_comment": "3-inch WH51 in the 12x4 ft raised bed. Night-loss discontinuity is unambiguous: 0.17-0.76 %AD/hr below 75, then 1.66 at 75-79 and 12.07 at 80-84 — a ~16x step. Day curve is flat at ~4-5 %AD per mm ET0 across 50-74 and drops to 1.30 at 45-49, which is the uptake falloff.",
+        "drainage_ceiling": 75,
+        "ceiling_confidence": "high — n=1216 night intervals at or above it. Note this is drainage ONSET (75-79 runs 1.66 %AD/hr, ~4x the 0.44 baseline below), not the runaway point (80-84 runs 12.07). The ceiling is deliberately set at onset: a threshold placed at 80 would read as permission to fill to 80, which is the over-application this replaced.",
+        "refill_target": 73,
+        "working_lo": 58,
+        "stress_floor": 50,
+        "floor_confidence": "LOW — the bed has spent almost no time below 50% (n=105 day intervals at 45-49, n=72 night), so the falloff is a hint, not an established threshold. Treat 55 as the practical watch line and do not deliberately dry the bed down to test this.",
+        "leaching_fraction_note": "Zero drainage is NOT the target. No summer rain here and municipal water carries real TDS, so 10-20% of applied water should pass the root zone to flush salts. A schedule that peaks just under drainage_ceiling delivers that automatically via the wetting front; one that never approaches it will accumulate salts."
+      },
       "gauge": {
         "name": "Tomatoes",
-        "loc": "raised bed · in-ground",
-        "lo": 55,
-        "hi": 90,
-        "idealLo": 60,
-        "idealHi": 68
+        "loc": "raised bed · 3-inch probe",
+        "lo": 45,
+        "hi": 85,
+        "idealLo": 58,
+        "idealHi": 74,
+        "ceiling": 75,
+        "floor": 50,
+        "watch": 55
       }
     },
     "pepper": {
       "group": "Pepper Probe",
-      "setpoint": 35,
       "hist_bin": 1,
+      "bands": {
+        "_comment": "6x 7-gal fabric bags on the house controller. Night-loss step is at 48: 0.20-0.32 %AD/hr below, 8.85 at 48-50. Day curve plateaus ~1.5-2.1 %AD per mm ET0 across 36-44 and halves to 1.01 at 33-35 — the uptake falloff. NOTE the day curve for fabric bags conflates transpiration with sidewall evaporation, which is why the ceiling is read off the night data only.",
+        "drainage_ceiling": 48,
+        "ceiling_confidence": "medium — n=93 night intervals at or above it; the step is large (33x) but thinly sampled because the bags shed back past it within minutes. The DAY curve also runs hot at 45-47 (9.94 vs a 2.06 plateau), but that bin is dominated by post-run drainage rather than a real uptake change, which is why the ceiling is read off night data only.",
+        "refill_target": 46,
+        "working_lo": 38,
+        "stress_floor": 36,
+        "floor_confidence": "usable — n=235 day intervals below it, with a clean ~50% falloff at 33-35 (1.01 vs a 2.06 plateau). Worth noting the retired hand-set pepper alert threshold was 35, within a point of the derived floor; that one was a good guess. The 30-32 bin reads a suspicious 0.00 on n=44 and is excluded by MIN_N_FLOOR — see derive_bands.py.",
+        "leaching_fraction_note": "Containers need MORE leaching than beds, not less — fabric bags accumulate salts fast and standard practice is a deliberate flush. Keep one long run every 2-3 weeks for salt management even though routine runs should stop at the ceiling."
+      },
       "gauge": {
         "name": "Peppers",
         "loc": "6× 7-gal fabric bags",
-        "lo": 25,
+        "lo": 30,
         "hi": 55,
-        "idealLo": 35,
-        "idealHi": 48
+        "idealLo": 38,
+        "idealHi": 46,
+        "ceiling": 48,
+        "floor": 36,
+        "watch": 38
       }
     }
   },
@@ -157,6 +182,24 @@
     "expected_in_per_week": 2.46,
     "live_plan_note": "ACTIVE as of the 2026-08-19 17:05 run, entered in the app by Justin on 2026-08-19; the first FULL day on the new plan is 2026-08-20, so use Aug 20 onward for any before/after comparison. Two plain-duration entries of 90 s each at 05:05 and 17:05, cycle mode OFF. The 05:20 and 05:35 morning pulses were REMOVED — 5-minute native traces showed the inter-pulse floor pinned at 79-81% (field capacity at the 3-inch probe) with pulse 1 alone reaching it, so pulses 2 and 3 spiked to 89-90% and shed it all back within 10 minutes without adding retained storage. Each 90 s run meters ~19.9 L, so ~39.8 L/day = 2.46 in/week, down from ~79.6 L/day = 4.92 in/week (a 50% cut). This lands at the top of the estimated August ETc band (1.75-2.45 in/wk) and is effectively ramp step 4. Metered figures here are ARITHMETIC (2 x 19.9), not yet measured — re-derive metered_daily/metered_weekly from clean days once Aug 20+ exports land. PM start moved 17:00 -> 17:05 as an incidental of re-entering the plan; immaterial.",
     "schedule_log": [
+      {
+        "date": "2026-08-22",
+        "logged": "2026-08-22T20:30:00",
+        "kind": "finding",
+        "change": "FIELD CAPACITY AND THE STRESS FLOOR ARE NOW DERIVED, and the setpoint is retired. Method needs no soil calibration, which is what made this look impossible for three weeks: partition moisture loss by whether the atmosphere was demanding water. At NIGHT (ET0 = 0) nothing transpires, so anything leaving the soil is drainage — binned by level, night loss is flat at 0.17-0.76 %AD/hr up to 74 then steps to 1.66 at 75-79 and 12.07 at 80-84. That discontinuity IS field capacity, read straight off the factory-calibrated index with no conversion. By DAY, loss per mm ET0 is flat at ~4-5 %AD across 50-74 (demand-limited uptake) and falls to 1.30 at 45-49, which is the plant restricting uptake. TOMATO: ceiling 75, floor 50 (floor LOW confidence, n=105 — the bed has never been allowed to get dry). PEPPER: ceiling 48, floor 36; note the retired hand-set pepper threshold was 35, a good guess. New lib/derive_bands.py reproduces all of it; re-run if a probe is reseated or moved."
+      },
+      {
+        "date": "2026-08-22",
+        "logged": "2026-08-22T20:30:00",
+        "kind": "finding",
+        "change": "THE 2x90s PLAN IS CORRECT, and this is the first evidence that is not circumstantial. Scoped to the current regime (Aug 20+), the tomato bed cycles 64-73% — peaks land 2 points UNDER the 75% ceiling and troughs sit 14 above the floor, so the entire operating band is in plant-fed territory. Drainage/uptake split is 75% uptake / 25% overnight, against 47.8/52.2 when the same window straddled the old plan. Native 5-min traces confirm the mechanism: post-run level now HOLDS (Aug 21 evening 64 -> 71, flat at 71 for two hours) where the old plan spiked to 89-90 and shed back to 79-81 within ten minutes. Season total is still 5,506 L against ~1,316 L of crop demand (4.2x), but that is the retired regime's debt; Aug 20-22 runs 1.9x by arithmetic and probably ~1.3x once canopy area past the bed walls is accounted for, which is a normal leaching fraction rather than waste. CAVEAT: 3 days. PEPPER ACTION: bag peaks are hitting ~49 against a 48 ceiling, so the 7-min run is still ~1 point long — trim to 6 min, keeping the 15-min flush every 2-3 weeks for salts."
+      },
+      {
+        "date": "2026-08-22",
+        "logged": "2026-08-22T20:30:00",
+        "kind": "fix",
+        "change": "DASHBOARD: setpoint removed everywhere, two panels cut, two scoping bugs fixed. Gauges now show a drainage ceiling and a stress floor with the waste zones hatched, and the stats row is peak/trough/time-draining/loss-to-plants instead of mean/median/range/std — a mean averages the irrigation spike with the dry-down and hides both ends. CUT panel 8 'Full history' (its own hint admitted 'context only', and the hourly bucket destroys the pulse structure panels 2/5/6 exist to show) and panel 9 'Water usage' (raw cumulative meter, already stated decision-grade in panel 4 as inches vs ETc and in panel 10 vs plan; a third view of the same litres with the batching artefacts left in only offered a way to reach a different conclusion). Weather findings card repurposed from an r~0 correlation to the drainage/uptake split, which is ET0's real job here. TWO BUGS, both the same class as the Aug 19 blank-panel failure: (1) the partition used a fixed 14-day window that straddled the Aug 19 plan change and reported a schedule that no longer existed — now scoped by _regime_start() off plan.regimes; (2) the peak-vs-ceiling test used >= so a peak landing exactly ON the ceiling rendered '0 points past the ceiling'. Also retired _trend/_distribution/_weekly/_diurnal from analyze.py: the first two were setpoint-dependent artefacts, the last two were computed every build and rendered by nothing."
+      },
       {
         "date": "2026-08-20",
         "logged": "2026-08-19T15:20:00",

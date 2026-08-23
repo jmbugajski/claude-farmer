@@ -24,3 +24,7 @@ venv/
 # requests-cache sqlite from lib/fetch_weather.py (older versions wrote it here;
 # it now lives in the system temp dir)
 .cache.sqlite*
+node_modules/
+package-lock.json
+package.json
+*.tmp.js
