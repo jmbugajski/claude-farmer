@@ -158,30 +158,40 @@
   "plan": {
     "_comment": "Actual watering is a fixed timer, not a volume-based/Smart plan (that was never implemented). The WFC01 meters the tomato raised bed line ONLY. THE PEPPERS ARE NOT ON ECOWITT HARDWARE AT ALL — corrected 2026-08-19; they run off the HOUSE MULTI-ZONE IRRIGATION CONTROLLER alongside lawn/roses/trees. See pepper_system below before troubleshooting anything pepper-related. The pepper_freq/pepper_time/pepper_run_min keys live in this block for dashboard-rendering reasons only; they describe a different device on a different network with different failure modes. Delivery figures below are the MEASURED metered rate on clean days, not a nameplate estimate — real flow runs well above emitter nameplate.",
     "set": "2026-08-19",
-    "mode": "plan mode, two-start pulsed timer",
+    "mode": "plan mode, three-start pulsed timer",
     "scope": "tomato raised bed only",
-    "freq": "2 runs daily",
+    "freq": "3 runs daily",
     "time": "05:05",
-    "run_seconds": 90,
+    "run_seconds": 80,
     "runs": [
       {
         "time": "05:05",
-        "seconds": 90
+        "seconds": 80
+      },
+      {
+        "time": "13:05",
+        "seconds": 80
       },
       {
         "time": "17:05",
-        "seconds": 90
+        "seconds": 80
       }
     ],
-    "runs_effective": "2026-08-20",
-    "run_min": 6,
-    "run_min_effective": "2026-08-04",
+    "runs_effective": "2026-08-28",
+    "run_min": 4,
+    "run_min_effective": "2026-08-28",
     "emitters": "12 bubblers + 8–10 drip-flag emitters (4 gph)",
-    "metered_daily": 40,
-    "metered_weekly": 279,
-    "expected_in_per_week": 2.46,
-    "live_plan_note": "ACTIVE as of the 2026-08-19 17:05 run, entered in the app by Justin on 2026-08-19; the first FULL day on the new plan is 2026-08-20, so use Aug 20 onward for any before/after comparison. Two plain-duration entries of 90 s each at 05:05 and 17:05, cycle mode OFF. The 05:20 and 05:35 morning pulses were REMOVED — 5-minute native traces showed the inter-pulse floor pinned at 79-81% (field capacity at the 3-inch probe) with pulse 1 alone reaching it, so pulses 2 and 3 spiked to 89-90% and shed it all back within 10 minutes without adding retained storage. Each 90 s run meters ~19.9 L, so ~39.8 L/day = 2.46 in/week, down from ~79.6 L/day = 4.92 in/week (a 50% cut). This lands at the top of the estimated August ETc band (1.75-2.45 in/wk) and is effectively ramp step 4. Metered figures here are ARITHMETIC (2 x 19.9), not yet measured — re-derive metered_daily/metered_weekly from clean days once Aug 20+ exports land. PM start moved 17:00 -> 17:05 as an incidental of re-entering the plan; immaterial.",
+    "metered_daily": 53,
+    "metered_weekly": 368,
+    "expected_in_per_week": 3.24,
+    "live_plan_note": "ACTIVE as of the 2026-08-27 17:05 run, set in the app by Justin on 2026-08-27 ~15:05 PT; the first FULL day on the new plan is 2026-08-28, so use Aug 28 onward for any before/after comparison. Three plain-duration entries of 80 s each at 05:05, 13:05 and 17:05, cycle mode OFF. 05:05 and 17:05 are unchanged; 13:05 is NEW and the 90 s -> 80 s trim part-funds it. Rationale: over the 8 days of the 2 x 90 s plan the daily MEAN stayed healthy (71.3 -> 62.1, mid-band) but the true afternoon trough fell 65 -> 56 at ~1.4 pts/day with no flattening, breaking below the 58 working floor on Aug 25 and tracking toward the 50 stress floor in roughly 4-5 days. The trough lands at 16:40-16:55 every single day, i.e. ~75 min BEFORE the 17:05 run, so the deficit was a hole in the afternoon, not a shortage of gross volume. METER RATE NOW MEASURED, closing the open to-do from the previous note: 275.7 L over the 7 clean full days Aug 20-26 at 180 s/day = 0.2188 L/s, i.e. 19.7 L per 90 s (the old 19.9 L arithmetic figure was 1% high). On that measured rate 3 x 80 s = 240 s = ~52.5 L/day = ~368 L/wk = ~3.24 in/wk, which is ~1.32x the TOP of the estimated August ETc band (1.75-2.45 in/wk). THIS IS DELIBERATE SURPLUS, not a target: the profile is in deficit and cannot be refilled at 1.0x demand. Expect the bed to climb; trim back toward band once the afternoon trough stabilises around 60-62. The week of Aug 20-26 was the first and so far only week in band (2.43 in, 1.0x) and this plan gives that up on purpose.",
     "schedule_log": [
+      {
+        "date": "2026-08-28",
+        "logged": "2026-08-27T15:07:00",
+        "kind": "change",
+        "change": "TOMATO PLAN 2 x 90 s -> 3 x 80 s, at 05:05 / 13:05 / 17:05, set by Justin 2026-08-27 and first full day 2026-08-28. A midday start is added and the per-run duration trimmed 90 -> 80 s; total runtime 180 -> 240 s/day (+33%). WHAT PROMPTED IT: eight days on the 2 x 90 s plan held the daily mean mid-band (71.3 -> 62.1 against a 50-75 band) while the true 5-minute afternoon trough fell 65 -> 64 -> 63 -> 60 -> 59 -> 58 -> 56 (Aug 20-26), a clean ~1.4 pts/day with no sign of flattening. It crossed the 58 working floor on Aug 25 and would reach the 50 stress floor in about 4-5 days on that slope. The bed also dropped below the 75 drainage ceiling around Aug 20-21, so the decline after that point is real uptake depletion rather than an over-full profile relaxing. WHY A MIDDAY START RATHER THAN LONGER RUNS: the trough time is remarkably stable at 16:40-16:55 every day, roughly 75 minutes before the 17:05 run, and the 14:00-17:00 window alone sheds ~6 points. The shortfall was a gap in the afternoon, not a gross volume shortage - the Aug 20-26 week metered 2.43 in against an estimated ETc of 1.75-2.45, the first week ever in band. CLAUDE RECOMMENDED a smaller step (3 x 75 s, or as a free first move sliding the PM start 17:05 -> ~15:30 to truncate the trough with no volume change at all) and Justin chose 3 x 80 s keeping 17:05. On the newly measured meter rate the gap between those two is small - 3.04 vs 3.24 in/wk - so this is a modest step up from the advice, not a departure from it. Claude's original framing of 3 x 75 s as '~1.16x ETc' was WRONG: it used 36.7 L/day from regime_summary, which is diluted by the partial Aug 27 export; on full days only the rate is 39.4 L/day and 3 x 75 s is ~1.24x. WHAT TO WATCH NEXT WEEK, in priority order. (1) Does the afternoon trough stop falling and settle? Target is a floor around 60-62, not a return to the 65-67 troughs of the 4 x 90 s plan, which were over-wet. (2) Does the trough MOVE? The 13:05 pulse decays for ~3.5 h, so the low may still land just before 17:05, only shallower. If the trough is still pinned at ~16:45 and still below 58 after a week, the fix is to slide the PM start earlier rather than to add more volume. (3) Weekly inches back above band - ~3.24 in/wk projected vs a 1.75-2.45 band. That is intended for refill and should be trimmed once the trough stabilises; do not let it stand as the new normal. (4) Retained points per 100 L across the three pulses: 80 s may sit below the duration that wets the full root zone, and if the midday run shows materially worse retention than the other two, evaporative loss is eating it and the pulse belongs later. PEPPERS ARE DELIBERATELY UNTOUCHED and stay at 7 min once daily @ 06:45. They stabilised at a 38 minimum for the three days Aug 25-27 - equilibrium exactly on their 38 working floor, 2 above the 36 stress floor - and are not tracking the tomato decline. Claude's 2026-08-27 note that peppers were '~4 days from the floor' was wrong and is retracted here: it read a decelerating curve as linear. Peppers are on the house multi-zone controller, not EcoWitt, so they are unaffected by this change by construction."
+      },
       {
         "date": "2026-08-22",
         "logged": "2026-08-22T21:25:00",
@@ -646,8 +656,14 @@
       {
         "label": "2 x 90 s pulsed",
         "start": "2026-08-20",
+        "end": "2026-08-27",
+        "note": "morning pulses 2-3 retired; measured 39.4 L/day over the 7 clean full days Aug 20-26; only week in ETc band (2.43 in); mean held mid-band but the PM trough fell 65 -> 56 without flattening"
+      },
+      {
+        "label": "3 x 80 s pulsed",
+        "start": "2026-08-28",
         "end": null,
-        "note": "morning pulses 2-3 retired; ~39.8 L/day"
+        "note": "midday 13:05 start added to fill the 16:45 trough; ~52.5 L/day projected on the measured 0.2188 L/s rate"
       }
     ],
     "_regimes_comment": "Irrigation regime boundaries for the TOMATO line, maintained by hand from schedule_log. Charts shade by these and regime_summary() compares them side by side. This exists because the old dashboard fitted ONE linear trend across all of them and projected a setpoint crossing from it (R^2 0.28, projection undefined) — a slope fitted across regime changes is not a trend, it is an artefact. ADD A ROW HERE whenever the plan changes, or the comparison silently goes stale.",
@@ -692,7 +708,7 @@
     ],
     "_manual_events_comment": "Hand applications: fertigation, spot watering, anything poured by hand. LOG THEM HERE. Two reasons, both of which bit on 2026-08-16 before this key existed. (1) The WFC01 never sees hand-applied water, so the meter under-reports what the bed got while the probe records the full response — points-per-100L read 23.9 that day, the highest in the record, purely because the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, since a silently wrong efficiency figure is worse than a missing one. (2) They are not schedule violations, so onset_check() skips them; otherwise every fertigation shows up as a broken timer. Detection hint: a manual application shows as simultaneous off-schedule events on BOTH channels within a few minutes — that signature appears exactly once in the record (2026-08-16, 5 min apart).",
     "pepper_prev_run_min": 15,
-    "runs_time_effective": "2026-08-04",
+    "runs_time_effective": "2026-08-28",
     "pepper_time_effective": "2026-07-24",
     "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations."
   }

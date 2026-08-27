@@ -436,7 +436,11 @@ const NAT=DATA.native||{};
   document.getElementById('budget-caveat').innerHTML=
     `<b>${over} of ${B.length}</b> complete weeks came in above estimated crop demand. The most recent full week applied
      <b>${lastB.inches} in</b> (${lastB.liters} L) = <b>${lastB.x_etc}&times;</b> the top of the ET<sub>c</sub> band.
-     The current two-run plan projects to <b>${CFG.plan.expected_in_per_week} in/week</b>, which would be the first week in band.
+     ${(()=>{const n=(CFG.plan.runs||[]).length, proj=CFG.plan.expected_in_per_week;
+        const word=['zero','one','two','three','four','five','six'][n]||n;
+        const verdict = proj>hi ? `<b>above</b> the band — a deliberate refill surplus, to be trimmed once the afternoon trough settles`
+                      : `which would put the week <b>in band</b>`;
+        return `The current ${word}-run plan projects to <b>${proj} in/week</b>, ${verdict}.`;})()}
      <span style="color:var(--mut)">ET<sub>c</sub> here is an estimate (ET₀ × a mid-season tomato crop coefficient), not a measurement — treat the band as a sanity check, not a target to hit precisely.</span>`;
 })();
 
@@ -803,7 +807,7 @@ function writeFindings(noWx){
   // clock that separates drainage from uptake, so the card now reports THAT.
   const PT=(DATA.partition||{}).tom;
   document.getElementById('f-wx').innerHTML= PT
-    ? `Since <b>${PT.since}</b> (${PT.days} day${PT.days===1?'':'s'} on the current schedule), the tomato bed lost <b>${PT.day_pts} points</b> under daytime evaporative demand and <b>${PT.night_pts} points</b> overnight at zero demand. Night loss cannot be transpiration, so that split reads as <b>${PT.pct_uptake}% through the plants, ${PT.pct_drainage}% drained</b>${PT.above_ceiling_pts?`, of which ${PT.above_ceiling_pts.toFixed(0)} points drained from above the ceiling — unambiguously wasted`:''}. This is the same ET₀ series the bands were derived from, run forward; it is also why weather is cached rather than merely charted.`
+    ? `Since <b>${PT.since}</b> (${PT.days} day${PT.days===1?'':'s'} ${PT.scoped_to_regime?`on the <b>${PT.regime||'current'}</b> schedule`:`<b style="color:var(--tom)">spanning a plan change</b> — no regime is recorded for this window, so the split below averages across schedules and should not be read as describing any one of them`}), the tomato bed lost <b>${PT.day_pts} points</b> under daytime evaporative demand and <b>${PT.night_pts} points</b> overnight at zero demand. Night loss cannot be transpiration, so that split reads as <b>${PT.pct_uptake}% through the plants, ${PT.pct_drainage}% drained</b>${PT.above_ceiling_pts?`, of which ${PT.above_ceiling_pts.toFixed(0)} points drained from above the ceiling — unambiguously wasted`:''}. This is the same ET₀ series the bands were derived from, run forward; it is also why weather is cached rather than merely charted.`
     : (noWx
       ? `Live weather didn&rsquo;t load, so the drainage-vs-uptake split cannot be computed — it is keyed entirely on hourly ET₀. Run <code>./pull_weather_data.sh</code> to cache it into the build.`
       : `No cached ET₀ in this build. Run <code>./pull_weather_data.sh</code>, then rebuild — without it the dashboard can show moisture leaving the soil but not whether a plant got it.`);

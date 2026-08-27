@@ -103,8 +103,8 @@ def _regime_split(series, key, bands):
     }
 
 
-def _regime_start(config, readings):
-    """Date the CURRENT irrigation regime began, as a datetime.
+def _regime_window(config, readings):
+    """The irrigation regime the DATA actually covers, as (start, end, label).
 
     Everything that judges the present schedule must be scoped by this. A fixed
     trailing window silently averages across plan changes: on 2026-08-22 a 14-day
@@ -113,28 +113,62 @@ def _regime_start(config, readings):
     longer existed. config._regimes_comment already warns that comparisons
     straddling a regime boundary are meaningless; this is the guard that enforces
     it instead of trusting the reader to remember.
+
+    Picks the latest regime that has ACTUALLY STARTED as of the newest reading,
+    which is not always the open one. A plan change is logged the day it is
+    entered but takes effect the next morning, so between those two moments the
+    open regime is future-dated. The previous version took the open regime,
+    found it in the future, returned None, and let the caller fall back to a
+    blind 14 days -- reintroducing exactly the cross-regime averaging this
+    function exists to prevent, and doing it silently. Observed 2026-08-27 when
+    the 3x80s plan was logged: the partition window jumped from Aug 20 back to
+    Aug 13 and mixed the retired 4x90s plan back in. Falling back to the
+    PREVIOUS regime is right because that is the schedule the readings were
+    produced under.
+
+    `end` is returned so the caller can also bound the window from above: a
+    closed regime whose successor has not started yet must not absorb the days
+    after it ended. Returns (None, None, None) when nothing is usable.
     """
     regimes = (config.get("plan", {}) or {}).get("regimes") or []
-    start = None
+    last = readings[-1]["dt"] if readings else None
+
+    def _d(s):
+        try:
+            return datetime.strptime(s, "%Y-%m-%d")
+        except (TypeError, ValueError):
+            return None
+
+    started = []
     for r in regimes:
-        if r.get("end") is None and r.get("start"):
-            start = r["start"]
-    if not start:
-        start = (config.get("plan", {}) or {}).get("runs_effective")
-    if not start:
-        return None
-    try:
-        dt = datetime.strptime(start, "%Y-%m-%d")
-    except (TypeError, ValueError):
-        return None
-    # Never let a future-dated plan empty the window -- same failure mode that
-    # blanked the onset panel on 2026-08-19. See _scope().
-    if readings and dt > readings[-1]["dt"]:
-        return None
-    return dt
+        dt = _d(r.get("start"))
+        if dt is None:
+            continue
+        if last is not None and dt > last:
+            continue        # not in effect yet -- cannot describe these readings
+        started.append((dt, r))
+
+    if started:
+        dt, r = max(started, key=lambda p: p[0])
+        end = _d(r.get("end"))
+        if end is not None:
+            # `end` is the last full day ON the regime, so the window runs to the
+            # close of that day rather than to its 00:00.
+            end += timedelta(days=1)
+            if last is not None and end > last:
+                end = None      # regime is still the current one in practice
+        return dt, end, r.get("label")
+
+    # No regimes recorded at all -- fall back to the plan's effective date, with
+    # the same future-date guard (see _scope()).
+    start = (config.get("plan", {}) or {}).get("runs_effective")
+    dt = _d(start)
+    if dt is None or (last is not None and dt > last):
+        return None, None, None
+    return dt, None, None
 
 
-def _partition(readings, wx_hourly, key, bands, since=None):
+def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=None):
     """Split observed moisture loss into drainage vs plant uptake.
 
     The method that makes the bands derivable in the first place, run forward as
@@ -142,9 +176,12 @@ def _partition(readings, wx_hourly, key, bands, since=None):
     leaves the soil then is drainage; day intervals scale with atmospheric
     demand.
 
-    Scoped to the CURRENT regime (see _regime_start), falling back to 14 days
-    when no regime is recorded. `days` in the result is the actual window length
-    so the dashboard can state it rather than implying a fixed fortnight.
+    Scoped to the regime the data actually covers (see _regime_window), falling
+    back to 14 days ONLY when no regime is recorded at all. `days` in the result
+    is the actual window length so the dashboard can state it rather than
+    implying a fixed fortnight, and `scoped_to_regime` / `regime` say which
+    schedule the figure describes -- an unscoped 14-day number straddles plan
+    changes and must be labelled as such rather than shown bare.
 
     Returns None when there is no weather series -- the whole calculation is
     keyed on ET0, and a partition computed without it would be a guess wearing a
@@ -166,12 +203,16 @@ def _partition(readings, wx_hourly, key, bands, since=None):
 
     t_end = readings[-1]["dt"]
     cutoff = since or (t_end - timedelta(days=14))
+    # A closed regime must not absorb the days after it ended (see
+    # _regime_window): bound the window above as well as below.
+    if until is not None and until < t_end:
+        t_end = until
     ceiling = bands["drainage_ceiling"]
     night_loss = day_loss = 0.0
     night_hi = 0.0   # night loss occurring at or above the ceiling = clear waste
     n_night = n_day = 0
     for a, b in zip(readings, readings[1:]):
-        if a["dt"] < cutoff:
+        if a["dt"] < cutoff or b["dt"] > t_end:
             continue
         hrs = (b["dt"] - a["dt"]).total_seconds() / 3600.0
         if not 0 < hrs <= 0.35:
@@ -195,7 +236,9 @@ def _partition(readings, wx_hourly, key, bands, since=None):
     return {
         "days": span_days,
         "since": cutoff.strftime("%Y-%m-%d"),
+        "until": t_end.strftime("%Y-%m-%d"),
         "scoped_to_regime": since is not None,
+        "regime": label,
         "night_pts": round(night_loss, 1),
         "day_pts": round(day_loss, 1),
         "pct_drainage": round(night_loss / total * 100, 1),
@@ -830,9 +873,11 @@ def build(readings, config, wx_hourly=None):
     # hourly resample averages straight out of existence.
     split = {"tom": _regime_split(series, "tom", tom_cfg["bands"]),
              "pep": _regime_split(series, "pep", pep_cfg["bands"])}
-    regime_since = _regime_start(config, readings)
-    partition = {"tom": _partition(readings, wx_hourly, "tom", tom_cfg["bands"], regime_since),
-                 "pep": _partition(readings, wx_hourly, "pep", pep_cfg["bands"], regime_since)}
+    regime_since, regime_until, regime_label = _regime_window(config, readings)
+    partition = {"tom": _partition(readings, wx_hourly, "tom", tom_cfg["bands"],
+                                   regime_since, regime_until, regime_label),
+                 "pep": _partition(readings, wx_hourly, "pep", pep_cfg["bands"],
+                                   regime_since, regime_until, regime_label)}
 
     # ---- native-resolution analytics (see lib/events.py for why these do NOT
     # use `series`: hourly resampling erases the pulse structure that every
