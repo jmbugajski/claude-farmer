@@ -60,6 +60,28 @@ dashboard. It is intentionally manual — nothing runs on a schedule.
 Edit `config.json` (not the code) to change setpoints, gauge bands, the
 irrigation plan, location/lat-lon, or the resample interval. Re-run step 3.
 
+## Writing schedule-log entries (section 8 · Irrigation schedule)
+
+Hard limit: **every entry in section 8 must read as a few sentences at most — 3
+sentences or ~250 characters, whichever is shorter.**
+
+When adding to `plan.schedule_log` in `config.json`, write two fields:
+
+- `summary` — the short line the dashboard shows. State what the timer now does,
+  when it takes effect, and what was deliberately left alone. No rationale, no
+  evidence, no caveats.
+- `change` — the full record, kept for the archive and shown only behind the
+  "why ›" expander. Rationale belongs here.
+
+An entry with no `summary` is auto-truncated at a sentence boundary, so a long
+first sentence still renders badly. Write the `summary`; don't rely on the
+fallback.
+
+This rule exists because entries had grown past 3,000 characters and buried the
+one line that says what actually changed. Length is not thoroughness — the
+detail is preserved in `change` either way. The same restraint applies to
+`live_plan_note` and regime `note` fields, which are also read on the page.
+
 ## If something looks off
 
 - **No files found:** confirm the `.xlsx` exports are in `inputs/`.

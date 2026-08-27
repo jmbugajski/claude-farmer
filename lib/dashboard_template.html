@@ -645,6 +645,20 @@ const NAT=DATA.native||{};
     const KC={change:'var(--leaf)',decision:'var(--wx)',finding:'var(--tom)',fix:'var(--pep)',note:'var(--mut)'};
     const L=PLAN.schedule_log.slice().sort((a,b)=>
       (b.date||'').localeCompare(a.date||'') || (b.logged||'').localeCompare(a.logged||''));
+    // Section 8 is a scannable changelog, not an archive. Entries had grown to
+    // 3000+ characters and buried the one line that says what the timer now
+    // does. Show a few sentences; keep the full record one click away rather
+    // than deleting it, since the rationale is the point of logging at all.
+    // An explicit `summary` field wins; otherwise cut at a sentence boundary.
+    const brief=(e,max=240)=>{
+      const full=String(e.change||'').trim();
+      if(e.summary) return {head:String(e.summary).trim(), rest:full};
+      if(full.length<=max) return {head:full, rest:''};
+      let cut=-1, m; const re=/[.!?](?=\s|$)/g;
+      while((m=re.exec(full))){ if(m.index+1<=max) cut=m.index+1; else break; }
+      if(cut<80){ cut=full.lastIndexOf(' ',max); if(cut<0) cut=max; }
+      return {head:full.slice(0,cut).trim(), rest:full.slice(cut).trim()};
+    };
     let last=null, rows='';
     L.forEach(e=>{
       if(e.date!==last){
@@ -657,7 +671,12 @@ const NAT=DATA.native||{};
       rows+=`<div style="display:flex;gap:9px;padding:3px 0;align-items:baseline">
         <span style="flex:0 0 62px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;
           letter-spacing:.06em;color:${KC[k]||'var(--mut)'}">${k}</span>
-        <span>${e.change}${e.logged?`<span style="color:var(--mut);font-family:'IBM Plex Mono';font-size:10px"> &nbsp;· logged ${e.logged.replace('T',' ').slice(0,16)}</span>`:''}</span></div>`;
+        <span>${(()=>{const b=brief(e);
+          return b.head + (b.rest
+            ? ` <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--wx);
+                font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.04em">why &rsaquo;</summary>
+                <span style="color:var(--mut)"> ${b.rest}</span></details>`
+            : '');})()}${e.logged?`<span style="color:var(--mut);font-family:'IBM Plex Mono';font-size:10px"> &nbsp;· logged ${e.logged.replace('T',' ').slice(0,16)}</span>`:''}</span></div>`;
     });
     document.getElementById('plan-note').innerHTML+=
       `<div class="caveat" style="border-left-color:var(--wx);color:#D7D5C8;margin-top:10px">
