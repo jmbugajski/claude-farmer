@@ -670,6 +670,16 @@
     "_regimes_comment": "Irrigation regime boundaries for the TOMATO line, maintained by hand from schedule_log. Charts shade by these and regime_summary() compares them side by side. This exists because the old dashboard fitted ONE linear trend across all of them and projected a setpoint crossing from it (R^2 0.28, projection undefined) — a slope fitted across regime changes is not a trend, it is an artefact. ADD A ROW HERE whenever the plan changes, or the comparison silently goes stale.",
     "manual_events": [
       {
+        "date": "2026-08-29",
+        "time": "15:00",
+        "what": "water-soluble fertiliser, hand-poured, 1/2 gal (1.9 L) per plant, all plants, tomatoes and peppers. Confirmed by Justin 2026-08-29 ~15:25, about 30 min after the pour. Day 2 of the 3 x 80 s plan, so it lands in the new regime's window and inflates its first read: the 15:00 timing is ~1h45m before the usual 16:40-16:55 afternoon trough, which is exactly the metric the plan change was meant to fix. Treat the Aug 29 trough as unusable for judging the new schedule. Clear of tag_manual's 45-min window on both sides (13:05 is -115 min, 17:05 is +125 min), so no scheduled run will be mis-tagged as manual.",
+        "channels": [
+          "tom",
+          "pep"
+        ],
+        "metered": false
+      },
+      {
         "date": "2026-08-16",
         "time": "09:20",
         "what": "liquid fertiliser, hand-poured, ~0.5 gal (1.9 L) per plant, all plants",
