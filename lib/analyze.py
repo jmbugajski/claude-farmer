@@ -597,7 +597,8 @@ def _sensor_health(readings, config):
     """
     hc = config.get("health", {})
     v_tol = hc.get("volt_tolerance", 0.08)
-    range_frac = hc.get("range_collapse_frac", 0.35)
+    range_frac = hc.get("range_collapse_frac", 0.25)
+    range_floor = hc.get("ad_range_floor", 12)
     nominal = hc.get("nominal_volts", 1.5)
     step_days = hc.get("step_recent_days", 14)
 
@@ -658,18 +659,49 @@ def _sensor_health(readings, config):
                     breaks.append({"level": "info", "date": b["date"],
                                    "age_days": age, "msg": msg})
 
-        # --- AD dynamic range: compare latest vs trailing median of prior days
+        # --- AD dynamic range. Two tests, deliberately at different severities.
+        #
+        # The `bad` test is an ABSOLUTE floor, because it is the only version of
+        # this check that does not move when the irrigation schedule moves. A
+        # dead channel reads a few counts no matter what the plan is; the July
+        # pepper failure sat at 4-6 while the healthy tomato channel ran 97-145.
+        #
+        # The relative test is kept, but only as a `warn`. Its baseline is a
+        # trailing median, so every schedule change that flattens the moisture
+        # curve — which is what a pulsed plan is FOR — shrinks the numerator
+        # while the denominator still holds the old regime, and the check
+        # reports a collapse that is really a working plan. It did exactly that
+        # on the tomato channel Aug 10-15 (days after the 4x90s change) and on
+        # the peppers Sep 2-3 (days after 3x80s). At `bad` that produced a red
+        # CHECK PROBE badge on a healthy probe, which is the Aug 4 lesson again:
+        # a panel that cries wolf trains the reader to ignore it, and that is
+        # how the next real failure gets missed. As a `warn` it still surfaces a
+        # channel worth a second look — the net for a failure mode that does not
+        # look like the one incident these numbers are fit to — without
+        # asserting the instrument is broken.
         rngs = [d["ad_range"] for d in days if d["ad_range"] is not None]
         if len(rngs) >= 8:
             base = statistics.median(rngs[:-3][-14:]) if len(rngs) > 6 else None
             recent = statistics.median(rngs[-3:])
-            if base and base > 0 and recent < base * range_frac:
+            if recent < range_floor:
                 flags.append({
                     "level": "bad",
-                    "msg": (f"daily AD range collapsed to ~{recent:.0f} counts vs a "
-                            f"~{base:.0f}-count norm — probe is barely resolving the "
-                            f"diurnal cycle. Suspect a failing sensor or lost soil "
-                            f"contact; verify with an air-vs-water span test."),
+                    "msg": (f"daily AD range is ~{recent:.0f} counts, below the "
+                            f"{range_floor}-count floor — the probe is not resolving "
+                            f"a diurnal cycle at all. This floor is absolute, so it "
+                            f"is not an artefact of the irrigation schedule. Suspect "
+                            f"a failing sensor or lost soil contact; verify with an "
+                            f"air-vs-water span test."),
+                })
+            elif base and base > 0 and recent < base * range_frac:
+                flags.append({
+                    "level": "warn",
+                    "msg": (f"daily AD range narrowed to ~{recent:.0f} counts against a "
+                            f"~{base:.0f}-count trailing norm, but is still above the "
+                            f"{range_floor}-count floor, so the probe is resolving. A "
+                            f"recent irrigation change that flattens the moisture curve "
+                            f"produces this too — check whether the plan changed before "
+                            f"suspecting the instrument."),
                 })
 
         # Publish the trust boundary for other panels (see _trust_from): the
