@@ -28,11 +28,46 @@ from __future__ import annotations
 import statistics
 from datetime import datetime, timedelta
 
-# A "rise" is a jump of at least this many points between consecutive native
-# samples. The probes quantise to whole percent, and normal diurnal movement is
-# well under 1 point per 5 minutes, so 3 is comfortably above noise while still
-# catching the weakest observed real event (the 2026-08-13 pepper run, +9).
-MIN_RISE = 3
+# A "rise" is a NET gain of at least this many points, accumulated from a local
+# trough within RISE_WINDOW_MIN. The probes quantise to whole percent and normal
+# diurnal movement is well under 1 point per 5 minutes, so 3 is comfortably
+# above noise.
+#
+# This used to require the whole jump between two CONSECUTIVE samples, which was
+# calibrated on the high-volume regimes (the comment here cited the 2026-08-13
+# pepper run, +9 in one step). That definition failed silently as the regimes got
+# shorter: by 2026-09-10 the 05:05 tomato run climbed 64 -> 67 over 110 minutes in
+# single-point steps, so its largest 5-minute delta was +1 and the detector saw
+# nothing at all. Six days of real irrigation went unlisted while the WFC01 kept
+# metering ~55 L/day, which read as "water is no longer reaching the bed" and cost
+# a false alarm on 2026-09-10. The failure mode is structural, not a bad constant:
+# as the medium dries and pulses shorten, the wetting front reaches the probe more
+# slowly and smears across more samples, so an instantaneous-delta detector goes
+# blind exactly when the garden most needs watching.
+#
+# Lowered 3 -> 2 on 2026-09-10, together with the windowing above. Validated by
+# counting events that land on days the WFC01 metered ZERO litres: 2 and 3 give
+# the IDENTICAL four (2026-06-29, 06-30, 07-01, 07-03), all of which predate
+# first_flow on 2026-07-02 and are real pre-meter hand-waterings. So the looser
+# threshold bought recall without buying a single false positive. Recall over
+# Sep 4-10 went from 8 events to 19 against 21 scheduled runs.
+MIN_RISE = 2
+# How long a rise may take to accumulate. Set from the slowest real ascent in the
+# record -- the 2026-09-10 05:05 tomato run needed 110 minutes to gather its 3
+# points. Merging risk is low: starts are >= 3 h apart, and GROUP_MIN still folds
+# genuine multi-pulse blocks into one event. Overnight drift (~-0.2 pts/hr) cannot
+# manufacture a false positive in either direction over this span.
+RISE_WINDOW_MIN = 120
+# An ascent ENDS after this long without gaining a point. Without it, a flat hour
+# glues unrelated movement together: on 2026-09-10 a +1 blip at 19:05 and the
+# 20:05 diagnostic run merged into one "event" dated 19:05, which put it outside
+# tag_manual()'s 45-minute window and would have left the test unlabelled in
+# exactly the calculations it was logged to stay out of.
+STALL_MIN = 30
+# How long after the ASCENT ENDS to read the settled value, for events whose ramp
+# outlasts SETTLE_MIN. Fast events are unaffected: a pulse peaking 5-10 min after
+# onset still settles at onset+SETTLE_MIN, exactly as before.
+SETTLE_TAIL_MIN = 30
 # Two rises closer together than this belong to the SAME irrigation event. Set
 # above the 15-minute pulse spacing of the Aug 4 plan so a multi-pulse morning
 # block is treated as one event with several pulses, not several events.
@@ -110,7 +145,8 @@ def manual_days(evs):
 
 
 def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
-                  settle_min=SETTLE_MIN):
+                  settle_min=SETTLE_MIN, rise_window=RISE_WINDOW_MIN,
+                  stall_min=STALL_MIN):
     """
     Find irrigation events for one probe channel at native resolution.
 
@@ -138,13 +174,39 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
         return []
 
     # --- locate rises
+    # Each rise is (trough, onset_row, ascent_top). A rise is a NET gain of
+    # min_rise points from a local trough, reached within rise_window -- so it
+    # fires whether the water arrives in one 5-minute step (the old high-volume
+    # regimes) or trickles in over two hours (the short-pulse regimes). Starting
+    # only from a local trough is what keeps a slow ramp from registering once
+    # per sample on the way up.
     rises = []
-    for a, b in zip(vals, vals[1:]):
-        gap = (b["dt"] - a["dt"]).total_seconds() / 60
-        if gap > MAX_GAP_MIN:
+    n = len(vals)
+    i = 0
+    while i < n - 1:
+        if vals[i + 1][key] <= vals[i][key]:
+            i += 1                      # flat or falling: no ascent starts here
             continue
-        if b[key] - a[key] >= min_rise:
-            rises.append((a, b))
+        # walk the CONTIGUOUS non-decreasing ascent that starts at i. Requiring
+        # contiguity is what stops the window from reaching back past a long flat
+        # or falling stretch and mis-dating the onset: an early version anchored
+        # on any trough within rise_window and moved the 2026-06-29 tomato onset
+        # from 06:20 to 04:25, inventing 24 extra events out of overnight drift.
+        k = i + 1
+        last_up = k                     # last sample that actually gained ground
+        while (k + 1 < n and vals[k + 1][key] >= vals[k][key]
+               and (vals[k + 1]["dt"] - vals[k]["dt"]).total_seconds() / 60 <= MAX_GAP_MIN
+               and (vals[k + 1]["dt"] - vals[last_up]["dt"]).total_seconds() / 60 <= stall_min):
+            k += 1
+            if vals[k][key] > vals[k - 1][key]:
+                last_up = k
+        k = last_up                     # trim the flat tail off the ascent
+        gain = vals[k][key] - vals[i][key]
+        span = (vals[k]["dt"] - vals[i]["dt"]).total_seconds() / 60
+        gap_ok = (vals[i + 1]["dt"] - vals[i]["dt"]).total_seconds() / 60 <= MAX_GAP_MIN
+        if gain >= min_rise and span <= rise_window and gap_ok:
+            rises.append((vals[i], vals[i + 1], vals[k]))
+        i = max(k, i + 1)
     if not rises:
         return []
 
@@ -158,19 +220,37 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
 
     out = []
     for g in groups:
-        onset_prev, onset_row = g[0]
+        onset_prev, onset_row, _ = g[0]
         onset = onset_row["dt"]
         pre_floor = onset_prev[key]
 
+        # End of the slowest ascent in this group. Everything below is floored at
+        # the old onset-relative timing, so fast events are byte-identical to the
+        # pre-2026-09-10 detector; only ramps that outlast settle_min move.
+        top_dt = max(t["dt"] for _, _, t in g)
+
         # window covering the event plus its settling tail
-        w_end = onset + timedelta(minutes=settle_min + 10)
+        w_end = max(onset + timedelta(minutes=settle_min + 10),
+                    top_dt + timedelta(minutes=SETTLE_TAIL_MIN + 10))
         win = [r for r in vals if onset - timedelta(minutes=5) <= r["dt"] <= w_end]
         if not win:
             continue
 
-        # per-pulse peaks: after each rise, follow until the value turns down
+        # Per-pulse peaks. A contiguous ascent can swallow a whole multi-pulse
+        # block (the Aug 4 regime fired 4 x 90 s at 15-minute spacing and the
+        # probe never dipped between them), which would collapse n_pulses to 1
+        # and silently kill floor_between -- the field-capacity tell. So pulses
+        # are found by the ORIGINAL steep-step criterion, scanned across the
+        # event window, and only fall back to the ascent top when the water
+        # arrived too gradually to show discrete steps.
+        starts = []
+        for a, b in zip(win, win[1:]):
+            if (b["dt"] - a["dt"]).total_seconds() / 60 > MAX_GAP_MIN:
+                continue
+            if b[key] - a[key] >= min_rise:
+                starts.append(b)
         pulses = []
-        for _, start in g:
+        for start in starts:
             seg = [r for r in vals if start["dt"] <= r["dt"]
                    <= start["dt"] + timedelta(minutes=group_min)]
             if not seg:
@@ -182,11 +262,19 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
                 else:
                     break
             pulses.append({"t": best["dt"].strftime("%H:%M"), "peak": best[key]})
+        if not pulses:
+            top = max(g, key=lambda x: x[2]["dt"])[2]
+            pulses = [{"t": top["dt"].strftime("%H:%M"), "peak": top[key]}]
 
         peak_row = max(win, key=lambda r: r[key])
 
-        # settled: nearest sample at/after onset+settle_min
-        target = onset + timedelta(minutes=settle_min)
+        # settled: nearest sample at/after onset+settle_min, but never before the
+        # ascent has finished plus its drainage tail -- otherwise a 110-minute ramp
+        # gets "settled" read mid-climb, understating retained and making shed
+        # negative. For fast events onset+settle_min always wins, so this is a
+        # no-op on the historical record.
+        target = max(onset + timedelta(minutes=settle_min),
+                     top_dt + timedelta(minutes=SETTLE_TAIL_MIN))
         after = [r for r in vals if r["dt"] >= target]
         settled = after[0][key] if after and (after[0]["dt"] - target).total_seconds() / 60 <= 15 else None
 
