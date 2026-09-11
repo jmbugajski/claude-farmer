@@ -1,728 +1,744 @@
 {
-  "_comment": "Configuration for the Farm Water Analysis dashboard generator (lib/build_dashboard.py). Edit these values as the garden / irrigation plan changes; no code changes needed.",
-  "location": {
-    "name": "Santa Clara 95050",
-    "lat": 37.3541,
-    "lon": -121.9552,
-    "timezone": "America/Los_Angeles"
+ "_comment": "Configuration for the Farm Water Analysis dashboard generator (lib/build_dashboard.py). Edit these values as the garden / irrigation plan changes; no code changes needed.",
+ "location": {
+  "name": "Santa Clara 95050",
+  "lat": 37.3541,
+  "lon": -121.9552,
+  "timezone": "America/Los_Angeles"
+ },
+ "sample_interval_minutes": 60,
+ "columns": {
+  "time_header": "Time",
+  "soil_moisture_sub": "Soil Moisture(%)",
+  "water_total_sub": "Water Total(L)"
+ },
+ "probes": {
+  "_setpoint_removed": "REMOVED 2026-08-22. `setpoint` (tomato 62, pepper 35) is gone from config, analyze.py and the dashboard. It was an EcoWitt app ALERT THRESHOLD hand-set by Justin, never derived from this dataset, and un-derivable in absolute terms while both probes run FACTORY calibration (0%AD = air, 100%AD = submerged), where '%' is an index on that calibration rather than volumetric water content. Scoring irrigation against it was measuring the operator's guess, not the soil. It is replaced by the `bands` block on each probe below, which IS derived from this dataset. Do not reintroduce a single-number setpoint; the two thresholds that matter are a ceiling and a floor, and they mean different things.",
+  "_bands_provenance": "DERIVED 2026-08-22 from 15,569 readings (2026-06-29 → 2026-08-22) against Open-Meteo hourly ET0, by lib/derive_bands.py. METHOD, and the reason this needs no soil calibration: partition moisture loss by whether the atmosphere was demanding water at the time. NIGHT (ET0 = 0) — any moisture leaving the soil in the dark is not being transpired, so it is drainage. Binning night loss rate by moisture level gives a flat near-zero floor that jumps by an order of magnitude at one specific level: that discontinuity IS field capacity, read directly off the probe's own index with no conversion. DAY (ET0 > 0) — moisture lost per mm of ET0 is flat across the plant-fed range (loss scales with atmospheric demand = transpiration-limited) and FALLS OFF at the dry end, where the plant starts restricting uptake; that falloff is the stress floor. Both numbers are properties of THIS soil, THIS probe and THIS calibration, and stay valid as long as the probe is not moved or recalibrated. RE-DERIVE (python3 lib/derive_bands.py) if a probe is reseated, moved to a new depth, switched to WH51L Custom calibration, or if the bed media is amended.",
+  "tomato": {
+   "group": "Tomato Probe",
+   "hist_bin": 2,
+   "bands": {
+    "_comment": "3-inch WH51 in the 12x4 ft raised bed. Night-loss discontinuity is unambiguous: 0.17-0.76 %AD/hr below 75, then 1.66 at 75-79 and 12.07 at 80-84 — a ~16x step. Day curve is flat at ~4-5 %AD per mm ET0 across 50-74 and drops to 1.30 at 45-49, which is the uptake falloff.",
+    "drainage_ceiling": 75,
+    "ceiling_confidence": "high — n=1216 night intervals at or above it. Note this is drainage ONSET (75-79 runs 1.66 %AD/hr, ~4x the 0.44 baseline below), not the runaway point (80-84 runs 12.07). The ceiling is deliberately set at onset: a threshold placed at 80 would read as permission to fill to 80, which is the over-application this replaced.",
+    "refill_target": 73,
+    "working_lo": 58,
+    "stress_floor": 50,
+    "floor_confidence": "LOW — the bed has spent almost no time below 50% (n=105 day intervals at 45-49, n=72 night), so the falloff is a hint, not an established threshold. Treat 55 as the practical watch line and do not deliberately dry the bed down to test this.",
+    "leaching_fraction_note": "Zero drainage is NOT the target. No summer rain here and municipal water carries real TDS, so 10-20% of applied water should pass the root zone to flush salts. A schedule that peaks just under drainage_ceiling delivers that automatically via the wetting front; one that never approaches it will accumulate salts."
+   },
+   "gauge": {
+    "name": "Tomatoes",
+    "loc": "raised bed · 3-inch probe",
+    "lo": 45,
+    "hi": 85,
+    "idealLo": 58,
+    "idealHi": 74,
+    "ceiling": 75,
+    "floor": 50,
+    "watch": 55
+   }
   },
-  "sample_interval_minutes": 60,
-  "columns": {
-    "time_header": "Time",
-    "soil_moisture_sub": "Soil Moisture(%)",
-    "water_total_sub": "Water Total(L)"
-  },
-  "probes": {
-    "_setpoint_removed": "REMOVED 2026-08-22. `setpoint` (tomato 62, pepper 35) is gone from config, analyze.py and the dashboard. It was an EcoWitt app ALERT THRESHOLD hand-set by Justin, never derived from this dataset, and un-derivable in absolute terms while both probes run FACTORY calibration (0%AD = air, 100%AD = submerged), where '%' is an index on that calibration rather than volumetric water content. Scoring irrigation against it was measuring the operator's guess, not the soil. It is replaced by the `bands` block on each probe below, which IS derived from this dataset. Do not reintroduce a single-number setpoint; the two thresholds that matter are a ceiling and a floor, and they mean different things.",
-    "_bands_provenance": "DERIVED 2026-08-22 from 15,569 readings (2026-06-29 → 2026-08-22) against Open-Meteo hourly ET0, by lib/derive_bands.py. METHOD, and the reason this needs no soil calibration: partition moisture loss by whether the atmosphere was demanding water at the time. NIGHT (ET0 = 0) — any moisture leaving the soil in the dark is not being transpired, so it is drainage. Binning night loss rate by moisture level gives a flat near-zero floor that jumps by an order of magnitude at one specific level: that discontinuity IS field capacity, read directly off the probe's own index with no conversion. DAY (ET0 > 0) — moisture lost per mm of ET0 is flat across the plant-fed range (loss scales with atmospheric demand = transpiration-limited) and FALLS OFF at the dry end, where the plant starts restricting uptake; that falloff is the stress floor. Both numbers are properties of THIS soil, THIS probe and THIS calibration, and stay valid as long as the probe is not moved or recalibrated. RE-DERIVE (python3 lib/derive_bands.py) if a probe is reseated, moved to a new depth, switched to WH51L Custom calibration, or if the bed media is amended.",
-    "tomato": {
-      "group": "Tomato Probe",
-      "hist_bin": 2,
-      "bands": {
-        "_comment": "3-inch WH51 in the 12x4 ft raised bed. Night-loss discontinuity is unambiguous: 0.17-0.76 %AD/hr below 75, then 1.66 at 75-79 and 12.07 at 80-84 — a ~16x step. Day curve is flat at ~4-5 %AD per mm ET0 across 50-74 and drops to 1.30 at 45-49, which is the uptake falloff.",
-        "drainage_ceiling": 75,
-        "ceiling_confidence": "high — n=1216 night intervals at or above it. Note this is drainage ONSET (75-79 runs 1.66 %AD/hr, ~4x the 0.44 baseline below), not the runaway point (80-84 runs 12.07). The ceiling is deliberately set at onset: a threshold placed at 80 would read as permission to fill to 80, which is the over-application this replaced.",
-        "refill_target": 73,
-        "working_lo": 58,
-        "stress_floor": 50,
-        "floor_confidence": "LOW — the bed has spent almost no time below 50% (n=105 day intervals at 45-49, n=72 night), so the falloff is a hint, not an established threshold. Treat 55 as the practical watch line and do not deliberately dry the bed down to test this.",
-        "leaching_fraction_note": "Zero drainage is NOT the target. No summer rain here and municipal water carries real TDS, so 10-20% of applied water should pass the root zone to flush salts. A schedule that peaks just under drainage_ceiling delivers that automatically via the wetting front; one that never approaches it will accumulate salts."
-      },
-      "gauge": {
-        "name": "Tomatoes",
-        "loc": "raised bed · 3-inch probe",
-        "lo": 45,
-        "hi": 85,
-        "idealLo": 58,
-        "idealHi": 74,
-        "ceiling": 75,
-        "floor": 50,
-        "watch": 55
-      }
-    },
-    "pepper": {
-      "group": "Pepper Probe",
-      "hist_bin": 1,
-      "bands": {
-        "_comment": "6x 7-gal fabric bags on the house controller. Night-loss step is at 48: 0.20-0.32 %AD/hr below, 8.85 at 48-50. Day curve plateaus ~1.5-2.1 %AD per mm ET0 across 36-44 and halves to 1.01 at 33-35 — the uptake falloff. NOTE the day curve for fabric bags conflates transpiration with sidewall evaporation, which is why the ceiling is read off the night data only.",
-        "drainage_ceiling": 48,
-        "ceiling_confidence": "medium — n=93 night intervals at or above it; the step is large (33x) but thinly sampled because the bags shed back past it within minutes. The DAY curve also runs hot at 45-47 (9.94 vs a 2.06 plateau), but that bin is dominated by post-run drainage rather than a real uptake change, which is why the ceiling is read off night data only.",
-        "refill_target": 46,
-        "working_lo": 38,
-        "stress_floor": 36,
-        "floor_confidence": "usable — n=235 day intervals below it, with a clean ~50% falloff at 33-35 (1.01 vs a 2.06 plateau). Worth noting the retired hand-set pepper alert threshold was 35, within a point of the derived floor; that one was a good guess. The 30-32 bin reads a suspicious 0.00 on n=44 and is excluded by MIN_N_FLOOR — see derive_bands.py.",
-        "leaching_fraction_note": "Containers need MORE leaching than beds, not less — fabric bags accumulate salts fast and standard practice is a deliberate flush. Keep one long run every 2-3 weeks for salt management even though routine runs should stop at the ceiling."
-      },
-      "gauge": {
-        "name": "Peppers",
-        "loc": "6× 7-gal fabric bags",
-        "lo": 30,
-        "hi": 55,
-        "idealLo": 38,
-        "idealHi": 46,
-        "ceiling": 48,
-        "floor": 36,
-        "watch": 38
-      }
-    }
-  },
-  "water": {
-    "group_prefix": "WFC01"
-  },
-  "bed": {
-    "_comment": "Physical geometry of the metered tomato raised bed, recorded 2026-08-03. This is the missing conversion that makes metered litres interpretable as inches of water. Everything metered by the WFC01 lands on THIS bed only; peppers are a separate unmetered line.",
-    "length_ft": 12,
-    "width_ft": 4,
-    "wall_height_in": 12,
-    "soil_depth_in": 10,
-    "area_ft2": 48,
-    "liters_per_inch_of_water": 113.3,
-    "gallons_per_inch_of_water": 29.9,
-    "target": {
-      "_comment": "target_in_per_week is Justin's stated goal. NOTE it is a classic in-ground, moderate-weather rule of thumb; a 10-inch-deep raised bed in a Santa Clara August loses considerably more. august_etc_in_per_week is the estimated real crop demand (reference ET0 ~0.25-0.35 in/day x tomato mid-season Kc ~1.15). Water to the ETc figure in a heat event and drift back toward target_in_per_week in Sept/Oct.",
-      "in_per_week": [
-        1.0,
-        1.5
-      ],
-      "liters_per_week": [
-        113,
-        170
-      ],
-      "august_etc_in_per_week": [
-        1.75,
-        2.45
-      ],
-      "august_etc_liters_per_day": [
-        28,
-        40
-      ]
-    },
-    "storage": {
-      "_comment": "Plant-available water held by the whole 10-inch profile at an assumed AWC of 0.12-0.20 in per inch of soil. The point: a single 129 L dose is ~1.14 in, i.e. it tries to deliver most of the profile's ENTIRE available capacity in one 12-minute shot. That is why it drains.",
-      "awc_in_per_in": [
-        0.12,
-        0.2
-      ],
-      "profile_available_in": [
-        1.2,
-        2.0
-      ],
-      "profile_available_liters": [
-        136,
-        227
-      ]
-    },
-    "emitters": {
-      "_comment": "Audited 2026-08-03 against the measured 12.4 L/min line flow. Bubblers are adjustable 0-13 gph; back-solving from the meter puts them at ~13.4 gph each, i.e. WIDE OPEN, at or past spec. Do not throttle them far below ~half — the 8-stream full-circle pattern needs flow to distribute evenly, and a starved bubbler dribbles out one side. Use WFC01 cycle mode, not the bubbler threads, as the primary volume/rate control.",
-      "bubblers": {
-        "count": 12,
-        "type": "full-circle 360 deg, 8-stream, adjustable",
-        "gph_range": [
-          0,
-          13
-        ],
-        "estimated_current_gph_each": 13.4
-      },
-      "drip_flags": {
-        "count": 9,
-        "gph_each": 4,
-        "liters_per_hour_total": 136,
-        "note": "fixed rate; alone this is a 1.20 in/hr floor"
-      },
-      "measured_line_flow_lpm": 12.4,
-      "measured_line_flow_lph": 744
-    },
-    "infiltration": {
-      "_comment": "The core problem found 2026-08-03. Instantaneous application rate is several times what the soil can absorb, so past the first minute or two water ponds, runs to the edges and channels down preferential paths instead of wetting the profile evenly. Effective (duty-cycled) rate should sit at or under the ceiling.",
-      "application_rate_in_per_hr": 6.6,
-      "loam_infiltration_in_per_hr": [
-        0.2,
-        0.6
-      ],
-      "raised_bed_mix_estimate_in_per_hr": [
-        1.0,
-        3.0
-      ],
-      "target_effective_rate_in_per_hr": 1.7
-    },
-    "tomato_plant_count": null,
-    "_plant_count_comment": "UNKNOWN — needed to turn hand-application events into a volume calibration. On 2026-08-16 roughly 0.5 gal (1.9 L) per plant was hand-poured and the tomato probe went 71 -> 81 with +8 retained. With a plant count that becomes litres, and litres against the probe response is a DIRECT slow-application efficiency measurement to compare against the emitters' 19.9 L per 90 s pulse. Fill this in."
-  },
-  "health": {
-    "_comment": "Sensor-trust thresholds. nominal_volts is the voltage the probe's factory calibration assumes (1.5 V alkaline); a lithium AA reads ~1.7 V and shifts the derived moisture %. range_collapse_frac flags a probe whose daily AD swing drops below this fraction of its trailing norm (failing sensor or lost soil contact). volt_tolerance widened 0.08 -> 0.15 on 2026-08-09: a FRESH alkaline genuinely sits at 1.55-1.65 V, so 0.08 raised a false 'bad calibration' alarm on a healthy probe the day after the battery was restored. 0.15 still catches lithium (0.20 off nominal) while leaving normal alkaline headroom alone -- that gap is the whole discrimination this check exists to make.",
-    "_range_comment": "RANGE CHECK RECALIBRATED 2026-09-03 against the one labelled failure in the record: pepper Jul 22 - Aug 6, thirteen days at 4-6 AD counts while the tomato channel ran 97-145. That is a dead channel, and it is the only ground truth we have. Two changes. (1) ad_range_floor is now the `bad` trigger, because it is the only test that does not move when the irrigation schedule moves. 3-day-median AD range inside the failure was 4-9 counts; the minimum ANYWHERE else across 67 days and both channels is 15. A floor of 12 sits mid-gap, catches all 15 failure days, and produces zero false positives on the record. (2) range_collapse_frac dropped 0.35 -> 0.25 and DEMOTED to `warn`. At 0.35 the ratio test fired 11 times on a healthy tomato channel (Aug 10-15, Sep 1-3) and mislabelled the peppers on Sep 2-3 -- every one of those false alarms landed days after an irrigation regime change, because a flatter schedule IS a smaller diurnal swing and the trailing baseline still held the old regime's numbers. Real-failure ratios were 0.116-0.194 and nothing else went below 0.288, so 0.25 sits in that gap. Lengthening the baseline window does NOT help and was tested: 14d/28d/60d gave 7/11/10 tomato false alarms, because a longer window reaches further back into the high-swing pre-pulsed regimes. CAVEAT, and it is the important one: n=1. Both numbers are fit to a single incident, which is exactly how 0.35 got set. Re-derive when a second failure exists, and do not let the `warn` be deleted -- it is the only net for a failure mode that does not look like this one.",
-    "nominal_volts": 1.5,
-    "volt_tolerance": 0.15,
-    "range_collapse_frac": 0.25,
-    "ad_range_floor": 12,
-    "step_recent_days": 14
-  },
-  "plan": {
-    "_comment": "Actual watering is a fixed timer, not a volume-based/Smart plan (that was never implemented). The WFC01 meters the tomato raised bed line ONLY. THE PEPPERS ARE NOT ON ECOWITT HARDWARE AT ALL — corrected 2026-08-19; they run off the HOUSE MULTI-ZONE IRRIGATION CONTROLLER alongside lawn/roses/trees. See pepper_system below before troubleshooting anything pepper-related. The pepper_freq/pepper_time/pepper_run_min keys live in this block for dashboard-rendering reasons only; they describe a different device on a different network with different failure modes. Delivery figures below are the MEASURED metered rate on clean days, not a nameplate estimate — real flow runs well above emitter nameplate.",
-    "set": "2026-08-19",
-    "mode": "plan mode, three-start pulsed timer",
-    "scope": "tomato raised bed only",
-    "freq": "3 runs daily",
-    "time": "05:05",
-    "run_seconds": 80,
-    "runs": [
-      {
-        "time": "05:05",
-        "seconds": 80
-      },
-      {
-        "time": "13:05",
-        "seconds": 80
-      },
-      {
-        "time": "17:05",
-        "seconds": 80
-      }
-    ],
-    "runs_effective": "2026-08-28",
-    "run_min": 4,
-    "run_min_effective": "2026-08-28",
-    "emitters": "12 bubblers + 8–10 drip-flag emitters (4 gph)",
-    "metered_daily": 53,
-    "metered_weekly": 368,
-    "expected_in_per_week": 3.24,
-    "live_plan_note": "ACTIVE as of the 2026-08-27 17:05 run, set in the app by Justin on 2026-08-27 ~15:05 PT; the first FULL day on the new plan is 2026-08-28, so use Aug 28 onward for any before/after comparison. Three plain-duration entries of 80 s each at 05:05, 13:05 and 17:05, cycle mode OFF. 05:05 and 17:05 are unchanged; 13:05 is NEW and the 90 s -> 80 s trim part-funds it. Rationale: over the 8 days of the 2 x 90 s plan the daily MEAN stayed healthy (71.3 -> 62.1, mid-band) but the true afternoon trough fell 65 -> 56 at ~1.4 pts/day with no flattening, breaking below the 58 working floor on Aug 25 and tracking toward the 50 stress floor in roughly 4-5 days. The trough lands at 16:40-16:55 every single day, i.e. ~75 min BEFORE the 17:05 run, so the deficit was a hole in the afternoon, not a shortage of gross volume. METER RATE NOW MEASURED, closing the open to-do from the previous note: 275.7 L over the 7 clean full days Aug 20-26 at 180 s/day = 0.2188 L/s, i.e. 19.7 L per 90 s (the old 19.9 L arithmetic figure was 1% high). On that measured rate 3 x 80 s = 240 s = ~52.5 L/day = ~368 L/wk = ~3.24 in/wk, which is ~1.32x the TOP of the estimated August ETc band (1.75-2.45 in/wk). THIS IS DELIBERATE SURPLUS, not a target: the profile is in deficit and cannot be refilled at 1.0x demand. Expect the bed to climb; trim back toward band once the afternoon trough stabilises around 60-62. The week of Aug 20-26 was the first and so far only week in band (2.43 in, 1.0x) and this plan gives that up on purpose.",
-    "schedule_log": [
-      {
-        "date": "2026-08-28",
-        "logged": "2026-08-27T15:07:00",
-        "kind": "change",
-        "summary": "Tomato plan 2 x 90 s -> 3 x 80 s, at 05:05 / 13:05 / 17:05. A midday start is added and each run trimmed 90 -> 80 s, so total runtime goes 180 -> 240 s/day (+33%). Set by Justin 2026-08-27; first full day 2026-08-28. Peppers deliberately untouched.",
-        "change": "The daily mean held mid-band over the 8 days on 2 x 90 s (71.3 -> 62.1 against a 50-75 band), but the true 5-minute afternoon trough fell 65 -> 56 at ~1.4 pts/day with no flattening, crossing the 58 working floor on Aug 25 and on track for the 50 stress floor in 4-5 days. The trough sits at 16:40-16:55 every day, ~75 min before the 17:05 run, so the shortfall was a hole in the afternoon rather than a gross volume shortage: the Aug 20-26 week metered 2.43 in against an estimated ETc of 1.75-2.45, the first week ever in band. Claude recommended a smaller step (3 x 75 s, or sliding the PM start to ~15:30 for free); on the newly measured meter rate the two are close, 3.04 vs 3.24 in/wk. Claude's original '3 x 75 s = 1.16x ETc' was wrong - it used the partial-day-diluted 36.7 L/day instead of the 39.4 L/day full-day rate. Watch next week, in order: does the trough settle around 60-62; does it MOVE (the 13:05 pulse decays ~3.5 h, so the low may still land at 16:45, only shallower - if so slide the PM start earlier rather than adding volume); weekly inches back above band (~3.24 vs 1.75-2.45) is intended refill and must be trimmed once the trough stabilises; and retained points per 100 L across the three pulses, since 80 s may under-wet the root zone and a midday run loses more to evaporation. Peppers stay at 7 min once daily @ 06:45 - they stabilised at a 38 minimum for Aug 25-27, equilibrium on their working floor, and Claude's earlier '4 days from the floor' call was wrong (it read a decelerating curve as linear). They are on the house controller, not EcoWitt, so this change cannot reach them."
-      },
-      {
-        "date": "2026-08-22",
-        "logged": "2026-08-22T21:25:00",
-        "kind": "decision",
-        "change": "PEPPER DISPLACEMENT CLOSED AS EXPECTED BEHAVIOUR, and onset_check now says so in code. Justin confirmed 2026-08-22 that other house zones run serially ahead of the peppers on those days and this is not a concern. All 5 surviving late runs classify as `displaced` (late, full-size retained gain); zero classify as `fault`; tomato is 36 of 36 on time. onset_check() gained a `kind` field — on_time / displaced / fault / late_unclassified — where fault means late AND retained below 0.6x the median of on-time runs in the same window, i.e. the problem is at THIS valve rather than upstream. The distinction previously existed only in a docstring and a sentence under the table, leaving the reader to eyeball Delta against Retained; the dashboard now styles displaced as muted information and reserves the warning colour for a short run. RATIONALE, and it is the same one as the 2026-08-19 permanent-warning health-panel fix: a panel that flags expected behaviour in alarm colours trains the reader to skip it, and then it will not be read on the day something genuinely breaks. WHAT THE PANEL IS STILL FOR: the pepper probe remains the only instrumentation on the entire house irrigation system, so displacement is worth RECORDING even though it needs no action — it is the only visibility into how much extra water the upstream zone is taking (~41 min average, roughly one day in three)."
-      },
-      {
-        "date": "2026-08-22",
-        "logged": "2026-08-22T21:15:00",
-        "kind": "finding",
-        "change": "TWO HAND-POURS ON THE SAME MORNING ARE THE CLEANEST DEMONSTRATION OF THE CEILING IN THE RECORD. Justin confirmed both 2026-08-07 events as manual: pepper 09:15 and tomato 10:25, same operator, same method, 70 minutes apart. The DRY pepper bags (34%, just off the lithium flatline) took 11 points and shed 4. The tomato bed, already sitting at 80% — above the 75% drainage ceiling — took 2 points and shed 10. Identical action, opposite result, and the only variable is whether the medium had capacity to accept water. This is the retained-vs-shed diagnostic and the derived ceiling agreeing with each other on a natural experiment neither was fitted to. Practical corollary for fertigation: the value of a hand application is set almost entirely by the moisture level you pour onto, which is why the 2026-08-19 timing fix (fertigate late afternoon at the daily floor, never onto a wet medium) matters more than the dose."
-      },
-      {
-        "date": "2026-08-22",
-        "logged": "2026-08-22T21:05:00",
-        "kind": "finding",
-        "change": "PEPPER LATE-FIRING IS NOW A CLEAN DISPLACEMENT SIGNATURE, once both manual events are excluded. Justin confirmed the 2026-08-07 09:15 pour (battery-swap hand-watering) and the 2026-08-19 13:45 run (bubbler function test); tagging them drops pepper onset violations from 7 of 17 to 5 of 15 (~33%). The point is not the count, it is the SHAPE of what remains: every surviving violation is +35 to +55 min (Aug 8 +40, Aug 12 +35, Aug 14 +35, Aug 20 +55, Aug 22 +40) with a full-size run. The two discarded outliers were +150 and +420 — an order of magnitude away and the only two that ever looked like a failing valve. A tight 35-55 min band of full-size displaced runs is what an upstream zone running long looks like on a sequential controller, and it is not what a failing pepper valve looks like (that would give short or missed runs). The house-system zone order is now the single highest-value unknown in the file: the hypothesis predicts the culprit zone runs BEFORE the peppers and overruns by ~40 min roughly one day in three. GENERAL LESSON: two unlogged manual events were enough to hide a clean bimodal signal inside what looked like scattered noise, and both were only recoverable by asking Justin — a hand application leaves no trace the meter or the controller can see."
-      },
-      {
-        "date": "2026-08-22",
-        "logged": "2026-08-22T20:30:00",
-        "kind": "finding",
-        "change": "FIELD CAPACITY AND THE STRESS FLOOR ARE NOW DERIVED, and the setpoint is retired. Method needs no soil calibration, which is what made this look impossible for three weeks: partition moisture loss by whether the atmosphere was demanding water. At NIGHT (ET0 = 0) nothing transpires, so anything leaving the soil is drainage — binned by level, night loss is flat at 0.17-0.76 %AD/hr up to 74 then steps to 1.66 at 75-79 and 12.07 at 80-84. That discontinuity IS field capacity, read straight off the factory-calibrated index with no conversion. By DAY, loss per mm ET0 is flat at ~4-5 %AD across 50-74 (demand-limited uptake) and falls to 1.30 at 45-49, which is the plant restricting uptake. TOMATO: ceiling 75, floor 50 (floor LOW confidence, n=105 — the bed has never been allowed to get dry). PEPPER: ceiling 48, floor 36; note the retired hand-set pepper threshold was 35, a good guess. New lib/derive_bands.py reproduces all of it; re-run if a probe is reseated or moved."
-      },
-      {
-        "date": "2026-08-22",
-        "logged": "2026-08-22T20:30:00",
-        "kind": "finding",
-        "change": "THE 2x90s PLAN IS CORRECT, and this is the first evidence that is not circumstantial. Scoped to the current regime (Aug 20+), the tomato bed cycles 64-73% — peaks land 2 points UNDER the 75% ceiling and troughs sit 14 above the floor, so the entire operating band is in plant-fed territory. Drainage/uptake split is 75% uptake / 25% overnight, against 47.8/52.2 when the same window straddled the old plan. Native 5-min traces confirm the mechanism: post-run level now HOLDS (Aug 21 evening 64 -> 71, flat at 71 for two hours) where the old plan spiked to 89-90 and shed back to 79-81 within ten minutes. Season total is still 5,506 L against ~1,316 L of crop demand (4.2x), but that is the retired regime's debt; Aug 20-22 runs 1.9x by arithmetic and probably ~1.3x once canopy area past the bed walls is accounted for, which is a normal leaching fraction rather than waste. CAVEAT: 3 days. PEPPER ACTION: bag peaks are hitting ~49 against a 48 ceiling, so the 7-min run is still ~1 point long — trim to 6 min, keeping the 15-min flush every 2-3 weeks for salts."
-      },
-      {
-        "date": "2026-08-22",
-        "logged": "2026-08-22T20:30:00",
-        "kind": "fix",
-        "change": "DASHBOARD: setpoint removed everywhere, two panels cut, two scoping bugs fixed. Gauges now show a drainage ceiling and a stress floor with the waste zones hatched, and the stats row is peak/trough/time-draining/loss-to-plants instead of mean/median/range/std — a mean averages the irrigation spike with the dry-down and hides both ends. CUT panel 8 'Full history' (its own hint admitted 'context only', and the hourly bucket destroys the pulse structure panels 2/5/6 exist to show) and panel 9 'Water usage' (raw cumulative meter, already stated decision-grade in panel 4 as inches vs ETc and in panel 10 vs plan; a third view of the same litres with the batching artefacts left in only offered a way to reach a different conclusion). Weather findings card repurposed from an r~0 correlation to the drainage/uptake split, which is ET0's real job here. TWO BUGS, both the same class as the Aug 19 blank-panel failure: (1) the partition used a fixed 14-day window that straddled the Aug 19 plan change and reported a schedule that no longer existed — now scoped by _regime_start() off plan.regimes; (2) the peak-vs-ceiling test used >= so a peak landing exactly ON the ceiling rendered '0 points past the ceiling'. Also retired _trend/_distribution/_weekly/_diurnal from analyze.py: the first two were setpoint-dependent artefacts, the last two were computed every build and rendered by nothing."
-      },
-      {
-        "date": "2026-08-20",
-        "logged": "2026-08-19T15:20:00",
-        "kind": "change",
-        "change": "PEPPER CUT LIVE: 15 min -> 7 min @ 06:45, entered by Justin 2026-08-19 15:15. Today's 06:40 run already happened at 15 min, so the first run on the new duration is 2026-08-20 and that is the date to compare from. Target was ~5 min of delivery plus line-charge margin, on the finding that the bags reach container capacity 5-8 minutes in and minutes 8-15 are leachate."
-      },
-      {
-        "date": "2026-08-20",
-        "logged": "2026-08-19T15:20:00",
-        "kind": "decision",
-        "change": "TEST DESIGN for the pepper cut, unchanged from the pending note: run 4-5 days, not 2-3, because ~27% of runs fire ~40 min late and a 3-day window is roughly a coin flip to catch one. MEASURE FROM ONSET, NOT CLOCK TIME — a displaced run shifts the whole curve without changing its shape, so onset-anchored it stays a usable data point. PASS CONDITION: value at onset+50 min still 46-47 AND next-morning floor still 39-40, which would confirm minutes 8-15 were pure drainage. FAIL: floor declining day over day -> split to 2 x 5 min rather than returning to 15, since fabric bags dry through the sidewalls and want frequency over volume. Keep one 15-min flush every 2-3 weeks for salt management."
-      },
-      {
-        "date": "2026-08-20",
-        "logged": "2026-08-19T15:20:00",
-        "kind": "note",
-        "change": "BOTH LINES NOW CHANGED FOR 2026-08-20 — tomato to 2 x 90 s and peppers to 7 min. This is NOT the confound the earlier 'do_not_confound' note warned about: the two lines are separate systems on separate probes, so each channel measures only its own change. What IS newly true is that neither channel has a stable baseline any more, so treat 2026-08-20 as day zero for both and do not read week-over-week comparisons that straddle it. FERTIGATION NOTE: the 7-min run is now the default follow-up, which is what the 2026-08-19 leaching finding asked for — fertigate late afternoon at the bags' daily floor (~40-41%), never mid-morning onto a wet bag."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T15:35:00",
-        "kind": "fix",
-        "change": "ONSET PANEL WENT BLANK the moment the pepper cut was logged, and the bug is worth keeping visible. onset_check was scoped by runs_effective/pepper_effective, but those advance on a DURATION change too — setting pepper_effective to 2026-08-20 put the filter date in the FUTURE, excluded every event, and the table rendered empty with no error. Onset compares START TIMES, and a duration change does not reset start-time history. FIXED two ways: new runs_time_effective / pepper_time_effective keys track only when times moved (tomato 2026-08-04, pepper 2026-07-24, unchanged across both pepper durations), and a _scope() guard now drops any `since` date later than the newest reading so a future-dated plan can never silently empty a panel again. Also fixed stale plan copy that still described 'three morning starts 15 min apart' while rendering a two-run schedule — it now branches on the actual run list. GENERAL LESSON, third instance this session: a panel that can render EMPTY or STALE without erroring is the same failure class as the Aug 4 dead-sensor panel and the Aug 19 permanent-warning panel. Silence is not a safe default."
-      },
-      {
-        "date": "2026-08-16",
-        "logged": "2026-08-19T16:00:00",
-        "kind": "note",
-        "change": "RESOLVED — the unexplained 2026-08-16 09:20 event on both channels was Justin hand-pouring LIQUID FERTILISER, ~0.5 gal (1.9 L) per plant, all plants. Recorded in plan.manual_events; events are now tagged manual, excluded from onset violations and from retention entirely. Response: tomato 71 -> 81 peak, +8 retained; pepper 45 -> 50 peak, only +1 retained because the bags were still wet from the 06:40 run and had nowhere to put it. The pepper number is the useful one — fertigating a near-capacity fabric bag means most of the dose drains straight out the base."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T16:00:00",
-        "kind": "finding",
-        "change": "FERTIGATION IS BEING LEACHED, and the washout finding is what makes it expensive rather than merely wasteful. Sequence on 2026-08-16: fertiliser hand-applied 09:25 onto pepper bags sitting at 45% (already wet from the morning run, so retained only +1 of a +5 excursion); next morning 06:40 the bags took their usual 15-minute run, which sheds ~65-68% of its excursion out the base. So a large share of the fertiliser was flushed below the root zone within ~21 hours of being applied. TIMING FIX, no extra cost: fertigate LATE AFTERNOON when the bags are near their daily floor (~40-41%) and have capacity to absorb, not mid-morning onto a wet bag; and follow with the SHORT 7-minute run, never the 15-minute flush. The pending pepper duration cut therefore has a second, independent justification beyond water — at 15 min the bags are a leaching machine, and every fertigation is paying for it."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T16:00:00",
-        "kind": "fix",
-        "change": "METER-BLIND WATER — hand applications never pass the WFC01, so the meter under-reports while the probe records the full response. This silently inflated points-per-100L to 23.9 on 2026-08-16, the highest figure in the record and pure artefact: the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, and manual runs are dropped from the per-run efficiency averages (tomato 61% -> 55%, pepper 32% -> 35% once the fertigation event is removed). Detection signature for anything unlogged in future: simultaneous off-schedule events on BOTH channels within a few minutes — that pattern occurs exactly once in the whole record. NOTE the 2026-08-07 pair (tom 10:25, pep 09:15) is 70 minutes apart and coincides with the pepper battery swap, so it is probably handling rather than a second fertigation; left untagged pending confirmation."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T15:30:00",
-        "kind": "fix",
-        "change": "DASHBOARD REBUILT AROUND DECISIONS, not data sources. Root problem: sample_interval_minutes=60 while native data is 5-minute, so the hourly resample erased the pulse structure EVERY real finding came from — a 90 s pulse and a 15-min run both vanish into one bucket. New lib/events.py works on raw readings and drives six new panels: control variable (pre-irrigation floor + daily min, the quantity the log always steered on, previously never plotted), regime comparison, water budget vs ETc, per-run retained-vs-shed efficiency, 5-minute pulse detail, and onset verification. CUT: the dry-down trend + setpoint projection (one OLS across five irrigation regimes, R^2 0.28, projection undefined), distribution/time-in-band (scored against a hand-set alert threshold on a factory-calibrated index), the weather correlation panel (r=-0.001 is a stable null; ET0 kept where it works, as the budget denominator), and the week-over-week mean table (the mean averages the spike with the dry-down and hides both ends). Sensor health moved to panel 1 — it gates everything and used to sit sixth. Also fixed a hardcoded chart header that had read 'Jun 9 - Jul 7' for weeks against Jun 29 - Aug 19 data; nobody noticed, which is its own verdict on that panel."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T15:30:00",
-        "kind": "finding",
-        "change": "REGIME TABLE MAKES THE WHOLE THESIS VISIBLE IN FIVE ROWS, and it should have existed in July. Mean pre-irrigation floor by regime: 14 min daily 189.4 L/day -> 56.4%; 10 min daily 118.8 -> 56.8%; 12 min 149.3 -> 50.0%; 4 x 90 s pulsed 78.3 -> 72.2%. That is 2.4x the water for 15.8 points LESS retained. Every regime before the pulsed plan sat in a narrow 50-57% band regardless of volume, which is the signature of a bed at its infiltration ceiling: past that point extra litres do not enter the soil, they run off and percolate. Water budget agrees — all 7 complete weeks came in ABOVE estimated ETc, from 1.9x to 4.2x, and the new two-run plan projects 2.46 in/wk, the first week that would land in band."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T15:30:00",
-        "kind": "note",
-        "change": "OPEN QUESTION FROM THE REBUILD: event detection found a THIRD irrigation event on 2026-08-16 at ~09:20 on BOTH channels (tomato 71->81, pepper 09:25) — simultaneous, outside every schedule, on a Sunday. Not rain (precipitation is 0.0 across the entire weather record). Most likely hand-watering. Justin to confirm; if it was manual, note that manual events land in the retention and onset panels as schedule violations unless they are logged. Two smaller verification catches worth keeping: onset_check MUST be scoped with `since` (unscoped, it scored the whole history against the current schedule and reported 30 of 53 pepper runs late, burying the 3 real ones — now 5 of 14), and daily_extremes now flags `partial` days because today's export usually stops mid-morning, which made the day's 'minimum' the overnight value and read as a dramatic improvement that had not happened."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T14:00:00",
-        "kind": "note",
-        "change": "SETPOINTS ARE NOT DATA-DERIVED — they are the EcoWitt app alert thresholds Justin set (tomato 62%, pepper 35%), copied into probes.*.setpoint and only ever read by analyze.py, never computed. They also CANNOT be derived in absolute terms while both probes run factory calibration, where 0%AD is air and 100%AD is submerged in water: the '%' is an index on that calibration, not volumetric water content, so 62% has no agronomic meaning and should never be compared to published ideal-moisture figures. Note three different numbers are currently doing this job with no stated provenance — setpoint 62, gauge ideal band 60-68, and the 58-60% overnight-min target used to govern the ramp; treat all of them as operator judgement and read each probe against itself."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:07:00",
-        "kind": "change",
-        "change": "Cut to two runs, 90 s @ 05:05 and 90 s @ 17:05, entered by Justin; the 05:20 and 05:35 pulses are retired. ~40 L/day = 2.46 in/week, a 50% cut from 79.6 L/day, which is ramp step 4 and the top of the estimated August ETc band. WATCH the 17:00 floor: predicted 63-65 from 66-69 — hold if it lands 62-66, restore one morning pulse if it drops below 58 or midday wilt persists at 20:00."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:07:00",
-        "kind": "finding",
-        "change": "Morning pulses 2 and 3 are pure waste. At 5-minute resolution the inter-pulse floor pins at 79-81% (field capacity at 3 in) and pulse 1 alone reaches it, while pulses 2 and 3 spike to 89-90% and shed every point back within 10 minutes — ~40 L/day and ~280 L/week buying zero retained moisture. Near-saturation plus a dead-flat overnight line argues against the 'charging depth below the probe' alternative, but only a WH51L at 8-10 in settles it."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:07:00",
-        "kind": "finding",
-        "change": "The bed never reaches setpoint. Hourly means Aug 8-19: overnight flat at 73, peak 77.8 at 06:00, daily minimum 69.3 at 17:00, PM pulse resetting to 74.6. Against a 62% setpoint and a 60-68 ideal band the floor sits 7-11 points high and the bed spends zero hours in band; the dead-flat overnight line is itself the tell that the profile is parked at capacity."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:07:00",
-        "kind": "decision",
-        "change": "Timing unchanged — the lever here is volume, not clock. Overnight loss is ~0.1 pts/hr vs 0.8 daytime so pre-dawn costs nothing evaporatively, and the PM slot correctly targets the daily minimum (it peaks 76-80 vs the morning's 89-90, i.e. the bed can actually absorb it). TWO CORRECTIONS: the Aug 2 '~2 h infiltration lag' no longer holds (at 90 s pulses the probe registers within 5 minutes), and 15-minute pulse spacing is far too short — use 60-90 min if two morning pulses ever return."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:07:00",
-        "kind": "finding",
-        "change": "Pepper washout confirmed, visible mid-run. Aug 19: 06:40=40, 06:45=58, 06:50=61 peak, then 06:55=53 while water is still running, settling to 47 — the media hits container capacity ~5-8 minutes in, so minutes 8-15 are leachate and the retained gain is only +7 points. COUNTERWEIGHT: nothing is stressed (39-47 sits inside the 35-48 band) and some leaching is deliberate practice in containers, so the goal is to reduce it, not eliminate it."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:45:00",
-        "kind": "fix",
-        "change": "Both probes are healthy and have been ~12 days: tomato 1.50 V with AD range 20-102, pepper 1.60 V with AD range 61-94 since the Aug 6-7 alkaline restore. Pepper was stuck at ok=false solely by a warning about the 2026-07-18 lithium voltage step, because the step check ran over all history into `flags` and ok = not flags, so a historical break could never clear. FIXED: steps older than health.step_recent_days (14) move to a `breaks` list and no longer drive ok — this is the Aug 4 lesson inverted, and a health check that cannot clear just trains the reader to ignore it."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:30:00",
-        "kind": "fix",
-        "change": "WRONG SYSTEM: the peppers are not EcoWitt hardware at all — they are a zone on the house multi-zone controller that also runs lawn, roses and trees, corrected by Justin. The same-day late-firing finding therefore ends with an action pointing at the wrong device, and its 'two schedule entries' hypothesis was built for the wrong kind of controller. See plan.pepper_system for the corrected device record."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:30:00",
-        "kind": "finding",
-        "change": "Late-firing reframed as a house-system fault. On late days the run is FULL SIZE and merely displaced ~40 min (Aug 12 onset 07:20, peak 61 at +10 min; Aug 19 onset 06:40, peak 61 at +10 min) — a failing pepper valve would give a short or missed run, so on a sequential-zone controller something UPSTREAM consumed ~40 minutes. The peppers are the witness, not the victim: those 40 minutes went to an unmonitored zone (lawn, roses or trees) roughly one day in four. Day-of-week tested and NOT supported (Wed and Sat each appear on both sides), though 11 days is too underpowered to refuse it properly."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:30:00",
-        "kind": "note",
-        "change": "House-system next steps, best information per unit of effort first: record the controller make/model, the pepper zone number, and the full zone order with run times — zone order is the key missing fact, since the displacement hypothesis predicts the culprit runs BEFORE the peppers. Then sum upstream run times against the ~40 min gap, check for overlapping A/B/C programs, check the backup battery, and pull the controller run log for Aug 8/12/14 if it has one. Cheap instrumentation: 6 of 8 soil channels are free, so a probe in a rose bed or tree well would extend observability to a second house zone."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:16:00",
-        "kind": "finding",
-        "change": "Pepper start time is not drifting, it is bimodal. Onset is 06:40-06:45 on Aug 9/10/11/13/16/17/18/19 and 07:20-07:25 on Aug 8/12/14 — 3 late days of 11 interpretable, ~27%, with Aug 7 excluded (battery-swap handling) and Aug 15 uninterpretable (truncated export). CORRECTIONS to the earlier same-day claim: Aug 15 was a data gap, not an early run, and Aug 8 was a missed third late day."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:16:00",
-        "kind": "note",
-        "change": "Pepper onset history is unrecoverable before 2026-08-07. The lithium flatline (daily AD swing 4-7 counts vs 61-94 after) means no irrigation event registered at all from ~Jul 22 to the Aug 6-7 swap, so the entire life of the Jul 23 plan is invisible except its last 13 days. The dead battery did not just produce wrong values, it erased the baseline needed to diagnose a later problem."
-      },
-      {
-        "date": "2026-08-19",
-        "logged": "2026-08-19T13:07:00",
-        "kind": "note",
-        "change": "SUPERSEDED 2026-08-19 15:15 — the cut is now live; see the change entry of the same date. Retained here for the test design it specifies: measure over 4-5 days from ONSET, not clock time, and hold the 15-min flush every 2-3 weeks for salts."
-      },
-      {
-        "date": "2026-08-05",
-        "logged": "2026-08-05T17:40:00",
-        "kind": "finding",
-        "change": "Pulsed plan validated — the Aug 3 falsifiable prediction held. Water fell 124 -> 77 L/day (-38%) while the overnight minimum ROSE 50 -> 57, reversing an eight-day slide. Cleanest comparison: Aug 3 delivered 129.4 L in one 12-minute flood and settled at 75%, while Aug 4-5 delivered 57 L in three 90 s pulses and settled at 78-79% — less than half the water, 3-4 points more retained."
-      },
-      {
-        "date": "2026-08-05",
-        "logged": "2026-08-05T17:40:00",
-        "kind": "finding",
-        "change": "Morning pulses stack at the peak but not at the floor. Each pulse peaks ~2 points higher than the last, but the inter-pulse floor stays flat at ~80%, which is field capacity at the 3-inch probe — so pulses 2 and 3 add no storage at that depth. They are either charging the profile below the probe or draining past it, and a 3-inch probe cannot tell the two apart; the WH51L at 8-10 in would settle it."
-      },
-      {
-        "date": "2026-08-05",
-        "logged": "2026-08-05T17:40:00",
-        "kind": "decision",
-        "change": "Hold the current plan — the overnight min is 57 against a 58-60 target and still climbing, and two days is too little to re-tune on. Delivery is still 4.74 in/week against an estimated August ETc of 1.75-2.45, so there is room to cut further, but the min governs, not the arithmetic. The afternoon pulse is confirmed needed as Justin judged: it catches the bed at 56-57% and resets it to ~78% settled."
-      },
-      {
-        "date": "2026-08-04",
-        "logged": "2026-08-03T18:39:10",
-        "kind": "finding",
-        "change": "Pepper probe confirmed bad on behavioural evidence, not electrical. Pepper water was halved on Jul 24 and the daily moisture swing did not change at all — 1.0 point before and after, 0-1 points every day since Jul 22 — while the tomato channel swings 22-26 points over the same days. A probe that ignores a 50% cut in irrigation is not measuring soil; swap to alkaline and confirm the AD range recovers before trusting any pepper number."
-      },
-      {
-        "date": "2026-08-04",
-        "logged": "2026-08-03T18:39:10",
-        "kind": "fix",
-        "change": "DASHBOARD FIX: the distribution panel reported 'Pepper — 100% of readings at or above the 35% setpoint' and the findings called the peppers 'stable and dialed in' while the probe was flatlined — confidently wrong, and wrong in the dangerous direction, because a dead sensor renders as a perfectly watered bed. The health module had already flagged the channel but no other panel consulted it. Distribution cards and pepper findings now read DATA.health[k].ok: any panel stating a confident summary must first check instrument trust."
-      },
-      {
-        "date": "2026-08-04",
-        "logged": "2026-08-03T18:34:08",
-        "kind": "change",
-        "change": "PLAN LIVE: four plain-duration entries of 90 s each at 05:05, 05:20, 05:35 and 17:00, cycle mode OFF. ~79.6 L/day = 4.92 in/week, down from ~129 L/day = 8.00 in/week, a 38% cut. The three morning starts are a manual cycle-and-soak using Plan mode's start times, which gives a far longer soak than cycle mode and sidesteps the unresolved On>Duration validation bug; deliberately conservative while Justin is off-site until Aug 6."
-      },
-      {
-        "date": "2026-08-03",
-        "logged": "2026-08-03T18:34:08",
-        "kind": "fix",
-        "change": "CLOSED: the dashboard irrigation panel has been rewritten. It now renders the multi-start schedule from plan.runs, states delivery in inches per week against bed geometry, and tracks the new plan on the benchmark line rather than the retired 14-min timer."
-      },
-      {
-        "date": "2026-08-03",
-        "logged": "2026-08-03T16:00:09",
-        "kind": "finding",
-        "change": "Bed geometry recorded — 12 x 4 ft, 48 sq ft, soil 10 in deep — so 1 inch of water over the bed is 113.3 L. Current delivery of ~124-129 L/day is therefore ~1.1 in/DAY = 7.7-8.0 in/week against a stated 1.0-1.5 in/week target, roughly 6x over, and a single dose is close to the entire plant-available capacity of the profile delivered in 12 minutes. The bed has never been under-watered; it has been flood-dosed daily."
-      },
-      {
-        "date": "2026-08-03",
-        "logged": "2026-08-03T16:00:09",
-        "kind": "finding",
-        "change": "Root cause is application RATE, not duration or timing. Measured line flow of 12.4 L/min over 48 sq ft is 6.6 in/hr instantaneous, against 0.2-0.6 in/hr for loam and maybe 1-3 for a loose raised-bed mix — past the first minute or two water ponds, runs to the edges and channels rather than wetting the profile. Emitter audit: 9 drip flags at 4 gph impose a 1.20 in/hr floor on their own, leaving the 12 adjustable bubblers at ~13.4 gph each, at or past their 13 gph spec."
-      },
-      {
-        "date": "2026-08-03",
-        "logged": "2026-08-03T16:00:09",
-        "kind": "note",
-        "change": "SUPERSEDES the Aug 2 'next lever' entry (7 min AM + 7 min PM). That was written without bed area and would have delivered ~174 L/day = 10.7 in/week — worse than the problem it was meant to fix. Ignore it."
-      },
-      {
-        "date": "2026-08-03",
-        "logged": "2026-08-03T16:00:09",
-        "kind": "decision",
-        "change": "New plan using WFC01 cycle mode as the primary rate control, NOT the bubbler threads, since an 8-stream bubbler throttled too far loses its pattern and dribbles out one side. Cycle 30 s ON / 90 s OFF = 25% duty = 1.65 in/hr effective, run ~6 min twice daily => ~37 L/day = 2.30 in/week, targeting estimated August ETc rather than the shoulder-season figure; step down over ~5 days rather than cutting from 129 L at once. FALSIFIABLE: if the rate diagnosis is right, retained moisture should RISE while volume FALLS — if the overnight min keeps dropping as volume comes down, the deficit is real and the diagnosis is wrong."
-      },
-      {
-        "date": "2026-08-02",
-        "logged": "2026-08-02T18:08:31",
-        "kind": "decision",
-        "change": "Keep the tomato start at 05:05 rather than moving it toward sunrise. The water-at-sunrise rule is a foliar-disease argument that does not apply to soil-level bubblers and drip flags; measured overnight loss is ~0.13 pts/hr against ~1.1 pts/hr daytime, so pre-dawn application costs almost nothing evaporatively. Moving into the shared-pressure window would also add flow variance to the one variable being calibrated by minutes, and would confound the 10->12 min change taking effect Aug 3."
-      },
-      {
-        "date": "2026-08-02",
-        "logged": "2026-08-02T18:08:31",
-        "kind": "note",
-        "change": "NEXT LEVER if 12 min fails to lift the overnight min back into 58-60%: split the dose rather than adjusting time-of-day or adding minutes. The 07:00-11:00 plateau at 70-71% reads as the bed sitting at field capacity and shedding the excess, which is a percolation loss a longer single run would only worsen."
-      },
-      {
-        "date": "2026-08-02",
-        "logged": "2026-08-02T18:01:47",
-        "kind": "finding",
-        "change": "10-min run confirmed at 118 L/day over the 9 clean days Jul 24-Aug 1, against 168.6 L/day at 14 min — a ratio of 0.70 versus the theoretical 0.714. metered_daily/metered_weekly are now MEASURED figures (118 / 825, the latter an observed seven-day total rather than an extrapolation). The back-filled Jul 26 export also resolved an apparent 229.8 L spike on Jul 27 into two normal days."
-      },
-      {
-        "date": "2026-08-02",
-        "logged": "2026-08-02T18:01:47",
-        "kind": "change",
-        "change": "Tomato timer raised 10 -> 12 min once daily @ 05:05 PT, effective the Aug 3 run. At 10 min the daily mean fell steadily 64.6 -> 60.5 over Jul 26-Aug 1 and the overnight min broke below the 58-60% watch band to 53 — the trim over-corrected for current ET. Expect draw to rise to roughly 142 L/day; re-measure metered_daily/weekly from clean days once the next exports land."
-      },
-      {
-        "date": "2026-08-02",
-        "logged": "2026-08-02T18:01:47",
-        "kind": "change",
-        "change": "Pepper probe battery swap (lithium 1.70 V -> alkaline 1.50 V) scheduled for the week of Aug 3. Pepper moisture is NOT trustworthy until then: the AD range has collapsed to 4-6 counts with daily min and max nearly identical, so the apparent Jul 27-Aug 1 decline from 43.8 to 40.5 reads as calibration drift rather than a real dry-down. Confirm the AD range recovers after the swap before acting on any pepper number."
-      },
-      {
-        "date": "2026-07-26",
-        "logged": "2026-07-26T20:46:04",
-        "kind": "decision",
-        "change": "Hold peppers at once daily 15 min through the week of Jul 27 despite an apparent net daily deficit (AD baseline -3 to -4 counts/day against only +2 recovery per dose). The probe has been on a lithium battery since Jul 18 with a collapsed AD range, so the deficit reading is unconfirmed. Escalation tripwires handed to the on-site helper; re-evaluate on the Aug 1 site visit."
-      },
-      {
-        "date": "2026-07-24",
-        "logged": "2026-07-23T18:58:23",
-        "kind": "change",
-        "change": "Pepper bags moved from every-12 h to once daily, 15 min @ 06:45 PT; watch the 2-in probe for a deeper daily dry-down, since bag bottoms may still stay wet."
-      },
-      {
-        "date": "2026-07-24",
-        "logged": "2026-07-23T13:42:57",
-        "kind": "change",
-        "change": "Tomato timer trimmed 14 -> 10 min to cut leaching and deep percolation; watch that the overnight probe min holds near 58-60% at 3 in."
-      },
-      {
-        "date": "2026-07-16",
-        "logged": "2026-07-23T13:42:57",
-        "kind": "change",
-        "change": "Tomato timer set: 14 min once daily @ 05:05 PT, a fixed timer replacing earlier irregular hand-timing."
-      }
-    ],
-    "proposed_plan": {
-      "_comment": "NOT YET ACTIVE — proposed 2026-08-03 after reading docs/Ecowitt Water Meter WFC01.pdf. Set this in the Ecowitt app, then move these values into the live keys above. Manual refs: sec 6.1 watering methods p22-23, sec 6.2.2 cycle mode p24-25, sec 6.2.3 plan mode p27-30.",
-      "mode": "Plan mode",
-      "method": "BY DURATION (Justin's call, 2026-08-03). Volume mode was tried at install and rejected: emitter output is uneven across the flags and bubblers, and he reads timings more fluently than volumes. Accepted — distribution unevenness is real but it is orthogonal to the control method (a given emitter's SHARE of the total is the same whether the run ends on a clock or on a quantity), and operator fluency has genuine value. One thing duration keeps that volume would have destroyed: under volume mode the metered-litres chart flatlines by construction and loses its value as a leak/clog detector. Under duration, metered volume drifting at a fixed run length IS the diagnostic. The cost is that delivered depth is no longer guaranteed — recheck metered L against the target weekly and re-trim minutes.",
-      "start_times": [
-        "05:05",
-        "17:30"
-      ],
-      "repeat": "daily",
-      "cycle_mode": {
-        "enabled": true,
-        "on_seconds": 45,
-        "off_seconds": 135,
-        "duty_pct": 25,
-        "REVISED_2026-08-03": "Was 20/60. Lengthened to 45/135 (same 25% duty, same 1.65 in/hr effective rate) after Justin raised line-charge time. The hose must fill and the bubblers must reach pressure before real delivery starts; a 50-100 ft run holds 1.9-8.6 L depending on ID, which is 9-42 SECONDS of charge at 12.4 L/min. Against a 20 s pulse that is most of the pulse. Rule of thumb: ON >= 4-5x measured charge time. 45/135 cuts charge events per run by ~2.3x while keeping the effective application rate identical, because infiltration cares about the cycle-average rate, not pulse length. Per-pulse application at 45 s is 9.3 L = 0.082 in, which a 135 s soak clears comfortably at 1.65 in/hr.",
-        "charge_accounting": "RESOLVED 2026-08-03 with actual plumbing: 25 ft of 5/8 in garden hose = 1.51 L = 7.3 s of fill; the emitter manifold inside the bed adds ~0.96 L; total cold-start fill ~2.5 L / ~12 s. Crucially the hose runs UPHILL into the raised bed, so the emitters sit at the high point. When the valve closes, air enters at the bubblers and the hose water CANNOT flow back up over the crest — the 1.51 L in the hose simply stays there between pulses and between runs. It is never lost and never re-paid. Only the ~0.96 L above the crest drains, and it drains INTO the bed, so it is delivered rather than wasted. Net: NO volume is lost anywhere in this system. Within a run the effective re-charge is only the above-crest volume, ~5 s, so a 45 s pulse carries ~11% deadband on pulse one and near zero after.",
-        "uniformity_finding": "The real cost of cycling here is not volume, it is WHERE the drain-down lands. The ~0.96 L above the crest empties out of whichever bubbler sits lowest, once per cycle. At the originally proposed 20/60 that is 22 drain events/day and ~21 L/day preferentially dumped on one or two plants; at 45/135 it is 10 events and ~9.6 L/day; at 90/270 it would be 4 events and ~3.8 L/day. This is very likely a large part of why emitter output looks so uneven. 45/135 is the chosen middle: longer pulses cut the skew, but they also deepen transient ponding per pulse (0.082 in at 45 s vs 0.164 in at 90 s), which pushes water laterally to the bed edges. MITIGATION: find the lowest bubbler and either raise it level with the others or fit a small check valve just past the crest.",
-        "_comment": "Manual: 'a duty cycle is introduced against the current working mode... can be used to regulate more precisely for lower water rate application.' Legal range 5-3600 s. 25% duty takes the 6.6 in/hr instantaneous rate down to ~1.65 in/hr effective, inside the raised-bed infiltration window. 20/60 gives ~4.1 L per pulse; 15/45 is a finer alternative at the same duty.",
-        "RESOLVED_semantics": "The app rejects On > Duration ('the on time cannot be greater than the duration'). That validation only makes sense if Duration is the total ELAPSED window that the pulses run inside — so Duration = elapsed, NOT ON time. The 4x ambiguity is settled and the duration_s column in the ramp table stands as written.",
-        "APP_UNIT_TRAP": "Entering Duration 360 s with On 45 s / Off 135 s was rejected even though 45 < 360. Near-certain cause: the Duration field has a unit selector (manual p25: '10~43200 seconds OR 1~720 minutes') that was sitting on MINUTES, so the form held 6 while On held 45, and the validator compared the raw numbers 45 > 6. FIX: switch the Duration unit to seconds and enter 360. If Plan mode only offers minutes, the only way to satisfy a naive numeric compare is On <= the minute number, which forces ~5 s pulses — volumetrically equivalent (On 5 / Off 15 for 6 min still gives 18.6 L) but useless here, because a 5 s pulse is roughly the above-crest refill time so nearly every pulse would be pure line charge."
-      },
-      "ramp": {
-        "_comment": "Justin's concern about shocking the plants is well taken, though the mechanism is not 'shock' from the volume cut per se — plants respond to root-zone moisture, not to applied litres, and the 10-to-12-min test showed +5.2 L moving settled moisture by -1 point, so most of the marginal water never reaches roots. The real risk is that the 2.35 in/wk ETc estimate is simply too low for a raised bed in a heatwave, while the probe is already at a record-low 50%. Abrupt swings also invite blossom-end rot and fruit cracking, so gradual is right regardless. THE PROBE SETS THE ENDPOINT, NOT THIS TABLE: hold at whatever step returns the overnight min to 58-60%, even if that is 70 L/day and the 38 L target turns out to be wrong.",
-        "TEST_RESULT_2026-08-03": "90 s plain run at 17:00 (no cycle mode) delivered 19.9 L (13.3 L/min at the meter) and took the probe 53% -> 87%. The same morning, 129.4 L took it 50% -> 90%. So 6.5x the water bought 6 more points of peak. If ~20 L rewets the profile then ~110 L/day is surplus — about 766 L/week. This is the strongest single piece of evidence in the whole record that the bed is being flood-dosed, and it was obtained without a stopwatch.",
-        "AWAY_PLAN_2026-08-04_to_06": "Justin is off-site until Thu 2026-08-06, so: no stopwatch, no physical inspection, no charge-time measurement, and cycle mode is still unverified in the app (the On>Duration rejection is unresolved). Do NOT deploy unverified cycle mode unattended in a heatwave. Instead use PLAN MODE's 24 start times as a manual cycle-and-soak with plain duration runs, which is proven working hardware as of the 17:00 test. Entries: 05:05, 05:20, 05:35 and 17:00, each 90 s. That is 4 x 19.9 = 79.6 L/day = 4.92 in/wk, down from 8.00. A 15-MINUTE soak between pulses is far better than the 135 s that cycle mode would have given, and it directly serves the 'deep but not past the 10 inches' goal: repeated small increments infiltrate and redistribute downward between doses, whereas one 12-minute flood exceeds infiltration, ponds, and channels. Deliberately a conservative 38% cut rather than the full ramp — err wet while nobody can look at the plants. Re-evaluate Thursday on site.",
-        "OPEN_QUESTION_depth": "Unresolved and NOT answerable from a 3-inch probe: 19.9 L is only 0.176 in of water, which cannot uniformly wet a 10-inch profile from depleted, yet the probe at 3 in jumped to 87%. That means fast preferential/macropore flow, not a uniform wetting front. So a small dose reaching the probe does NOT prove the bottom of the profile is charged. This is exactly what the WH51L depth probe at 8-10 in would settle, and it is the main reason to keep the away-period cut conservative.",
-        "control_variable": "overnight tomato minimum, target 58-60%",
-        "steps_L_per_day": [
-          90,
-          70,
-          55,
-          45,
-          38
-        ],
-        "hold_days_per_step": 2,
-        "_units": "ALL THREE APP FIELDS IN SECONDS: On time 45 s, Off time 135 s, Duration in seconds. One cycle = 180 s and delivers 9.3 L at the measured 12.4 L/min. Duration is always a whole number of cycles (n x 180) so no run ends mid-pulse. To change VOLUME adjust the cycle count (Duration); to change RATE adjust Off time; leave On time alone once it is set from measured charge time.",
-        "table_at_25pct_duty": [
-          {
-            "step": "TEST",
-            "cycles": 2,
-            "duration_s": 360,
-            "L_run": 18.6,
-            "L_day": 18.6,
-            "in_wk": 1.15,
-            "elapsed_min": 6.0,
-            "note": "single PM run on 2026-08-03 only — resolves BOTH the Duration semantics and the line-charge time"
-          },
-          {
-            "step": 1,
-            "cycles": 5,
-            "duration_s": 900,
-            "L_run": 46.5,
-            "L_day": 93.0,
-            "in_wk": 5.75,
-            "elapsed_min": 15.0
-          },
-          {
-            "step": 2,
-            "cycles": 4,
-            "duration_s": 720,
-            "L_run": 37.2,
-            "L_day": 74.4,
-            "in_wk": 4.6,
-            "elapsed_min": 12.0
-          },
-          {
-            "step": 3,
-            "cycles": 3,
-            "duration_s": 540,
-            "L_run": 27.9,
-            "L_day": 55.8,
-            "in_wk": 3.45,
-            "elapsed_min": 9.0
-          },
-          {
-            "step": 4,
-            "cycles": 2,
-            "duration_s": 360,
-            "L_run": 18.6,
-            "L_day": 37.2,
-            "in_wk": 2.3,
-            "elapsed_min": 6.0
-          }
-        ],
-        "low_end_note": "Steps 4 and 5 collapse at this cycle size — 2 cycles is the practical floor for a 2x daily schedule. If the probe asks for less than ~37 L/day, drop to ONE run per day at 2-3 cycles rather than shortening pulses, since shorter pulses would put charge overhead back in.",
-        "measure_charge_time": "On the test run: start a stopwatch at valve open, note (a) seconds until the FARTHEST bubbler is running full and (b) the meter delta at that moment — that is charge time and charge volume. Then at valve close, note how long emitters keep dribbling. If charge time exceeds ~11 s, raise On time to 4-5x it and raise Off time to keep the 25% duty.",
-        "if_duration_means_on_time": "If the 2026-08-03 test shows Duration counts ON time rather than elapsed, DIVIDE every duration_s above by 4 (i.e. duration_s = cycles x 20). Setting 880 s under an ON-time reading would deliver ~182 L per run = ~364 L/day, roughly 3x the current over-application — which is why the test run comes first.",
-        "tripwires": [
-          "Overnight min falls more than 2 points the day after a step -> hold, or back up one step.",
-          "Overnight min recovers into 58-60% -> STOP RAMPING and hold there, whatever the litres say.",
-          "Midday wilt still present at 20:00 -> back up a step immediately (midday wilt that recovers by evening is normal).",
-          "Blossom-end rot or fruit cracking appearing -> moisture is swinging too hard; lengthen hold_days_per_step.",
-          "Metered L/day drifting at a fixed run length -> emitter clog or leak, not a schedule effect."
-        ],
-        "do_not_confound": "Leave the pepper line untouched through the ramp, and do not also change start times or duty cycle mid-ramp."
-      },
-      "delivers_at_target": {
-        "liters_per_day": 38,
-        "in_per_day": 0.335,
-        "in_per_week": 2.35
-      },
-      "caveats": [
-        "Plan-mode skip conditions (rain skip, temperature skip) are NOT implemented — manual p28 says 'under development'. Do not design around them.",
-        "Smart mode (auto-irrigate from the WH51 reading) requires the hub to be talking to the Ecowitt cloud. Hold off until a depth probe is installed; closing the loop on a 3-inch probe would just automate the current misread.",
-        "Scheduled plans ARE stored locally on the hub and survive network outages (manual p17).",
-        "The WFC01 manual is written for the GW2000 hub; this garden runs a GW1200. It works, but expect minor UI differences."
-      ]
-    },
-    "instrumentation_todo": {
-      "_comment": "Opened 2026-08-03 from docs/Ecowitt Sensor WH51L.pdf.",
-      "add_depth_probe": "The WH51L ships with a 1 m / 3.28 ft PVC cable specifically to 'enable the measurement of different depths of soil moisture' (manual sec 3.2). Installing one at 8-10 in in the tomato bed permanently settles whether extra run minutes are wasted or are charging the deep root zone — the current 3-inch probe cannot distinguish those. WH51 and WH51L share the same 8 soil channels; only 2 of 8 are in use.",
-      "soil_calibration": "Both probes are on FACTORY calibration. Back-solving the tomato AD/percent pairs gives 0%AD=124, 100%AD=352 (0.438 % per AD count). Pepper AD 211 predicts 38.3% against an observed 38%, so the two probes share one calibration and there is no voltage-induced shift in the AD->percent MAPPING. SCOPE CORRECTION (2026-08-09): that result was over-generalised on Aug 3 into 'the lithium-battery theory is wrong'. It only ever tested the mapping, never whether the battery shifts the raw AD counts the probe emits — which is upstream of the conversion, and is where the effect actually is. See pepper_probe_battery_finding. Factory 0%AD is the AD in air and 100%AD is submerged in water, so both ends are wrong for real soil; manual states 'generally, the sensor must be calibrated to suit your soil type' (Custom mode, WH51L sec 3.3).",
-      "pepper_probe_battery_finding": "RESOLVED 2026-08-09: the pepper flatline was the LITHIUM AA, not a failed probe. Daily AD swing by battery phase — alkaline to Jul 17 (v 1.50->1.28): swing 48 down to 16; lithium from Jul 18 (v 1.70): AD floor steps 225->199 with no soil event, swing good 4 days (50/66/89/57) then collapses Jul 22 to 4-6 counts and the floor drifts monotonically 241->203 for two weeks; alkaline restored Aug 6-7 (v 1.60): swing recovers 61/89/88 within a day. A clean 2-week monotonic ramp with no diurnal cycle is not soil physics. CAVEAT: the 4-day lag between the Jul 18 swap and the Jul 22 collapse is unexplained — the AD floor makes a second discrete step (199->241) on Jul 22 — so the battery is clearly implicated at the recovery end but may have interacted with a reseating or contact event at onset. Keep the probe on alkaline; health.nominal_volts 1.5 +/- 0.08 correctly flags 1.70 as out of tolerance.",
-      "pepper_probe_heat_hypothesis": "RULED OUT 2026-08-09 on SIGNATURE, not on temperature magnitude. The theory was that a black fabric bag in full sun exceeds the WH51/WH51L 122 F spec ceiling. Decisive test is the hour-of-day profile of pepper AD, which needs no temperature data at all: a heat-ceiling dropout must be DIURNAL — normal at dawn, degrading through the afternoon, recovering overnight as the bag cools. Observed mean AD by hour, peak-to-trough: alkaline Jul 1-10 = 13.3 counts; lithium Jul 23-Aug 5 = 3.9 counts (flat ~222 across all 24 hours, no dawn rise, no afternoon decline); alkaline Aug 7-9 = 30.4 counts, peaking hour 10 and declining normally through 12-16. The probe is fully responsive DURING peak-heat hours on the restored battery, and was equally dead at 4 a.m. as at 4 p.m. under lithium. That is a supply fault, not a thermal one. Soil contact and depth are still worth checking on their own merits.",
-      "wfc01_temp_is_not_ambient": "CAUTION added 2026-08-09 after an analysis error. The [WFC01] Water Flow Temperature column in the EcoWitt exports is the METER'S OWN BODY TEMPERATURE sitting in direct sun — it ran 110-123 F through late July while Santa Clara ambient was nowhere near that. It is valid for the wfc01_heat note below (that note is about the unit overheating itself) and useless as an air-temperature proxy for anything else. Ambient weather for the dashboard comes from the keyless Open-Meteo API fetched client-side, not from the log files; use that for any real weather question.",
-      "wfc01_heat": "The WFC01's own temperature sensor read 123.1 F on 2026-08-03, its highest on record. The unit's Overheating alert fires at 60 C / 140 F (manual sec 7.4). It is sitting in direct sun and heading toward its own alarm threshold — shade it."
-    },
-    "pepper_freq": "once daily",
-    "pepper_time": "06:45",
-    "pepper_run_min": 7,
-    "pepper_effective": "2026-08-20",
-    "pepper_system": {
-      "_comment": "RECORDED 2026-08-19 after Justin corrected a wrong assumption in this file. The pepper fabric bags are NOT on EcoWitt hardware — they are a zone on the HOUSE MULTI-ZONE IRRIGATION CONTROLLER that also runs lawn, roses and trees. Every prior note that spoke of the pepper 'timer' as if it were an EcoWitt plan entry was wrong about the device, and the 2026-08-19 'count the schedule entries in the app' action pointed at the wrong system entirely. This is a separate troubleshooting domain: different controller, different valves, different failure modes, no API, no logging.",
-      "controller": "house multi-zone irrigation controller (make/model NOT YET RECORDED — write it down on the next site visit, along with the zone number the peppers sit on and the full zone order)",
-      "zones_known": [
-        "peppers (6x 7-gal fabric bags)",
-        "lawn",
-        "roses",
-        "trees"
-      ],
-      "pepper_zone_number": "UNKNOWN — needed. Zone ORDER is the key unknown, because a multi-zone controller runs zones sequentially and any upstream zone running long displaces everything after it.",
-      "metering": "NONE. The WFC01 does not see this system. There is no flow data, no run log, and no remote status for any zone on it.",
-      "telemetry_note": "IMPORTANT CONSEQUENCE: the WH51 pepper soil probe is the ONLY instrumentation of any kind on the entire house irrigation system. It was installed to watch pepper moisture, but because it registers each irrigation event it is in effect an accidental run-log for one zone — and the only observability into a controller that also waters the lawn, roses and trees. Treat pepper-probe anomalies as candidate house-system events, not just plant-moisture events. Corollary: the Jul 22 - Aug 6 lithium-battery flatline blinded not only the pepper channel but the only sensor on the whole system.",
-      "shared_pressure_note": "The 05:05 EcoWitt tomato start was originally chosen to avoid overlapping this system's morning window (see the 2026-08-02 decision). That rationale is now MORE important, not less: the two systems share supply, so house-side zone changes can affect measured WFC01 flow on the tomato line."
-    },
-    "regimes": [
-      {
-        "label": "hand-timed (irregular)",
-        "start": "2026-06-29",
-        "end": "2026-07-15",
-        "note": "pre-timer; no fixed schedule"
-      },
-      {
-        "label": "14 min daily",
-        "start": "2026-07-16",
-        "end": "2026-07-23",
-        "note": "first fixed timer @05:05"
-      },
-      {
-        "label": "10 min daily",
-        "start": "2026-07-24",
-        "end": "2026-08-02",
-        "note": "trimmed to cut leaching; measured 118 L/day"
-      },
-      {
-        "label": "12 min daily",
-        "start": "2026-08-03",
-        "end": "2026-08-03",
-        "note": "one day only; overnight min had broken below band"
-      },
-      {
-        "label": "4 x 90 s pulsed",
-        "start": "2026-08-04",
-        "end": "2026-08-19",
-        "note": "application-rate fix; ~79.6 L/day"
-      },
-      {
-        "label": "2 x 90 s pulsed",
-        "start": "2026-08-20",
-        "end": "2026-08-27",
-        "note": "morning pulses 2-3 retired; measured 39.4 L/day over the 7 clean full days Aug 20-26; only week in ETc band (2.43 in); mean held mid-band but the PM trough fell 65 -> 56 without flattening"
-      },
-      {
-        "label": "3 x 80 s pulsed",
-        "start": "2026-08-28",
-        "end": null,
-        "note": "midday 13:05 start added to fill the 16:45 trough; ~52.5 L/day projected on the measured 0.2188 L/s rate"
-      }
-    ],
-    "_regimes_comment": "Irrigation regime boundaries for the TOMATO line, maintained by hand from schedule_log. Charts shade by these and regime_summary() compares them side by side. This exists because the old dashboard fitted ONE linear trend across all of them and projected a setpoint crossing from it (R^2 0.28, projection undefined) — a slope fitted across regime changes is not a trend, it is an artefact. ADD A ROW HERE whenever the plan changes, or the comparison silently goes stale.",
-    "manual_events": [
-      {
-        "date": "2026-08-29",
-        "time": "15:00",
-        "what": "water-soluble fertiliser, hand-poured, 1/2 gal (1.9 L) per plant, all plants, tomatoes and peppers. Confirmed by Justin 2026-08-29 ~15:25, about 30 min after the pour. Day 2 of the 3 x 80 s plan, so it lands in the new regime's window and inflates its first read: the 15:00 timing is ~1h45m before the usual 16:40-16:55 afternoon trough, which is exactly the metric the plan change was meant to fix. Treat the Aug 29 trough as unusable for judging the new schedule. Clear of tag_manual's 45-min window on both sides (13:05 is -115 min, 17:05 is +125 min), so no scheduled run will be mis-tagged as manual.",
-        "channels": [
-          "tom",
-          "pep"
-        ],
-        "metered": false
-      },
-      {
-        "date": "2026-08-16",
-        "time": "09:20",
-        "what": "liquid fertiliser, hand-poured, ~0.5 gal (1.9 L) per plant, all plants",
-        "channels": [
-          "tom",
-          "pep"
-        ],
-        "metered": false
-      },
-      {
-        "date": "2026-08-07",
-        "time": "09:15",
-        "what": "HAND-WATERING DURING THE PEPPER BATTERY SWAP, pepper zone only — confirmed by Justin 2026-08-22, resolving the 'left untagged pending confirmation' note that had stood since 2026-08-19. Bags were at 34% (their lowest in the record, the probe having just come back from the lithium flatline) and took the water well: 34 -> 49 peak, 11 retained against only 4 shed, which is the best retention ratio of any pepper event and exactly what a slow hand-pour onto genuinely dry media should look like. It was scored as a +150 min onset violation. See the paired tomato entry at 10:25 the same morning.",
-        "channels": [
-          "pep"
-        ],
-        "metered": false
-      },
-      {
-        "date": "2026-08-07",
-        "time": "10:25",
-        "what": "HAND-WATERING, tomato bed, same morning as the pepper pour above — confirmed by Justin 2026-08-22. Separate entry rather than adding 'tom' to the 09:15 record because the two are 70 minutes apart, outside tag_manual's 45-minute window; one entry cannot cover both. The contrast between them is the useful part and worth keeping visible: the DRY pepper bags took 11 points and shed 4, while this pour went onto a bed already sitting at 80% (at the 75% drainage ceiling) and returned 2 points retained against 10 shed. Same operator, same morning, same method — the difference is entirely whether the medium had capacity to accept water. It is the cleanest natural experiment in the record for why the ceiling matters, and it also means the 2026-08-19 'detection signature for anything unlogged' note (simultaneous off-schedule events on BOTH channels) now has a second instance, not one.",
-        "channels": [
-          "tom"
-        ],
-        "metered": false
-      },
-      {
-        "date": "2026-08-19",
-        "time": "13:45",
-        "what": "MANUAL BUBBLER FUNCTION TEST, pepper zone only — run by hand while adjusting the pepper timer 15 -> 7 min, to confirm the bubblers were emitting properly. Confirmed by Justin 2026-08-22. Not a scheduled run and not a controller fault: it was scored as a +420 min onset violation, which is the single largest 'late run' in the record and pure artefact. Also excluded from retention, where it read 3 points retained against 18 shed (14% efficiency) — a diagnostic squirt onto bags already near capacity from the 06:40 run, not a failed irrigation.",
-        "channels": [
-          "pep"
-        ],
-        "metered": false
-      }
-    ],
-    "_manual_events_comment": "Hand applications: fertigation, spot watering, anything poured by hand. LOG THEM HERE. Two reasons, both of which bit on 2026-08-16 before this key existed. (1) The WFC01 never sees hand-applied water, so the meter under-reports what the bed got while the probe records the full response — points-per-100L read 23.9 that day, the highest in the record, purely because the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, since a silently wrong efficiency figure is worse than a missing one. (2) They are not schedule violations, so onset_check() skips them; otherwise every fertigation shows up as a broken timer. Detection hint: a manual application shows as simultaneous off-schedule events on BOTH channels within a few minutes — that signature appears exactly once in the record (2026-08-16, 5 min apart).",
-    "pepper_prev_run_min": 15,
-    "runs_time_effective": "2026-08-28",
-    "pepper_time_effective": "2026-07-24",
-    "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations."
+  "pepper": {
+   "group": "Pepper Probe",
+   "hist_bin": 1,
+   "bands": {
+    "_comment": "6x 7-gal fabric bags on the house controller. Night-loss step is at 48: 0.20-0.32 %AD/hr below, 8.85 at 48-50. Day curve plateaus ~1.5-2.1 %AD per mm ET0 across 36-44 and halves to 1.01 at 33-35 — the uptake falloff. NOTE the day curve for fabric bags conflates transpiration with sidewall evaporation, which is why the ceiling is read off the night data only.",
+    "drainage_ceiling": 48,
+    "ceiling_confidence": "medium — n=93 night intervals at or above it; the step is large (33x) but thinly sampled because the bags shed back past it within minutes. The DAY curve also runs hot at 45-47 (9.94 vs a 2.06 plateau), but that bin is dominated by post-run drainage rather than a real uptake change, which is why the ceiling is read off night data only.",
+    "refill_target": 46,
+    "working_lo": 38,
+    "stress_floor": 36,
+    "floor_confidence": "usable — n=235 day intervals below it, with a clean ~50% falloff at 33-35 (1.01 vs a 2.06 plateau). Worth noting the retired hand-set pepper alert threshold was 35, within a point of the derived floor; that one was a good guess. The 30-32 bin reads a suspicious 0.00 on n=44 and is excluded by MIN_N_FLOOR — see derive_bands.py.",
+    "leaching_fraction_note": "Containers need MORE leaching than beds, not less — fabric bags accumulate salts fast and standard practice is a deliberate flush. Keep one long run every 2-3 weeks for salt management even though routine runs should stop at the ceiling."
+   },
+   "gauge": {
+    "name": "Peppers",
+    "loc": "6× 7-gal fabric bags",
+    "lo": 30,
+    "hi": 55,
+    "idealLo": 38,
+    "idealHi": 46,
+    "ceiling": 48,
+    "floor": 36,
+    "watch": 38
+   }
   }
+ },
+ "water": {
+  "group_prefix": "WFC01"
+ },
+ "bed": {
+  "_comment": "Physical geometry of the metered tomato raised bed, recorded 2026-08-03. This is the missing conversion that makes metered litres interpretable as inches of water. Everything metered by the WFC01 lands on THIS bed only; peppers are a separate unmetered line.",
+  "length_ft": 12,
+  "width_ft": 4,
+  "wall_height_in": 12,
+  "soil_depth_in": 10,
+  "area_ft2": 48,
+  "liters_per_inch_of_water": 113.3,
+  "gallons_per_inch_of_water": 29.9,
+  "target": {
+   "_comment": "target_in_per_week is Justin's stated goal. NOTE it is a classic in-ground, moderate-weather rule of thumb; a 10-inch-deep raised bed in a Santa Clara August loses considerably more. august_etc_in_per_week is the estimated real crop demand (reference ET0 ~0.25-0.35 in/day x tomato mid-season Kc ~1.15). Water to the ETc figure in a heat event and drift back toward target_in_per_week in Sept/Oct.",
+   "in_per_week": [
+    1.0,
+    1.5
+   ],
+   "liters_per_week": [
+    113,
+    170
+   ],
+   "august_etc_in_per_week": [
+    1.75,
+    2.45
+   ],
+   "august_etc_liters_per_day": [
+    28,
+    40
+   ]
+  },
+  "storage": {
+   "_comment": "Plant-available water held by the whole 10-inch profile at an assumed AWC of 0.12-0.20 in per inch of soil. The point: a single 129 L dose is ~1.14 in, i.e. it tries to deliver most of the profile's ENTIRE available capacity in one 12-minute shot. That is why it drains.",
+   "awc_in_per_in": [
+    0.12,
+    0.2
+   ],
+   "profile_available_in": [
+    1.2,
+    2.0
+   ],
+   "profile_available_liters": [
+    136,
+    227
+   ]
+  },
+  "emitters": {
+   "_comment": "Audited 2026-08-03 against the measured 12.4 L/min line flow. Bubblers are adjustable 0-13 gph; back-solving from the meter puts them at ~13.4 gph each, i.e. WIDE OPEN, at or past spec. Do not throttle them far below ~half — the 8-stream full-circle pattern needs flow to distribute evenly, and a starved bubbler dribbles out one side. Use WFC01 cycle mode, not the bubbler threads, as the primary volume/rate control.",
+   "bubblers": {
+    "count": 12,
+    "type": "full-circle 360 deg, 8-stream, adjustable",
+    "gph_range": [
+     0,
+     13
+    ],
+    "estimated_current_gph_each": 13.4
+   },
+   "drip_flags": {
+    "count": 9,
+    "gph_each": 4,
+    "liters_per_hour_total": 136,
+    "note": "fixed rate; alone this is a 1.20 in/hr floor"
+   },
+   "measured_line_flow_lpm": 12.4,
+   "measured_line_flow_lph": 744
+  },
+  "infiltration": {
+   "_comment": "The core problem found 2026-08-03. Instantaneous application rate is several times what the soil can absorb, so past the first minute or two water ponds, runs to the edges and channels down preferential paths instead of wetting the profile evenly. Effective (duty-cycled) rate should sit at or under the ceiling.",
+   "application_rate_in_per_hr": 6.6,
+   "loam_infiltration_in_per_hr": [
+    0.2,
+    0.6
+   ],
+   "raised_bed_mix_estimate_in_per_hr": [
+    1.0,
+    3.0
+   ],
+   "target_effective_rate_in_per_hr": 1.7
+  },
+  "tomato_plant_count": null,
+  "_plant_count_comment": "UNKNOWN — needed to turn hand-application events into a volume calibration. On 2026-08-16 roughly 0.5 gal (1.9 L) per plant was hand-poured and the tomato probe went 71 -> 81 with +8 retained. With a plant count that becomes litres, and litres against the probe response is a DIRECT slow-application efficiency measurement to compare against the emitters' 19.9 L per 90 s pulse. Fill this in."
+ },
+ "health": {
+  "_comment": "Sensor-trust thresholds. nominal_volts is the voltage the probe's factory calibration assumes (1.5 V alkaline); a lithium AA reads ~1.7 V and shifts the derived moisture %. range_collapse_frac flags a probe whose daily AD swing drops below this fraction of its trailing norm (failing sensor or lost soil contact). volt_tolerance widened 0.08 -> 0.15 on 2026-08-09: a FRESH alkaline genuinely sits at 1.55-1.65 V, so 0.08 raised a false 'bad calibration' alarm on a healthy probe the day after the battery was restored. 0.15 still catches lithium (0.20 off nominal) while leaving normal alkaline headroom alone -- that gap is the whole discrimination this check exists to make.",
+  "_range_comment": "RANGE CHECK RECALIBRATED 2026-09-03 against the one labelled failure in the record: pepper Jul 22 - Aug 6, thirteen days at 4-6 AD counts while the tomato channel ran 97-145. That is a dead channel, and it is the only ground truth we have. Two changes. (1) ad_range_floor is now the `bad` trigger, because it is the only test that does not move when the irrigation schedule moves. 3-day-median AD range inside the failure was 4-9 counts; the minimum ANYWHERE else across 67 days and both channels is 15. A floor of 12 sits mid-gap, catches all 15 failure days, and produces zero false positives on the record. (2) range_collapse_frac dropped 0.35 -> 0.25 and DEMOTED to `warn`. At 0.35 the ratio test fired 11 times on a healthy tomato channel (Aug 10-15, Sep 1-3) and mislabelled the peppers on Sep 2-3 -- every one of those false alarms landed days after an irrigation regime change, because a flatter schedule IS a smaller diurnal swing and the trailing baseline still held the old regime's numbers. Real-failure ratios were 0.116-0.194 and nothing else went below 0.288, so 0.25 sits in that gap. Lengthening the baseline window does NOT help and was tested: 14d/28d/60d gave 7/11/10 tomato false alarms, because a longer window reaches further back into the high-swing pre-pulsed regimes. CAVEAT, and it is the important one: n=1. Both numbers are fit to a single incident, which is exactly how 0.35 got set. Re-derive when a second failure exists, and do not let the `warn` be deleted -- it is the only net for a failure mode that does not look like this one.",
+  "nominal_volts": 1.5,
+  "volt_tolerance": 0.15,
+  "range_collapse_frac": 0.25,
+  "ad_range_floor": 12,
+  "step_recent_days": 14
+ },
+ "plan": {
+  "_comment": "Actual watering is a fixed timer, not a volume-based/Smart plan (that was never implemented). The WFC01 meters the tomato raised bed line ONLY. THE PEPPERS ARE NOT ON ECOWITT HARDWARE AT ALL — corrected 2026-08-19; they run off the HOUSE MULTI-ZONE IRRIGATION CONTROLLER alongside lawn/roses/trees. See pepper_system below before troubleshooting anything pepper-related. The pepper_freq/pepper_time/pepper_run_min keys live in this block for dashboard-rendering reasons only; they describe a different device on a different network with different failure modes. Delivery figures below are the MEASURED metered rate on clean days, not a nameplate estimate — real flow runs well above emitter nameplate.",
+  "set": "2026-08-19",
+  "mode": "plan mode, three-start pulsed timer",
+  "scope": "tomato raised bed only",
+  "freq": "3 runs daily",
+  "time": "05:05",
+  "run_seconds": 120,
+  "runs": [
+   {
+    "time": "05:05",
+    "seconds": 120
+   },
+   {
+    "time": "13:05",
+    "seconds": 120
+   },
+   {
+    "time": "17:05",
+    "seconds": 120
+   }
+  ],
+  "runs_effective": "2026-09-11",
+  "run_min": 6,
+  "run_min_effective": "2026-09-11",
+  "emitters": "12 bubblers + 8–10 drip-flag emitters (4 gph)",
+  "metered_daily": 78.8,
+  "metered_weekly": 551.6,
+  "expected_in_per_week": 4.86,
+  "live_plan_note": "ACTIVE from the 2026-09-11 05:05 run; set in the app by Justin on 2026-09-10 evening, after that day's 17:05 run, so the first FULL day on the new plan is 2026-09-11. Three plain-duration entries of 120 s each at 05:05, 13:05 and 17:05, cycle mode OFF. START TIMES ARE UNCHANGED from the 3 x 80 s plan -- only duration moved, 80 -> 120 s, so runs_time_effective stays at 2026-08-28 and onset checking is not rescoped. Rationale: four days of 85-96 F broke an otherwise exact equilibrium; see the 2026-09-11 schedule_log entry. Projection on the measured 0.2188 L/s rate: ~78.8 L/day, ~552 L/wk, ~4.86 in/wk. DELIBERATE SURPLUS for refill, to be trimmed once the daily minimum flattens.",
+  "schedule_log": [
+   {
+    "date": "2026-09-11",
+    "logged": "2026-09-10T20:30:00",
+    "kind": "change",
+    "summary": "Tomato plan 3 x 80 s -> 3 x 120 s, start times UNCHANGED at 05:05 / 13:05 / 17:05. Total runtime 240 -> 360 s/day (+50%). Set by Justin 2026-09-10 evening, after that day's 17:05 run, so the first full day on the new plan is 2026-09-11. Peppers untouched -- and note they CANNOT be touched from here: they are a zone on the house multi-zone controller, not the WFC01 (see pepper_system).",
+    "change": "Driven by the Sep 7-10 heat, not by a fault. The bed had been in exact equilibrium on 3 x 80 s -- daily MINIMUM sat at 68.0 for eight consecutive days (Aug 31 - Sep 7) -- and then fell -2, -2, -5 as tmax went 76.7 -> 85.4 -> 89.4 -> 96.0 -> 94.1 and ET0 went 4.5 -> 5.9 mm/day. Supply never changed; demand did. Morning recharge stayed rock steady at +3 pts/day on the tomato probe through Sep 10 inclusive, so the line, the timer and the emitters are all fine. FALSE ALARM LOGGED FOR THE RECORD: the 2026-09-10 dashboard run initially read this as irrigation having stopped reaching the bed, because detect_events() lists no tomato event after Sep 3 and no pepper event after Sep 4 while the WFC01 kept metering ~55 L/day. That was a detector artefact, not a garden problem -- see the events_detector_gap note. Justin called it correctly from the raw levels: a genuinely cut-off bed in 96 F would fall far faster than 2 pts/day and would not recharge every morning.",
+    "expected": "On the measured 0.2188 L/s rate, 3 x 120 s = 360 s = ~78.8 L/day = ~552 L/wk = ~4.86 in/wk. That is ~2.0x the TOP of the estimated August ETc band (1.75-2.45 in/wk) and the largest surplus deliberately run since the 4 x 90 s regime. Two reasons it is less reckless than it looks: (1) the profile is in active deficit and cannot refill at 1.0x demand, same logic as the Aug 28 change; (2) the 1.75-2.45 band is an AUGUST estimate and September ET0 is currently running ~5.9 mm/day against a ~4.3 mm/day August mean, so true current ETc is above that band top and the real multiple is smaller than 2.0x. TRIM THIS once the daily minimum stabilises -- do not let it ride into cooler weather.",
+    "watch": "In order: (1) does the daily MINIMUM stop falling and flatten -- that is the metric that broke, not the mean; (2) does metered L/day come in at or ABOVE the ~78.8 L predicted -- line-charge time is a fixed cost per run, so a 120 s run wastes proportionally less of itself filling the hose than an 80 s run did, and the measured rate may therefore beat the linear projection; (3) the pepper bags, which this change does NOT help -- they were 32.5% and below their 36% floor on Sep 10, on a controller with no metering and no remote status.",
+    "open": "Pepper zone needs a separate decision on the house controller. It is the channel actually below its floor and nothing done to the WFC01 reaches it."
+   },
+   {
+    "date": "2026-08-28",
+    "logged": "2026-08-27T15:07:00",
+    "kind": "change",
+    "summary": "Tomato plan 2 x 90 s -> 3 x 80 s, at 05:05 / 13:05 / 17:05. A midday start is added and each run trimmed 90 -> 80 s, so total runtime goes 180 -> 240 s/day (+33%). Set by Justin 2026-08-27; first full day 2026-08-28. Peppers deliberately untouched.",
+    "change": "The daily mean held mid-band over the 8 days on 2 x 90 s (71.3 -> 62.1 against a 50-75 band), but the true 5-minute afternoon trough fell 65 -> 56 at ~1.4 pts/day with no flattening, crossing the 58 working floor on Aug 25 and on track for the 50 stress floor in 4-5 days. The trough sits at 16:40-16:55 every day, ~75 min before the 17:05 run, so the shortfall was a hole in the afternoon rather than a gross volume shortage: the Aug 20-26 week metered 2.43 in against an estimated ETc of 1.75-2.45, the first week ever in band. Claude recommended a smaller step (3 x 75 s, or sliding the PM start to ~15:30 for free); on the newly measured meter rate the two are close, 3.04 vs 3.24 in/wk. Claude's original '3 x 75 s = 1.16x ETc' was wrong - it used the partial-day-diluted 36.7 L/day instead of the 39.4 L/day full-day rate. Watch next week, in order: does the trough settle around 60-62; does it MOVE (the 13:05 pulse decays ~3.5 h, so the low may still land at 16:45, only shallower - if so slide the PM start earlier rather than adding volume); weekly inches back above band (~3.24 vs 1.75-2.45) is intended refill and must be trimmed once the trough stabilises; and retained points per 100 L across the three pulses, since 80 s may under-wet the root zone and a midday run loses more to evaporation. Peppers stay at 7 min once daily @ 06:45 - they stabilised at a 38 minimum for Aug 25-27, equilibrium on their working floor, and Claude's earlier '4 days from the floor' call was wrong (it read a decelerating curve as linear). They are on the house controller, not EcoWitt, so this change cannot reach them."
+   },
+   {
+    "date": "2026-08-22",
+    "logged": "2026-08-22T21:25:00",
+    "kind": "decision",
+    "change": "PEPPER DISPLACEMENT CLOSED AS EXPECTED BEHAVIOUR, and onset_check now says so in code. Justin confirmed 2026-08-22 that other house zones run serially ahead of the peppers on those days and this is not a concern. All 5 surviving late runs classify as `displaced` (late, full-size retained gain); zero classify as `fault`; tomato is 36 of 36 on time. onset_check() gained a `kind` field — on_time / displaced / fault / late_unclassified — where fault means late AND retained below 0.6x the median of on-time runs in the same window, i.e. the problem is at THIS valve rather than upstream. The distinction previously existed only in a docstring and a sentence under the table, leaving the reader to eyeball Delta against Retained; the dashboard now styles displaced as muted information and reserves the warning colour for a short run. RATIONALE, and it is the same one as the 2026-08-19 permanent-warning health-panel fix: a panel that flags expected behaviour in alarm colours trains the reader to skip it, and then it will not be read on the day something genuinely breaks. WHAT THE PANEL IS STILL FOR: the pepper probe remains the only instrumentation on the entire house irrigation system, so displacement is worth RECORDING even though it needs no action — it is the only visibility into how much extra water the upstream zone is taking (~41 min average, roughly one day in three)."
+   },
+   {
+    "date": "2026-08-22",
+    "logged": "2026-08-22T21:15:00",
+    "kind": "finding",
+    "change": "TWO HAND-POURS ON THE SAME MORNING ARE THE CLEANEST DEMONSTRATION OF THE CEILING IN THE RECORD. Justin confirmed both 2026-08-07 events as manual: pepper 09:15 and tomato 10:25, same operator, same method, 70 minutes apart. The DRY pepper bags (34%, just off the lithium flatline) took 11 points and shed 4. The tomato bed, already sitting at 80% — above the 75% drainage ceiling — took 2 points and shed 10. Identical action, opposite result, and the only variable is whether the medium had capacity to accept water. This is the retained-vs-shed diagnostic and the derived ceiling agreeing with each other on a natural experiment neither was fitted to. Practical corollary for fertigation: the value of a hand application is set almost entirely by the moisture level you pour onto, which is why the 2026-08-19 timing fix (fertigate late afternoon at the daily floor, never onto a wet medium) matters more than the dose."
+   },
+   {
+    "date": "2026-08-22",
+    "logged": "2026-08-22T21:05:00",
+    "kind": "finding",
+    "change": "PEPPER LATE-FIRING IS NOW A CLEAN DISPLACEMENT SIGNATURE, once both manual events are excluded. Justin confirmed the 2026-08-07 09:15 pour (battery-swap hand-watering) and the 2026-08-19 13:45 run (bubbler function test); tagging them drops pepper onset violations from 7 of 17 to 5 of 15 (~33%). The point is not the count, it is the SHAPE of what remains: every surviving violation is +35 to +55 min (Aug 8 +40, Aug 12 +35, Aug 14 +35, Aug 20 +55, Aug 22 +40) with a full-size run. The two discarded outliers were +150 and +420 — an order of magnitude away and the only two that ever looked like a failing valve. A tight 35-55 min band of full-size displaced runs is what an upstream zone running long looks like on a sequential controller, and it is not what a failing pepper valve looks like (that would give short or missed runs). The house-system zone order is now the single highest-value unknown in the file: the hypothesis predicts the culprit zone runs BEFORE the peppers and overruns by ~40 min roughly one day in three. GENERAL LESSON: two unlogged manual events were enough to hide a clean bimodal signal inside what looked like scattered noise, and both were only recoverable by asking Justin — a hand application leaves no trace the meter or the controller can see."
+   },
+   {
+    "date": "2026-08-22",
+    "logged": "2026-08-22T20:30:00",
+    "kind": "finding",
+    "change": "FIELD CAPACITY AND THE STRESS FLOOR ARE NOW DERIVED, and the setpoint is retired. Method needs no soil calibration, which is what made this look impossible for three weeks: partition moisture loss by whether the atmosphere was demanding water. At NIGHT (ET0 = 0) nothing transpires, so anything leaving the soil is drainage — binned by level, night loss is flat at 0.17-0.76 %AD/hr up to 74 then steps to 1.66 at 75-79 and 12.07 at 80-84. That discontinuity IS field capacity, read straight off the factory-calibrated index with no conversion. By DAY, loss per mm ET0 is flat at ~4-5 %AD across 50-74 (demand-limited uptake) and falls to 1.30 at 45-49, which is the plant restricting uptake. TOMATO: ceiling 75, floor 50 (floor LOW confidence, n=105 — the bed has never been allowed to get dry). PEPPER: ceiling 48, floor 36; note the retired hand-set pepper threshold was 35, a good guess. New lib/derive_bands.py reproduces all of it; re-run if a probe is reseated or moved."
+   },
+   {
+    "date": "2026-08-22",
+    "logged": "2026-08-22T20:30:00",
+    "kind": "finding",
+    "change": "THE 2x90s PLAN IS CORRECT, and this is the first evidence that is not circumstantial. Scoped to the current regime (Aug 20+), the tomato bed cycles 64-73% — peaks land 2 points UNDER the 75% ceiling and troughs sit 14 above the floor, so the entire operating band is in plant-fed territory. Drainage/uptake split is 75% uptake / 25% overnight, against 47.8/52.2 when the same window straddled the old plan. Native 5-min traces confirm the mechanism: post-run level now HOLDS (Aug 21 evening 64 -> 71, flat at 71 for two hours) where the old plan spiked to 89-90 and shed back to 79-81 within ten minutes. Season total is still 5,506 L against ~1,316 L of crop demand (4.2x), but that is the retired regime's debt; Aug 20-22 runs 1.9x by arithmetic and probably ~1.3x once canopy area past the bed walls is accounted for, which is a normal leaching fraction rather than waste. CAVEAT: 3 days. PEPPER ACTION: bag peaks are hitting ~49 against a 48 ceiling, so the 7-min run is still ~1 point long — trim to 6 min, keeping the 15-min flush every 2-3 weeks for salts."
+   },
+   {
+    "date": "2026-08-22",
+    "logged": "2026-08-22T20:30:00",
+    "kind": "fix",
+    "change": "DASHBOARD: setpoint removed everywhere, two panels cut, two scoping bugs fixed. Gauges now show a drainage ceiling and a stress floor with the waste zones hatched, and the stats row is peak/trough/time-draining/loss-to-plants instead of mean/median/range/std — a mean averages the irrigation spike with the dry-down and hides both ends. CUT panel 8 'Full history' (its own hint admitted 'context only', and the hourly bucket destroys the pulse structure panels 2/5/6 exist to show) and panel 9 'Water usage' (raw cumulative meter, already stated decision-grade in panel 4 as inches vs ETc and in panel 10 vs plan; a third view of the same litres with the batching artefacts left in only offered a way to reach a different conclusion). Weather findings card repurposed from an r~0 correlation to the drainage/uptake split, which is ET0's real job here. TWO BUGS, both the same class as the Aug 19 blank-panel failure: (1) the partition used a fixed 14-day window that straddled the Aug 19 plan change and reported a schedule that no longer existed — now scoped by _regime_start() off plan.regimes; (2) the peak-vs-ceiling test used >= so a peak landing exactly ON the ceiling rendered '0 points past the ceiling'. Also retired _trend/_distribution/_weekly/_diurnal from analyze.py: the first two were setpoint-dependent artefacts, the last two were computed every build and rendered by nothing."
+   },
+   {
+    "date": "2026-08-20",
+    "logged": "2026-08-19T15:20:00",
+    "kind": "change",
+    "change": "PEPPER CUT LIVE: 15 min -> 7 min @ 06:45, entered by Justin 2026-08-19 15:15. Today's 06:40 run already happened at 15 min, so the first run on the new duration is 2026-08-20 and that is the date to compare from. Target was ~5 min of delivery plus line-charge margin, on the finding that the bags reach container capacity 5-8 minutes in and minutes 8-15 are leachate."
+   },
+   {
+    "date": "2026-08-20",
+    "logged": "2026-08-19T15:20:00",
+    "kind": "decision",
+    "change": "TEST DESIGN for the pepper cut, unchanged from the pending note: run 4-5 days, not 2-3, because ~27% of runs fire ~40 min late and a 3-day window is roughly a coin flip to catch one. MEASURE FROM ONSET, NOT CLOCK TIME — a displaced run shifts the whole curve without changing its shape, so onset-anchored it stays a usable data point. PASS CONDITION: value at onset+50 min still 46-47 AND next-morning floor still 39-40, which would confirm minutes 8-15 were pure drainage. FAIL: floor declining day over day -> split to 2 x 5 min rather than returning to 15, since fabric bags dry through the sidewalls and want frequency over volume. Keep one 15-min flush every 2-3 weeks for salt management."
+   },
+   {
+    "date": "2026-08-20",
+    "logged": "2026-08-19T15:20:00",
+    "kind": "note",
+    "change": "BOTH LINES NOW CHANGED FOR 2026-08-20 — tomato to 2 x 90 s and peppers to 7 min. This is NOT the confound the earlier 'do_not_confound' note warned about: the two lines are separate systems on separate probes, so each channel measures only its own change. What IS newly true is that neither channel has a stable baseline any more, so treat 2026-08-20 as day zero for both and do not read week-over-week comparisons that straddle it. FERTIGATION NOTE: the 7-min run is now the default follow-up, which is what the 2026-08-19 leaching finding asked for — fertigate late afternoon at the bags' daily floor (~40-41%), never mid-morning onto a wet bag."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T15:35:00",
+    "kind": "fix",
+    "change": "ONSET PANEL WENT BLANK the moment the pepper cut was logged, and the bug is worth keeping visible. onset_check was scoped by runs_effective/pepper_effective, but those advance on a DURATION change too — setting pepper_effective to 2026-08-20 put the filter date in the FUTURE, excluded every event, and the table rendered empty with no error. Onset compares START TIMES, and a duration change does not reset start-time history. FIXED two ways: new runs_time_effective / pepper_time_effective keys track only when times moved (tomato 2026-08-04, pepper 2026-07-24, unchanged across both pepper durations), and a _scope() guard now drops any `since` date later than the newest reading so a future-dated plan can never silently empty a panel again. Also fixed stale plan copy that still described 'three morning starts 15 min apart' while rendering a two-run schedule — it now branches on the actual run list. GENERAL LESSON, third instance this session: a panel that can render EMPTY or STALE without erroring is the same failure class as the Aug 4 dead-sensor panel and the Aug 19 permanent-warning panel. Silence is not a safe default."
+   },
+   {
+    "date": "2026-08-16",
+    "logged": "2026-08-19T16:00:00",
+    "kind": "note",
+    "change": "RESOLVED — the unexplained 2026-08-16 09:20 event on both channels was Justin hand-pouring LIQUID FERTILISER, ~0.5 gal (1.9 L) per plant, all plants. Recorded in plan.manual_events; events are now tagged manual, excluded from onset violations and from retention entirely. Response: tomato 71 -> 81 peak, +8 retained; pepper 45 -> 50 peak, only +1 retained because the bags were still wet from the 06:40 run and had nowhere to put it. The pepper number is the useful one — fertigating a near-capacity fabric bag means most of the dose drains straight out the base."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T16:00:00",
+    "kind": "finding",
+    "change": "FERTIGATION IS BEING LEACHED, and the washout finding is what makes it expensive rather than merely wasteful. Sequence on 2026-08-16: fertiliser hand-applied 09:25 onto pepper bags sitting at 45% (already wet from the morning run, so retained only +1 of a +5 excursion); next morning 06:40 the bags took their usual 15-minute run, which sheds ~65-68% of its excursion out the base. So a large share of the fertiliser was flushed below the root zone within ~21 hours of being applied. TIMING FIX, no extra cost: fertigate LATE AFTERNOON when the bags are near their daily floor (~40-41%) and have capacity to absorb, not mid-morning onto a wet bag; and follow with the SHORT 7-minute run, never the 15-minute flush. The pending pepper duration cut therefore has a second, independent justification beyond water — at 15 min the bags are a leaching machine, and every fertigation is paying for it."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T16:00:00",
+    "kind": "fix",
+    "change": "METER-BLIND WATER — hand applications never pass the WFC01, so the meter under-reports while the probe records the full response. This silently inflated points-per-100L to 23.9 on 2026-08-16, the highest figure in the record and pure artefact: the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, and manual runs are dropped from the per-run efficiency averages (tomato 61% -> 55%, pepper 32% -> 35% once the fertigation event is removed). Detection signature for anything unlogged in future: simultaneous off-schedule events on BOTH channels within a few minutes — that pattern occurs exactly once in the whole record. NOTE the 2026-08-07 pair (tom 10:25, pep 09:15) is 70 minutes apart and coincides with the pepper battery swap, so it is probably handling rather than a second fertigation; left untagged pending confirmation."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T15:30:00",
+    "kind": "fix",
+    "change": "DASHBOARD REBUILT AROUND DECISIONS, not data sources. Root problem: sample_interval_minutes=60 while native data is 5-minute, so the hourly resample erased the pulse structure EVERY real finding came from — a 90 s pulse and a 15-min run both vanish into one bucket. New lib/events.py works on raw readings and drives six new panels: control variable (pre-irrigation floor + daily min, the quantity the log always steered on, previously never plotted), regime comparison, water budget vs ETc, per-run retained-vs-shed efficiency, 5-minute pulse detail, and onset verification. CUT: the dry-down trend + setpoint projection (one OLS across five irrigation regimes, R^2 0.28, projection undefined), distribution/time-in-band (scored against a hand-set alert threshold on a factory-calibrated index), the weather correlation panel (r=-0.001 is a stable null; ET0 kept where it works, as the budget denominator), and the week-over-week mean table (the mean averages the spike with the dry-down and hides both ends). Sensor health moved to panel 1 — it gates everything and used to sit sixth. Also fixed a hardcoded chart header that had read 'Jun 9 - Jul 7' for weeks against Jun 29 - Aug 19 data; nobody noticed, which is its own verdict on that panel."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T15:30:00",
+    "kind": "finding",
+    "change": "REGIME TABLE MAKES THE WHOLE THESIS VISIBLE IN FIVE ROWS, and it should have existed in July. Mean pre-irrigation floor by regime: 14 min daily 189.4 L/day -> 56.4%; 10 min daily 118.8 -> 56.8%; 12 min 149.3 -> 50.0%; 4 x 90 s pulsed 78.3 -> 72.2%. That is 2.4x the water for 15.8 points LESS retained. Every regime before the pulsed plan sat in a narrow 50-57% band regardless of volume, which is the signature of a bed at its infiltration ceiling: past that point extra litres do not enter the soil, they run off and percolate. Water budget agrees — all 7 complete weeks came in ABOVE estimated ETc, from 1.9x to 4.2x, and the new two-run plan projects 2.46 in/wk, the first week that would land in band."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T15:30:00",
+    "kind": "note",
+    "change": "OPEN QUESTION FROM THE REBUILD: event detection found a THIRD irrigation event on 2026-08-16 at ~09:20 on BOTH channels (tomato 71->81, pepper 09:25) — simultaneous, outside every schedule, on a Sunday. Not rain (precipitation is 0.0 across the entire weather record). Most likely hand-watering. Justin to confirm; if it was manual, note that manual events land in the retention and onset panels as schedule violations unless they are logged. Two smaller verification catches worth keeping: onset_check MUST be scoped with `since` (unscoped, it scored the whole history against the current schedule and reported 30 of 53 pepper runs late, burying the 3 real ones — now 5 of 14), and daily_extremes now flags `partial` days because today's export usually stops mid-morning, which made the day's 'minimum' the overnight value and read as a dramatic improvement that had not happened."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T14:00:00",
+    "kind": "note",
+    "change": "SETPOINTS ARE NOT DATA-DERIVED — they are the EcoWitt app alert thresholds Justin set (tomato 62%, pepper 35%), copied into probes.*.setpoint and only ever read by analyze.py, never computed. They also CANNOT be derived in absolute terms while both probes run factory calibration, where 0%AD is air and 100%AD is submerged in water: the '%' is an index on that calibration, not volumetric water content, so 62% has no agronomic meaning and should never be compared to published ideal-moisture figures. Note three different numbers are currently doing this job with no stated provenance — setpoint 62, gauge ideal band 60-68, and the 58-60% overnight-min target used to govern the ramp; treat all of them as operator judgement and read each probe against itself."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:07:00",
+    "kind": "change",
+    "change": "Cut to two runs, 90 s @ 05:05 and 90 s @ 17:05, entered by Justin; the 05:20 and 05:35 pulses are retired. ~40 L/day = 2.46 in/week, a 50% cut from 79.6 L/day, which is ramp step 4 and the top of the estimated August ETc band. WATCH the 17:00 floor: predicted 63-65 from 66-69 — hold if it lands 62-66, restore one morning pulse if it drops below 58 or midday wilt persists at 20:00."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:07:00",
+    "kind": "finding",
+    "change": "Morning pulses 2 and 3 are pure waste. At 5-minute resolution the inter-pulse floor pins at 79-81% (field capacity at 3 in) and pulse 1 alone reaches it, while pulses 2 and 3 spike to 89-90% and shed every point back within 10 minutes — ~40 L/day and ~280 L/week buying zero retained moisture. Near-saturation plus a dead-flat overnight line argues against the 'charging depth below the probe' alternative, but only a WH51L at 8-10 in settles it."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:07:00",
+    "kind": "finding",
+    "change": "The bed never reaches setpoint. Hourly means Aug 8-19: overnight flat at 73, peak 77.8 at 06:00, daily minimum 69.3 at 17:00, PM pulse resetting to 74.6. Against a 62% setpoint and a 60-68 ideal band the floor sits 7-11 points high and the bed spends zero hours in band; the dead-flat overnight line is itself the tell that the profile is parked at capacity."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:07:00",
+    "kind": "decision",
+    "change": "Timing unchanged — the lever here is volume, not clock. Overnight loss is ~0.1 pts/hr vs 0.8 daytime so pre-dawn costs nothing evaporatively, and the PM slot correctly targets the daily minimum (it peaks 76-80 vs the morning's 89-90, i.e. the bed can actually absorb it). TWO CORRECTIONS: the Aug 2 '~2 h infiltration lag' no longer holds (at 90 s pulses the probe registers within 5 minutes), and 15-minute pulse spacing is far too short — use 60-90 min if two morning pulses ever return."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:07:00",
+    "kind": "finding",
+    "change": "Pepper washout confirmed, visible mid-run. Aug 19: 06:40=40, 06:45=58, 06:50=61 peak, then 06:55=53 while water is still running, settling to 47 — the media hits container capacity ~5-8 minutes in, so minutes 8-15 are leachate and the retained gain is only +7 points. COUNTERWEIGHT: nothing is stressed (39-47 sits inside the 35-48 band) and some leaching is deliberate practice in containers, so the goal is to reduce it, not eliminate it."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:45:00",
+    "kind": "fix",
+    "change": "Both probes are healthy and have been ~12 days: tomato 1.50 V with AD range 20-102, pepper 1.60 V with AD range 61-94 since the Aug 6-7 alkaline restore. Pepper was stuck at ok=false solely by a warning about the 2026-07-18 lithium voltage step, because the step check ran over all history into `flags` and ok = not flags, so a historical break could never clear. FIXED: steps older than health.step_recent_days (14) move to a `breaks` list and no longer drive ok — this is the Aug 4 lesson inverted, and a health check that cannot clear just trains the reader to ignore it."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:30:00",
+    "kind": "fix",
+    "change": "WRONG SYSTEM: the peppers are not EcoWitt hardware at all — they are a zone on the house multi-zone controller that also runs lawn, roses and trees, corrected by Justin. The same-day late-firing finding therefore ends with an action pointing at the wrong device, and its 'two schedule entries' hypothesis was built for the wrong kind of controller. See plan.pepper_system for the corrected device record."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:30:00",
+    "kind": "finding",
+    "change": "Late-firing reframed as a house-system fault. On late days the run is FULL SIZE and merely displaced ~40 min (Aug 12 onset 07:20, peak 61 at +10 min; Aug 19 onset 06:40, peak 61 at +10 min) — a failing pepper valve would give a short or missed run, so on a sequential-zone controller something UPSTREAM consumed ~40 minutes. The peppers are the witness, not the victim: those 40 minutes went to an unmonitored zone (lawn, roses or trees) roughly one day in four. Day-of-week tested and NOT supported (Wed and Sat each appear on both sides), though 11 days is too underpowered to refuse it properly."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:30:00",
+    "kind": "note",
+    "change": "House-system next steps, best information per unit of effort first: record the controller make/model, the pepper zone number, and the full zone order with run times — zone order is the key missing fact, since the displacement hypothesis predicts the culprit runs BEFORE the peppers. Then sum upstream run times against the ~40 min gap, check for overlapping A/B/C programs, check the backup battery, and pull the controller run log for Aug 8/12/14 if it has one. Cheap instrumentation: 6 of 8 soil channels are free, so a probe in a rose bed or tree well would extend observability to a second house zone."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:16:00",
+    "kind": "finding",
+    "change": "Pepper start time is not drifting, it is bimodal. Onset is 06:40-06:45 on Aug 9/10/11/13/16/17/18/19 and 07:20-07:25 on Aug 8/12/14 — 3 late days of 11 interpretable, ~27%, with Aug 7 excluded (battery-swap handling) and Aug 15 uninterpretable (truncated export). CORRECTIONS to the earlier same-day claim: Aug 15 was a data gap, not an early run, and Aug 8 was a missed third late day."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:16:00",
+    "kind": "note",
+    "change": "Pepper onset history is unrecoverable before 2026-08-07. The lithium flatline (daily AD swing 4-7 counts vs 61-94 after) means no irrigation event registered at all from ~Jul 22 to the Aug 6-7 swap, so the entire life of the Jul 23 plan is invisible except its last 13 days. The dead battery did not just produce wrong values, it erased the baseline needed to diagnose a later problem."
+   },
+   {
+    "date": "2026-08-19",
+    "logged": "2026-08-19T13:07:00",
+    "kind": "note",
+    "change": "SUPERSEDED 2026-08-19 15:15 — the cut is now live; see the change entry of the same date. Retained here for the test design it specifies: measure over 4-5 days from ONSET, not clock time, and hold the 15-min flush every 2-3 weeks for salts."
+   },
+   {
+    "date": "2026-08-05",
+    "logged": "2026-08-05T17:40:00",
+    "kind": "finding",
+    "change": "Pulsed plan validated — the Aug 3 falsifiable prediction held. Water fell 124 -> 77 L/day (-38%) while the overnight minimum ROSE 50 -> 57, reversing an eight-day slide. Cleanest comparison: Aug 3 delivered 129.4 L in one 12-minute flood and settled at 75%, while Aug 4-5 delivered 57 L in three 90 s pulses and settled at 78-79% — less than half the water, 3-4 points more retained."
+   },
+   {
+    "date": "2026-08-05",
+    "logged": "2026-08-05T17:40:00",
+    "kind": "finding",
+    "change": "Morning pulses stack at the peak but not at the floor. Each pulse peaks ~2 points higher than the last, but the inter-pulse floor stays flat at ~80%, which is field capacity at the 3-inch probe — so pulses 2 and 3 add no storage at that depth. They are either charging the profile below the probe or draining past it, and a 3-inch probe cannot tell the two apart; the WH51L at 8-10 in would settle it."
+   },
+   {
+    "date": "2026-08-05",
+    "logged": "2026-08-05T17:40:00",
+    "kind": "decision",
+    "change": "Hold the current plan — the overnight min is 57 against a 58-60 target and still climbing, and two days is too little to re-tune on. Delivery is still 4.74 in/week against an estimated August ETc of 1.75-2.45, so there is room to cut further, but the min governs, not the arithmetic. The afternoon pulse is confirmed needed as Justin judged: it catches the bed at 56-57% and resets it to ~78% settled."
+   },
+   {
+    "date": "2026-08-04",
+    "logged": "2026-08-03T18:39:10",
+    "kind": "finding",
+    "change": "Pepper probe confirmed bad on behavioural evidence, not electrical. Pepper water was halved on Jul 24 and the daily moisture swing did not change at all — 1.0 point before and after, 0-1 points every day since Jul 22 — while the tomato channel swings 22-26 points over the same days. A probe that ignores a 50% cut in irrigation is not measuring soil; swap to alkaline and confirm the AD range recovers before trusting any pepper number."
+   },
+   {
+    "date": "2026-08-04",
+    "logged": "2026-08-03T18:39:10",
+    "kind": "fix",
+    "change": "DASHBOARD FIX: the distribution panel reported 'Pepper — 100% of readings at or above the 35% setpoint' and the findings called the peppers 'stable and dialed in' while the probe was flatlined — confidently wrong, and wrong in the dangerous direction, because a dead sensor renders as a perfectly watered bed. The health module had already flagged the channel but no other panel consulted it. Distribution cards and pepper findings now read DATA.health[k].ok: any panel stating a confident summary must first check instrument trust."
+   },
+   {
+    "date": "2026-08-04",
+    "logged": "2026-08-03T18:34:08",
+    "kind": "change",
+    "change": "PLAN LIVE: four plain-duration entries of 90 s each at 05:05, 05:20, 05:35 and 17:00, cycle mode OFF. ~79.6 L/day = 4.92 in/week, down from ~129 L/day = 8.00 in/week, a 38% cut. The three morning starts are a manual cycle-and-soak using Plan mode's start times, which gives a far longer soak than cycle mode and sidesteps the unresolved On>Duration validation bug; deliberately conservative while Justin is off-site until Aug 6."
+   },
+   {
+    "date": "2026-08-03",
+    "logged": "2026-08-03T18:34:08",
+    "kind": "fix",
+    "change": "CLOSED: the dashboard irrigation panel has been rewritten. It now renders the multi-start schedule from plan.runs, states delivery in inches per week against bed geometry, and tracks the new plan on the benchmark line rather than the retired 14-min timer."
+   },
+   {
+    "date": "2026-08-03",
+    "logged": "2026-08-03T16:00:09",
+    "kind": "finding",
+    "change": "Bed geometry recorded — 12 x 4 ft, 48 sq ft, soil 10 in deep — so 1 inch of water over the bed is 113.3 L. Current delivery of ~124-129 L/day is therefore ~1.1 in/DAY = 7.7-8.0 in/week against a stated 1.0-1.5 in/week target, roughly 6x over, and a single dose is close to the entire plant-available capacity of the profile delivered in 12 minutes. The bed has never been under-watered; it has been flood-dosed daily."
+   },
+   {
+    "date": "2026-08-03",
+    "logged": "2026-08-03T16:00:09",
+    "kind": "finding",
+    "change": "Root cause is application RATE, not duration or timing. Measured line flow of 12.4 L/min over 48 sq ft is 6.6 in/hr instantaneous, against 0.2-0.6 in/hr for loam and maybe 1-3 for a loose raised-bed mix — past the first minute or two water ponds, runs to the edges and channels rather than wetting the profile. Emitter audit: 9 drip flags at 4 gph impose a 1.20 in/hr floor on their own, leaving the 12 adjustable bubblers at ~13.4 gph each, at or past their 13 gph spec."
+   },
+   {
+    "date": "2026-08-03",
+    "logged": "2026-08-03T16:00:09",
+    "kind": "note",
+    "change": "SUPERSEDES the Aug 2 'next lever' entry (7 min AM + 7 min PM). That was written without bed area and would have delivered ~174 L/day = 10.7 in/week — worse than the problem it was meant to fix. Ignore it."
+   },
+   {
+    "date": "2026-08-03",
+    "logged": "2026-08-03T16:00:09",
+    "kind": "decision",
+    "change": "New plan using WFC01 cycle mode as the primary rate control, NOT the bubbler threads, since an 8-stream bubbler throttled too far loses its pattern and dribbles out one side. Cycle 30 s ON / 90 s OFF = 25% duty = 1.65 in/hr effective, run ~6 min twice daily => ~37 L/day = 2.30 in/week, targeting estimated August ETc rather than the shoulder-season figure; step down over ~5 days rather than cutting from 129 L at once. FALSIFIABLE: if the rate diagnosis is right, retained moisture should RISE while volume FALLS — if the overnight min keeps dropping as volume comes down, the deficit is real and the diagnosis is wrong."
+   },
+   {
+    "date": "2026-08-02",
+    "logged": "2026-08-02T18:08:31",
+    "kind": "decision",
+    "change": "Keep the tomato start at 05:05 rather than moving it toward sunrise. The water-at-sunrise rule is a foliar-disease argument that does not apply to soil-level bubblers and drip flags; measured overnight loss is ~0.13 pts/hr against ~1.1 pts/hr daytime, so pre-dawn application costs almost nothing evaporatively. Moving into the shared-pressure window would also add flow variance to the one variable being calibrated by minutes, and would confound the 10->12 min change taking effect Aug 3."
+   },
+   {
+    "date": "2026-08-02",
+    "logged": "2026-08-02T18:08:31",
+    "kind": "note",
+    "change": "NEXT LEVER if 12 min fails to lift the overnight min back into 58-60%: split the dose rather than adjusting time-of-day or adding minutes. The 07:00-11:00 plateau at 70-71% reads as the bed sitting at field capacity and shedding the excess, which is a percolation loss a longer single run would only worsen."
+   },
+   {
+    "date": "2026-08-02",
+    "logged": "2026-08-02T18:01:47",
+    "kind": "finding",
+    "change": "10-min run confirmed at 118 L/day over the 9 clean days Jul 24-Aug 1, against 168.6 L/day at 14 min — a ratio of 0.70 versus the theoretical 0.714. metered_daily/metered_weekly are now MEASURED figures (118 / 825, the latter an observed seven-day total rather than an extrapolation). The back-filled Jul 26 export also resolved an apparent 229.8 L spike on Jul 27 into two normal days."
+   },
+   {
+    "date": "2026-08-02",
+    "logged": "2026-08-02T18:01:47",
+    "kind": "change",
+    "change": "Tomato timer raised 10 -> 12 min once daily @ 05:05 PT, effective the Aug 3 run. At 10 min the daily mean fell steadily 64.6 -> 60.5 over Jul 26-Aug 1 and the overnight min broke below the 58-60% watch band to 53 — the trim over-corrected for current ET. Expect draw to rise to roughly 142 L/day; re-measure metered_daily/weekly from clean days once the next exports land."
+   },
+   {
+    "date": "2026-08-02",
+    "logged": "2026-08-02T18:01:47",
+    "kind": "change",
+    "change": "Pepper probe battery swap (lithium 1.70 V -> alkaline 1.50 V) scheduled for the week of Aug 3. Pepper moisture is NOT trustworthy until then: the AD range has collapsed to 4-6 counts with daily min and max nearly identical, so the apparent Jul 27-Aug 1 decline from 43.8 to 40.5 reads as calibration drift rather than a real dry-down. Confirm the AD range recovers after the swap before acting on any pepper number."
+   },
+   {
+    "date": "2026-07-26",
+    "logged": "2026-07-26T20:46:04",
+    "kind": "decision",
+    "change": "Hold peppers at once daily 15 min through the week of Jul 27 despite an apparent net daily deficit (AD baseline -3 to -4 counts/day against only +2 recovery per dose). The probe has been on a lithium battery since Jul 18 with a collapsed AD range, so the deficit reading is unconfirmed. Escalation tripwires handed to the on-site helper; re-evaluate on the Aug 1 site visit."
+   },
+   {
+    "date": "2026-07-24",
+    "logged": "2026-07-23T18:58:23",
+    "kind": "change",
+    "change": "Pepper bags moved from every-12 h to once daily, 15 min @ 06:45 PT; watch the 2-in probe for a deeper daily dry-down, since bag bottoms may still stay wet."
+   },
+   {
+    "date": "2026-07-24",
+    "logged": "2026-07-23T13:42:57",
+    "kind": "change",
+    "change": "Tomato timer trimmed 14 -> 10 min to cut leaching and deep percolation; watch that the overnight probe min holds near 58-60% at 3 in."
+   },
+   {
+    "date": "2026-07-16",
+    "logged": "2026-07-23T13:42:57",
+    "kind": "change",
+    "change": "Tomato timer set: 14 min once daily @ 05:05 PT, a fixed timer replacing earlier irregular hand-timing."
+   }
+  ],
+  "proposed_plan": {
+   "_comment": "NOT YET ACTIVE — proposed 2026-08-03 after reading docs/Ecowitt Water Meter WFC01.pdf. Set this in the Ecowitt app, then move these values into the live keys above. Manual refs: sec 6.1 watering methods p22-23, sec 6.2.2 cycle mode p24-25, sec 6.2.3 plan mode p27-30.",
+   "mode": "Plan mode",
+   "method": "BY DURATION (Justin's call, 2026-08-03). Volume mode was tried at install and rejected: emitter output is uneven across the flags and bubblers, and he reads timings more fluently than volumes. Accepted — distribution unevenness is real but it is orthogonal to the control method (a given emitter's SHARE of the total is the same whether the run ends on a clock or on a quantity), and operator fluency has genuine value. One thing duration keeps that volume would have destroyed: under volume mode the metered-litres chart flatlines by construction and loses its value as a leak/clog detector. Under duration, metered volume drifting at a fixed run length IS the diagnostic. The cost is that delivered depth is no longer guaranteed — recheck metered L against the target weekly and re-trim minutes.",
+   "start_times": [
+    "05:05",
+    "17:30"
+   ],
+   "repeat": "daily",
+   "cycle_mode": {
+    "enabled": true,
+    "on_seconds": 45,
+    "off_seconds": 135,
+    "duty_pct": 25,
+    "REVISED_2026-08-03": "Was 20/60. Lengthened to 45/135 (same 25% duty, same 1.65 in/hr effective rate) after Justin raised line-charge time. The hose must fill and the bubblers must reach pressure before real delivery starts; a 50-100 ft run holds 1.9-8.6 L depending on ID, which is 9-42 SECONDS of charge at 12.4 L/min. Against a 20 s pulse that is most of the pulse. Rule of thumb: ON >= 4-5x measured charge time. 45/135 cuts charge events per run by ~2.3x while keeping the effective application rate identical, because infiltration cares about the cycle-average rate, not pulse length. Per-pulse application at 45 s is 9.3 L = 0.082 in, which a 135 s soak clears comfortably at 1.65 in/hr.",
+    "charge_accounting": "RESOLVED 2026-08-03 with actual plumbing: 25 ft of 5/8 in garden hose = 1.51 L = 7.3 s of fill; the emitter manifold inside the bed adds ~0.96 L; total cold-start fill ~2.5 L / ~12 s. Crucially the hose runs UPHILL into the raised bed, so the emitters sit at the high point. When the valve closes, air enters at the bubblers and the hose water CANNOT flow back up over the crest — the 1.51 L in the hose simply stays there between pulses and between runs. It is never lost and never re-paid. Only the ~0.96 L above the crest drains, and it drains INTO the bed, so it is delivered rather than wasted. Net: NO volume is lost anywhere in this system. Within a run the effective re-charge is only the above-crest volume, ~5 s, so a 45 s pulse carries ~11% deadband on pulse one and near zero after.",
+    "uniformity_finding": "The real cost of cycling here is not volume, it is WHERE the drain-down lands. The ~0.96 L above the crest empties out of whichever bubbler sits lowest, once per cycle. At the originally proposed 20/60 that is 22 drain events/day and ~21 L/day preferentially dumped on one or two plants; at 45/135 it is 10 events and ~9.6 L/day; at 90/270 it would be 4 events and ~3.8 L/day. This is very likely a large part of why emitter output looks so uneven. 45/135 is the chosen middle: longer pulses cut the skew, but they also deepen transient ponding per pulse (0.082 in at 45 s vs 0.164 in at 90 s), which pushes water laterally to the bed edges. MITIGATION: find the lowest bubbler and either raise it level with the others or fit a small check valve just past the crest.",
+    "_comment": "Manual: 'a duty cycle is introduced against the current working mode... can be used to regulate more precisely for lower water rate application.' Legal range 5-3600 s. 25% duty takes the 6.6 in/hr instantaneous rate down to ~1.65 in/hr effective, inside the raised-bed infiltration window. 20/60 gives ~4.1 L per pulse; 15/45 is a finer alternative at the same duty.",
+    "RESOLVED_semantics": "The app rejects On > Duration ('the on time cannot be greater than the duration'). That validation only makes sense if Duration is the total ELAPSED window that the pulses run inside — so Duration = elapsed, NOT ON time. The 4x ambiguity is settled and the duration_s column in the ramp table stands as written.",
+    "APP_UNIT_TRAP": "Entering Duration 360 s with On 45 s / Off 135 s was rejected even though 45 < 360. Near-certain cause: the Duration field has a unit selector (manual p25: '10~43200 seconds OR 1~720 minutes') that was sitting on MINUTES, so the form held 6 while On held 45, and the validator compared the raw numbers 45 > 6. FIX: switch the Duration unit to seconds and enter 360. If Plan mode only offers minutes, the only way to satisfy a naive numeric compare is On <= the minute number, which forces ~5 s pulses — volumetrically equivalent (On 5 / Off 15 for 6 min still gives 18.6 L) but useless here, because a 5 s pulse is roughly the above-crest refill time so nearly every pulse would be pure line charge."
+   },
+   "ramp": {
+    "_comment": "Justin's concern about shocking the plants is well taken, though the mechanism is not 'shock' from the volume cut per se — plants respond to root-zone moisture, not to applied litres, and the 10-to-12-min test showed +5.2 L moving settled moisture by -1 point, so most of the marginal water never reaches roots. The real risk is that the 2.35 in/wk ETc estimate is simply too low for a raised bed in a heatwave, while the probe is already at a record-low 50%. Abrupt swings also invite blossom-end rot and fruit cracking, so gradual is right regardless. THE PROBE SETS THE ENDPOINT, NOT THIS TABLE: hold at whatever step returns the overnight min to 58-60%, even if that is 70 L/day and the 38 L target turns out to be wrong.",
+    "TEST_RESULT_2026-08-03": "90 s plain run at 17:00 (no cycle mode) delivered 19.9 L (13.3 L/min at the meter) and took the probe 53% -> 87%. The same morning, 129.4 L took it 50% -> 90%. So 6.5x the water bought 6 more points of peak. If ~20 L rewets the profile then ~110 L/day is surplus — about 766 L/week. This is the strongest single piece of evidence in the whole record that the bed is being flood-dosed, and it was obtained without a stopwatch.",
+    "AWAY_PLAN_2026-08-04_to_06": "Justin is off-site until Thu 2026-08-06, so: no stopwatch, no physical inspection, no charge-time measurement, and cycle mode is still unverified in the app (the On>Duration rejection is unresolved). Do NOT deploy unverified cycle mode unattended in a heatwave. Instead use PLAN MODE's 24 start times as a manual cycle-and-soak with plain duration runs, which is proven working hardware as of the 17:00 test. Entries: 05:05, 05:20, 05:35 and 17:00, each 90 s. That is 4 x 19.9 = 79.6 L/day = 4.92 in/wk, down from 8.00. A 15-MINUTE soak between pulses is far better than the 135 s that cycle mode would have given, and it directly serves the 'deep but not past the 10 inches' goal: repeated small increments infiltrate and redistribute downward between doses, whereas one 12-minute flood exceeds infiltration, ponds, and channels. Deliberately a conservative 38% cut rather than the full ramp — err wet while nobody can look at the plants. Re-evaluate Thursday on site.",
+    "OPEN_QUESTION_depth": "Unresolved and NOT answerable from a 3-inch probe: 19.9 L is only 0.176 in of water, which cannot uniformly wet a 10-inch profile from depleted, yet the probe at 3 in jumped to 87%. That means fast preferential/macropore flow, not a uniform wetting front. So a small dose reaching the probe does NOT prove the bottom of the profile is charged. This is exactly what the WH51L depth probe at 8-10 in would settle, and it is the main reason to keep the away-period cut conservative.",
+    "control_variable": "overnight tomato minimum, target 58-60%",
+    "steps_L_per_day": [
+     90,
+     70,
+     55,
+     45,
+     38
+    ],
+    "hold_days_per_step": 2,
+    "_units": "ALL THREE APP FIELDS IN SECONDS: On time 45 s, Off time 135 s, Duration in seconds. One cycle = 180 s and delivers 9.3 L at the measured 12.4 L/min. Duration is always a whole number of cycles (n x 180) so no run ends mid-pulse. To change VOLUME adjust the cycle count (Duration); to change RATE adjust Off time; leave On time alone once it is set from measured charge time.",
+    "table_at_25pct_duty": [
+     {
+      "step": "TEST",
+      "cycles": 2,
+      "duration_s": 360,
+      "L_run": 18.6,
+      "L_day": 18.6,
+      "in_wk": 1.15,
+      "elapsed_min": 6.0,
+      "note": "single PM run on 2026-08-03 only — resolves BOTH the Duration semantics and the line-charge time"
+     },
+     {
+      "step": 1,
+      "cycles": 5,
+      "duration_s": 900,
+      "L_run": 46.5,
+      "L_day": 93.0,
+      "in_wk": 5.75,
+      "elapsed_min": 15.0
+     },
+     {
+      "step": 2,
+      "cycles": 4,
+      "duration_s": 720,
+      "L_run": 37.2,
+      "L_day": 74.4,
+      "in_wk": 4.6,
+      "elapsed_min": 12.0
+     },
+     {
+      "step": 3,
+      "cycles": 3,
+      "duration_s": 540,
+      "L_run": 27.9,
+      "L_day": 55.8,
+      "in_wk": 3.45,
+      "elapsed_min": 9.0
+     },
+     {
+      "step": 4,
+      "cycles": 2,
+      "duration_s": 360,
+      "L_run": 18.6,
+      "L_day": 37.2,
+      "in_wk": 2.3,
+      "elapsed_min": 6.0
+     }
+    ],
+    "low_end_note": "Steps 4 and 5 collapse at this cycle size — 2 cycles is the practical floor for a 2x daily schedule. If the probe asks for less than ~37 L/day, drop to ONE run per day at 2-3 cycles rather than shortening pulses, since shorter pulses would put charge overhead back in.",
+    "measure_charge_time": "On the test run: start a stopwatch at valve open, note (a) seconds until the FARTHEST bubbler is running full and (b) the meter delta at that moment — that is charge time and charge volume. Then at valve close, note how long emitters keep dribbling. If charge time exceeds ~11 s, raise On time to 4-5x it and raise Off time to keep the 25% duty.",
+    "if_duration_means_on_time": "If the 2026-08-03 test shows Duration counts ON time rather than elapsed, DIVIDE every duration_s above by 4 (i.e. duration_s = cycles x 20). Setting 880 s under an ON-time reading would deliver ~182 L per run = ~364 L/day, roughly 3x the current over-application — which is why the test run comes first.",
+    "tripwires": [
+     "Overnight min falls more than 2 points the day after a step -> hold, or back up one step.",
+     "Overnight min recovers into 58-60% -> STOP RAMPING and hold there, whatever the litres say.",
+     "Midday wilt still present at 20:00 -> back up a step immediately (midday wilt that recovers by evening is normal).",
+     "Blossom-end rot or fruit cracking appearing -> moisture is swinging too hard; lengthen hold_days_per_step.",
+     "Metered L/day drifting at a fixed run length -> emitter clog or leak, not a schedule effect."
+    ],
+    "do_not_confound": "Leave the pepper line untouched through the ramp, and do not also change start times or duty cycle mid-ramp."
+   },
+   "delivers_at_target": {
+    "liters_per_day": 38,
+    "in_per_day": 0.335,
+    "in_per_week": 2.35
+   },
+   "caveats": [
+    "Plan-mode skip conditions (rain skip, temperature skip) are NOT implemented — manual p28 says 'under development'. Do not design around them.",
+    "Smart mode (auto-irrigate from the WH51 reading) requires the hub to be talking to the Ecowitt cloud. Hold off until a depth probe is installed; closing the loop on a 3-inch probe would just automate the current misread.",
+    "Scheduled plans ARE stored locally on the hub and survive network outages (manual p17).",
+    "The WFC01 manual is written for the GW2000 hub; this garden runs a GW1200. It works, but expect minor UI differences."
+   ]
+  },
+  "instrumentation_todo": {
+   "_comment": "Opened 2026-08-03 from docs/Ecowitt Sensor WH51L.pdf.",
+   "add_depth_probe": "The WH51L ships with a 1 m / 3.28 ft PVC cable specifically to 'enable the measurement of different depths of soil moisture' (manual sec 3.2). Installing one at 8-10 in in the tomato bed permanently settles whether extra run minutes are wasted or are charging the deep root zone — the current 3-inch probe cannot distinguish those. WH51 and WH51L share the same 8 soil channels; only 2 of 8 are in use.",
+   "soil_calibration": "Both probes are on FACTORY calibration. Back-solving the tomato AD/percent pairs gives 0%AD=124, 100%AD=352 (0.438 % per AD count). Pepper AD 211 predicts 38.3% against an observed 38%, so the two probes share one calibration and there is no voltage-induced shift in the AD->percent MAPPING. SCOPE CORRECTION (2026-08-09): that result was over-generalised on Aug 3 into 'the lithium-battery theory is wrong'. It only ever tested the mapping, never whether the battery shifts the raw AD counts the probe emits — which is upstream of the conversion, and is where the effect actually is. See pepper_probe_battery_finding. Factory 0%AD is the AD in air and 100%AD is submerged in water, so both ends are wrong for real soil; manual states 'generally, the sensor must be calibrated to suit your soil type' (Custom mode, WH51L sec 3.3).",
+   "pepper_probe_battery_finding": "RESOLVED 2026-08-09: the pepper flatline was the LITHIUM AA, not a failed probe. Daily AD swing by battery phase — alkaline to Jul 17 (v 1.50->1.28): swing 48 down to 16; lithium from Jul 18 (v 1.70): AD floor steps 225->199 with no soil event, swing good 4 days (50/66/89/57) then collapses Jul 22 to 4-6 counts and the floor drifts monotonically 241->203 for two weeks; alkaline restored Aug 6-7 (v 1.60): swing recovers 61/89/88 within a day. A clean 2-week monotonic ramp with no diurnal cycle is not soil physics. CAVEAT: the 4-day lag between the Jul 18 swap and the Jul 22 collapse is unexplained — the AD floor makes a second discrete step (199->241) on Jul 22 — so the battery is clearly implicated at the recovery end but may have interacted with a reseating or contact event at onset. Keep the probe on alkaline; health.nominal_volts 1.5 +/- 0.08 correctly flags 1.70 as out of tolerance.",
+   "pepper_probe_heat_hypothesis": "RULED OUT 2026-08-09 on SIGNATURE, not on temperature magnitude. The theory was that a black fabric bag in full sun exceeds the WH51/WH51L 122 F spec ceiling. Decisive test is the hour-of-day profile of pepper AD, which needs no temperature data at all: a heat-ceiling dropout must be DIURNAL — normal at dawn, degrading through the afternoon, recovering overnight as the bag cools. Observed mean AD by hour, peak-to-trough: alkaline Jul 1-10 = 13.3 counts; lithium Jul 23-Aug 5 = 3.9 counts (flat ~222 across all 24 hours, no dawn rise, no afternoon decline); alkaline Aug 7-9 = 30.4 counts, peaking hour 10 and declining normally through 12-16. The probe is fully responsive DURING peak-heat hours on the restored battery, and was equally dead at 4 a.m. as at 4 p.m. under lithium. That is a supply fault, not a thermal one. Soil contact and depth are still worth checking on their own merits.",
+   "wfc01_temp_is_not_ambient": "CAUTION added 2026-08-09 after an analysis error. The [WFC01] Water Flow Temperature column in the EcoWitt exports is the METER'S OWN BODY TEMPERATURE sitting in direct sun — it ran 110-123 F through late July while Santa Clara ambient was nowhere near that. It is valid for the wfc01_heat note below (that note is about the unit overheating itself) and useless as an air-temperature proxy for anything else. Ambient weather for the dashboard comes from the keyless Open-Meteo API fetched client-side, not from the log files; use that for any real weather question.",
+   "wfc01_heat": "The WFC01's own temperature sensor read 123.1 F on 2026-08-03, its highest on record. The unit's Overheating alert fires at 60 C / 140 F (manual sec 7.4). It is sitting in direct sun and heading toward its own alarm threshold — shade it."
+  },
+  "pepper_freq": "once daily",
+  "pepper_time": "06:45",
+  "pepper_run_min": 7,
+  "pepper_effective": "2026-08-20",
+  "pepper_system": {
+   "_comment": "RECORDED 2026-08-19 after Justin corrected a wrong assumption in this file. The pepper fabric bags are NOT on EcoWitt hardware — they are a zone on the HOUSE MULTI-ZONE IRRIGATION CONTROLLER that also runs lawn, roses and trees. Every prior note that spoke of the pepper 'timer' as if it were an EcoWitt plan entry was wrong about the device, and the 2026-08-19 'count the schedule entries in the app' action pointed at the wrong system entirely. This is a separate troubleshooting domain: different controller, different valves, different failure modes, no API, no logging.",
+   "controller": "house multi-zone irrigation controller (make/model NOT YET RECORDED — write it down on the next site visit, along with the zone number the peppers sit on and the full zone order)",
+   "zones_known": [
+    "peppers (6x 7-gal fabric bags)",
+    "lawn",
+    "roses",
+    "trees"
+   ],
+   "pepper_zone_number": "UNKNOWN — needed. Zone ORDER is the key unknown, because a multi-zone controller runs zones sequentially and any upstream zone running long displaces everything after it.",
+   "metering": "NONE. The WFC01 does not see this system. There is no flow data, no run log, and no remote status for any zone on it.",
+   "telemetry_note": "IMPORTANT CONSEQUENCE: the WH51 pepper soil probe is the ONLY instrumentation of any kind on the entire house irrigation system. It was installed to watch pepper moisture, but because it registers each irrigation event it is in effect an accidental run-log for one zone — and the only observability into a controller that also waters the lawn, roses and trees. Treat pepper-probe anomalies as candidate house-system events, not just plant-moisture events. Corollary: the Jul 22 - Aug 6 lithium-battery flatline blinded not only the pepper channel but the only sensor on the whole system.",
+   "shared_pressure_note": "The 05:05 EcoWitt tomato start was originally chosen to avoid overlapping this system's morning window (see the 2026-08-02 decision). That rationale is now MORE important, not less: the two systems share supply, so house-side zone changes can affect measured WFC01 flow on the tomato line."
+  },
+  "regimes": [
+   {
+    "label": "hand-timed (irregular)",
+    "start": "2026-06-29",
+    "end": "2026-07-15",
+    "note": "pre-timer; no fixed schedule"
+   },
+   {
+    "label": "14 min daily",
+    "start": "2026-07-16",
+    "end": "2026-07-23",
+    "note": "first fixed timer @05:05"
+   },
+   {
+    "label": "10 min daily",
+    "start": "2026-07-24",
+    "end": "2026-08-02",
+    "note": "trimmed to cut leaching; measured 118 L/day"
+   },
+   {
+    "label": "12 min daily",
+    "start": "2026-08-03",
+    "end": "2026-08-03",
+    "note": "one day only; overnight min had broken below band"
+   },
+   {
+    "label": "4 x 90 s pulsed",
+    "start": "2026-08-04",
+    "end": "2026-08-19",
+    "note": "application-rate fix; ~79.6 L/day"
+   },
+   {
+    "label": "2 x 90 s pulsed",
+    "start": "2026-08-20",
+    "end": "2026-08-27",
+    "note": "morning pulses 2-3 retired; measured 39.4 L/day over the 7 clean full days Aug 20-26; only week in ETc band (2.43 in); mean held mid-band but the PM trough fell 65 -> 56 without flattening"
+   },
+   {
+    "label": "3 x 80 s pulsed",
+    "start": "2026-08-28",
+    "end": "2026-09-10",
+    "note": "midday 13:05 start added to fill the 16:45 trough; ~52.5 L/day projected on the measured 0.2188 L/s rate; held the daily min at exactly 68.0 for Aug 31 - Sep 7, then lost 2-5 pts/day once tmax cleared 85 F"
+   },
+   {
+    "label": "3 x 120 s pulsed",
+    "start": "2026-09-11",
+    "end": null,
+    "note": "heat-wave response; start times unchanged at 05:05/13:05/17:05; ~78.8 L/day projected on the measured 0.2188 L/s rate"
+   }
+  ],
+  "_regimes_comment": "Irrigation regime boundaries for the TOMATO line, maintained by hand from schedule_log. Charts shade by these and regime_summary() compares them side by side. This exists because the old dashboard fitted ONE linear trend across all of them and projected a setpoint crossing from it (R^2 0.28, projection undefined) — a slope fitted across regime changes is not a trend, it is an artefact. ADD A ROW HERE whenever the plan changes, or the comparison silently goes stale.",
+  "manual_events": [
+   {
+    "date": "2026-08-29",
+    "time": "15:00",
+    "what": "water-soluble fertiliser, hand-poured, 1/2 gal (1.9 L) per plant, all plants, tomatoes and peppers. Confirmed by Justin 2026-08-29 ~15:25, about 30 min after the pour. Day 2 of the 3 x 80 s plan, so it lands in the new regime's window and inflates its first read: the 15:00 timing is ~1h45m before the usual 16:40-16:55 afternoon trough, which is exactly the metric the plan change was meant to fix. Treat the Aug 29 trough as unusable for judging the new schedule. Clear of tag_manual's 45-min window on both sides (13:05 is -115 min, 17:05 is +125 min), so no scheduled run will be mis-tagged as manual.",
+    "channels": [
+     "tom",
+     "pep"
+    ],
+    "metered": false
+   },
+   {
+    "date": "2026-08-16",
+    "time": "09:20",
+    "what": "liquid fertiliser, hand-poured, ~0.5 gal (1.9 L) per plant, all plants",
+    "channels": [
+     "tom",
+     "pep"
+    ],
+    "metered": false
+   },
+   {
+    "date": "2026-08-07",
+    "time": "09:15",
+    "what": "HAND-WATERING DURING THE PEPPER BATTERY SWAP, pepper zone only — confirmed by Justin 2026-08-22, resolving the 'left untagged pending confirmation' note that had stood since 2026-08-19. Bags were at 34% (their lowest in the record, the probe having just come back from the lithium flatline) and took the water well: 34 -> 49 peak, 11 retained against only 4 shed, which is the best retention ratio of any pepper event and exactly what a slow hand-pour onto genuinely dry media should look like. It was scored as a +150 min onset violation. See the paired tomato entry at 10:25 the same morning.",
+    "channels": [
+     "pep"
+    ],
+    "metered": false
+   },
+   {
+    "date": "2026-08-07",
+    "time": "10:25",
+    "what": "HAND-WATERING, tomato bed, same morning as the pepper pour above — confirmed by Justin 2026-08-22. Separate entry rather than adding 'tom' to the 09:15 record because the two are 70 minutes apart, outside tag_manual's 45-minute window; one entry cannot cover both. The contrast between them is the useful part and worth keeping visible: the DRY pepper bags took 11 points and shed 4, while this pour went onto a bed already sitting at 80% (at the 75% drainage ceiling) and returned 2 points retained against 10 shed. Same operator, same morning, same method — the difference is entirely whether the medium had capacity to accept water. It is the cleanest natural experiment in the record for why the ceiling matters, and it also means the 2026-08-19 'detection signature for anything unlogged' note (simultaneous off-schedule events on BOTH channels) now has a second instance, not one.",
+    "channels": [
+     "tom"
+    ],
+    "metered": false
+   },
+   {
+    "date": "2026-08-19",
+    "time": "13:45",
+    "what": "MANUAL BUBBLER FUNCTION TEST, pepper zone only — run by hand while adjusting the pepper timer 15 -> 7 min, to confirm the bubblers were emitting properly. Confirmed by Justin 2026-08-22. Not a scheduled run and not a controller fault: it was scored as a +420 min onset violation, which is the single largest 'late run' in the record and pure artefact. Also excluded from retention, where it read 3 points retained against 18 shed (14% efficiency) — a diagnostic squirt onto bags already near capacity from the 06:40 run, not a failed irrigation.",
+    "channels": [
+     "pep"
+    ],
+    "metered": false
+   }
+  ],
+  "_manual_events_comment": "Hand applications: fertigation, spot watering, anything poured by hand. LOG THEM HERE. Two reasons, both of which bit on 2026-08-16 before this key existed. (1) The WFC01 never sees hand-applied water, so the meter under-reports what the bed got while the probe records the full response — points-per-100L read 23.9 that day, the highest in the record, purely because the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, since a silently wrong efficiency figure is worse than a missing one. (2) They are not schedule violations, so onset_check() skips them; otherwise every fertigation shows up as a broken timer. Detection hint: a manual application shows as simultaneous off-schedule events on BOTH channels within a few minutes — that signature appears exactly once in the record (2026-08-16, 5 min apart).",
+  "pepper_prev_run_min": 15,
+  "runs_time_effective": "2026-08-28",
+  "pepper_time_effective": "2026-07-24",
+  "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations."
+ }
 }
