@@ -162,32 +162,50 @@
   "set": "2026-08-19",
   "mode": "plan mode, three-start pulsed timer",
   "scope": "tomato raised bed only",
-  "freq": "3 runs daily",
+  "freq": "5 runs daily",
   "time": "05:05",
-  "run_seconds": 120,
+  "run_seconds": 80,
   "runs": [
    {
     "time": "05:05",
-    "seconds": 120
+    "seconds": 80
    },
    {
-    "time": "13:05",
-    "seconds": 120
+    "time": "08:05",
+    "seconds": 80
+   },
+   {
+    "time": "11:05",
+    "seconds": 80
+   },
+   {
+    "time": "14:05",
+    "seconds": 80
    },
    {
     "time": "17:05",
-    "seconds": 120
+    "seconds": 80
    }
   ],
   "runs_effective": "2026-09-11",
-  "run_min": 6,
+  "run_min": 6.7,
   "run_min_effective": "2026-09-11",
   "emitters": "12 bubblers + 8–10 drip-flag emitters (4 gph)",
-  "metered_daily": 78.8,
-  "metered_weekly": 551.6,
-  "expected_in_per_week": 4.86,
-  "live_plan_note": "ACTIVE from the 2026-09-11 05:05 run; set in the app by Justin on 2026-09-10 evening, after that day's 17:05 run, so the first FULL day on the new plan is 2026-09-11. Three plain-duration entries of 120 s each at 05:05, 13:05 and 17:05, cycle mode OFF. START TIMES ARE UNCHANGED from the 3 x 80 s plan -- only duration moved, 80 -> 120 s, so runs_time_effective stays at 2026-08-28 and onset checking is not rescoped. Rationale: four days of 85-96 F broke an otherwise exact equilibrium; see the 2026-09-11 schedule_log entry. Projection on the measured 0.2188 L/s rate: ~78.8 L/day, ~552 L/wk, ~4.86 in/wk. DELIBERATE SURPLUS for refill, to be trimmed once the daily minimum flattens.",
+  "metered_daily": 87.5,
+  "metered_weekly": 612.5,
+  "expected_in_per_week": 5.39,
+  "live_plan_note": "ACTIVE from the 2026-09-11 05:05 run; set by Justin 2026-09-10 evening, first FULL day 2026-09-11. Five plain-duration entries of 80 s at 05:05 / 08:05 / 11:05 / 14:05 / 17:05, cycle mode OFF. START TIMES MOVED (13:05 retired, 08:05 / 11:05 / 14:05 added), so runs_time_effective advances to 2026-09-11 and onset checking rescopes -- unlike the 2026-08-28 change, which was duration-only. Projection on the measured 0.2188 L/s rate: ~87.5 L/day, ~612 L/wk, ~5.39 in/wk. DELIBERATE REFILL with a defined exit: drop 08:05 for 4 x 80 s (~70.0 L/day) once the afternoon trough holds above 58. Supersedes a 3 x 120 s plan that was set and replaced the same evening without ever running.",
   "schedule_log": [
+   {
+    "date": "2026-09-11",
+    "logged": "2026-09-10T21:10:00",
+    "kind": "change",
+    "summary": "Tomato plan 3 x 80 s -> 5 x 80 s at 05:05 / 08:05 / 11:05 / 14:05 / 17:05. Run length UNCHANGED at 80 s; two starts added and 13:05 moved, so START TIMES DID MOVE and runs_time_effective advances to 2026-09-11. Total runtime 240 -> 400 s/day (+67%). Set by Justin 2026-09-10 evening; first full day 2026-09-11. Supersedes the 3 x 120 s entry logged ~1 h earlier, which never ran a single cycle.",
+    "change": "Two findings drove it. (1) PLACEMENT: mean hourly change on the tomato probe over Sep 4-10 shows the three gaps are not equally expensive -- 05:05->13:05 loses 3.5 pts over 8 h (-0.48/hr), 13:05->17:05 loses 2.8 pts over 4 h (-0.92/hr), and 17:05->05:05 loses only ~1.8 pts over 12 h (-0.15/hr). Even spacing across the CLOCK would have put a run at 23:05 into the cheapest stretch of the day, where most of it drains; even spacing across the DEMAND WINDOW (05:05-17:05, every 3 h) puts every added pulse where the loss actually is and leaves the cheap gap overnight. (2) MAGNITUDE: the 20:05 diagnostic (see manual_events) delivered 69.8 L for +4 pts = 5.7 pts/100L, against 10-12 pts/100L for a standard 80 s pulse on the same day. Marginal water added BEYOND a standard pulse returns ~3.8 pts/100L, so stretching runs 80 -> 120 s was worth only ~+0.5 pt per run while an extra 80 s START buys +1 to +2 pts for 17-19 L. Infiltration rate, not gross volume, is the binding constraint -- the same conclusion as the 2026-08-04 application-rate fix.",
+    "expected": "On the measured 0.2188 L/s rate, 5 x 80 s = 400 s = ~87.5 L/day = ~612 L/wk = ~5.39 in/wk, the heaviest weekly application since the July regimes and ~2.2x the top of the estimated August ETc band (1.75-2.45). Justification is arithmetic, not optimism: summing the loss hours gives ~-7.8 pts/day on a hot day against ~+6.0 pts/day of recharge from three 80 s pulses, i.e. the -1.8/day that matches the observed -2/day on Sep 8-9. A FOURTH pulse only reaches break-even; the fifth is what actually refills, at ~+2 pts/day. THIS IS A REFILL PLAN WITH AN EXIT: drop the 08:05 start and settle at 4 x 80 s (~70.0 L/day, ~4.31 in/wk) once the afternoon trough holds above the 58 working floor. Do not let 5 x 80 s ride into cooler weather.",
+    "watch": "(1) The afternoon trough, which lands at 16:25-17:00 every day and hit 59 on Sep 10, below the 58 working floor -- that is the metric that broke, not the mean. (2) Whether the trough MOVES as well as lifts; if the low migrates earlier, the 14:05 start is landing too late. (3) Metered L/day against the ~87.5 L projection: five short runs pay the fixed line-charge cost five times, so actual delivery may come in BELOW the linear projection, the mirror image of the 20:05 test coming in above it (69.8 L against 65.6 L predicted). (4) Peppers remain untouched and unreachable from the WFC01 -- 32.5% and below their 36% floor on Sep 10.",
+    "open": "Pepper zone still needs a separate decision on the house multi-zone controller. Also: detect_events() cannot see events at this pulse size -- see events_detector_gap -- so the panels that depend on it will under-report until MIN_RISE is reworked."
+   },
    {
     "date": "2026-09-11",
     "logged": "2026-09-10T20:30:00",
@@ -196,7 +214,8 @@
     "change": "Driven by the Sep 7-10 heat, not by a fault. The bed had been in exact equilibrium on 3 x 80 s -- daily MINIMUM sat at 68.0 for eight consecutive days (Aug 31 - Sep 7) -- and then fell -2, -2, -5 as tmax went 76.7 -> 85.4 -> 89.4 -> 96.0 -> 94.1 and ET0 went 4.5 -> 5.9 mm/day. Supply never changed; demand did. Morning recharge stayed rock steady at +3 pts/day on the tomato probe through Sep 10 inclusive, so the line, the timer and the emitters are all fine. FALSE ALARM LOGGED FOR THE RECORD: the 2026-09-10 dashboard run initially read this as irrigation having stopped reaching the bed, because detect_events() lists no tomato event after Sep 3 and no pepper event after Sep 4 while the WFC01 kept metering ~55 L/day. That was a detector artefact, not a garden problem -- see the events_detector_gap note. Justin called it correctly from the raw levels: a genuinely cut-off bed in 96 F would fall far faster than 2 pts/day and would not recharge every morning.",
     "expected": "On the measured 0.2188 L/s rate, 3 x 120 s = 360 s = ~78.8 L/day = ~552 L/wk = ~4.86 in/wk. That is ~2.0x the TOP of the estimated August ETc band (1.75-2.45 in/wk) and the largest surplus deliberately run since the 4 x 90 s regime. Two reasons it is less reckless than it looks: (1) the profile is in active deficit and cannot refill at 1.0x demand, same logic as the Aug 28 change; (2) the 1.75-2.45 band is an AUGUST estimate and September ET0 is currently running ~5.9 mm/day against a ~4.3 mm/day August mean, so true current ETc is above that band top and the real multiple is smaller than 2.0x. TRIM THIS once the daily minimum stabilises -- do not let it ride into cooler weather.",
     "watch": "In order: (1) does the daily MINIMUM stop falling and flatten -- that is the metric that broke, not the mean; (2) does metered L/day come in at or ABOVE the ~78.8 L predicted -- line-charge time is a fixed cost per run, so a 120 s run wastes proportionally less of itself filling the hose than an 80 s run did, and the measured rate may therefore beat the linear projection; (3) the pepper bags, which this change does NOT help -- they were 32.5% and below their 36% floor on Sep 10, on a controller with no metering and no remote status.",
-    "open": "Pepper zone needs a separate decision on the house controller. It is the channel actually below its floor and nothing done to the WFC01 reaches it."
+    "open": "Pepper zone needs a separate decision on the house controller. It is the channel actually below its floor and nothing done to the WFC01 reaches it.",
+    "superseded": "NEVER RAN. Set 2026-09-10 ~20:15 and replaced the same evening at ~21:10, before the first 05:05 cycle on 2026-09-11, after the 20:05 diagnostic test showed longer runs to be poor value (see the 5 x 80 s entry above). No day of data exists on 3 x 120 s and no regimes[] row was ever left open for it. Kept here because the reasoning that produced it is still the reasoning that produced the replacement."
    },
    {
     "date": "2026-08-28",
@@ -679,14 +698,26 @@
     "note": "midday 13:05 start added to fill the 16:45 trough; ~52.5 L/day projected on the measured 0.2188 L/s rate; held the daily min at exactly 68.0 for Aug 31 - Sep 7, then lost 2-5 pts/day once tmax cleared 85 F"
    },
    {
-    "label": "3 x 120 s pulsed",
+    "label": "5 x 80 s pulsed",
     "start": "2026-09-11",
     "end": null,
-    "note": "heat-wave response; start times unchanged at 05:05/13:05/17:05; ~78.8 L/day projected on the measured 0.2188 L/s rate"
+    "note": "heat-wave refill; 3-hourly across the demand window 05:05-17:05; ~87.5 L/day projected. NOTE: the 3 x 80 s regime's final day (2026-09-10) carries 69.8 L of diagnostic-test water on top of its 54.9 L of scheduled water, so that regime's liters/day average is inflated by its last day -- water_budget() and regime_summary() have no manual-event exclusion."
    }
   ],
   "_regimes_comment": "Irrigation regime boundaries for the TOMATO line, maintained by hand from schedule_log. Charts shade by these and regime_summary() compares them side by side. This exists because the old dashboard fitted ONE linear trend across all of them and projected a setpoint crossing from it (R^2 0.28, projection undefined) — a slope fitted across regime changes is not a trend, it is an artefact. ADD A ROW HERE whenever the plan changes, or the comparison silently goes stale.",
   "manual_events": [
+   {
+    "date": "2026-09-10",
+    "time": "20:05",
+    "kind": "diagnostic_test",
+    "what": "DIAGNOSTIC TEST RUN -- not a hand application and not a schedule event. Justin triggered the WFC01 remotely for 5 minutes to check whether water was still reaching the bed, after the 2026-09-10 dashboard run wrongly read a detector gap as irrigation having stopped. Meter 6477.7 -> 6547.5 = 69.8 L delivered between 20:00 and 20:10 (vs 65.6 L predicted at 0.2188 L/s; longer runs amortise the fixed line-charge time, hence the overshoot). Tomato 62 -> 66 (+4 pts), AD 280 -> 294, still creeping at 20:40 so +4 is a floor read ~25-35 min post-onset, short of the 50-min settle point. Pepper flat at 31 throughout, the correct control -- those bags are on the house controller, not the WFC01. RESULT: 4x the water of a standard pulse bought 2x the points (5.7 vs 10-12 pts/100L), which is what drove the 5 x 80 s plan.",
+    "channels": [
+     "tom"
+    ],
+    "metered": true,
+    "why_logged_here": "This block is documented for HAND applications, where the rationale is that the WFC01 is blind to the water. This entry inverts that -- the meter saw every litre. It is filed here anyway because tag_manual() is the only hook that (a) keeps an off-schedule event out of onset_check(), where it would score as a timer violation, and (b) drops the day from retention(), where 69.8 L of unscheduled water in the denominator would wreck the efficiency figure. Read `metered: true` as a warning that the usual manual-event reasoning does NOT apply, not as an oversight.",
+    "not_covered": "retention() and onset_check() are handled by the above. water_budget() and regime_summary() take water_daily directly and have no manual-event exclusion, so BOTH still count the 69.8 L: the week of 2026-09-10 reads ~0.61 in high, and the 3 x 80 s regime's liters/day is inflated by its final day. Treat both as asterisked until a test-event exclusion exists."
+   },
    {
     "date": "2026-08-29",
     "time": "15:00",
@@ -737,7 +768,7 @@
   ],
   "_manual_events_comment": "Hand applications: fertigation, spot watering, anything poured by hand. LOG THEM HERE. Two reasons, both of which bit on 2026-08-16 before this key existed. (1) The WFC01 never sees hand-applied water, so the meter under-reports what the bed got while the probe records the full response — points-per-100L read 23.9 that day, the highest in the record, purely because the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, since a silently wrong efficiency figure is worse than a missing one. (2) They are not schedule violations, so onset_check() skips them; otherwise every fertigation shows up as a broken timer. Detection hint: a manual application shows as simultaneous off-schedule events on BOTH channels within a few minutes — that signature appears exactly once in the record (2026-08-16, 5 min apart).",
   "pepper_prev_run_min": 15,
-  "runs_time_effective": "2026-08-28",
+  "runs_time_effective": "2026-09-11",
   "pepper_time_effective": "2026-07-24",
   "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations."
  }
