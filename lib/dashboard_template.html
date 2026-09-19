@@ -210,8 +210,9 @@ footer a{color:var(--mut)}
      8 "Full history" was an hourly resample carrying three weather overlays. Its
      own hint said "context only - read panels 2-6 for anything decision-grade",
      which is an admission, and the hourly bucket destroys the pulse structure
-     that panels 2/5/6 exist to show. ET0 keeps its job as the denominator in the
-     water budget, where it is load-bearing.
+     that panels 2/5/6 exist to show. ET0 keeps its job as the day/night
+     clock of the drainage-vs-uptake partition; the water budget's band is a
+     config constant and does not read it (#22).
 
      9 "Water usage" plotted the raw cumulative meter. Applied volume matters, but
      it is already stated twice in decision-grade form: panel 4 converts it to
@@ -457,11 +458,14 @@ const NAT=DATA.native||{};
   document.getElementById('budget-caveat').innerHTML=
     `<b>${over} of ${B.length}</b> complete weeks came in above estimated crop demand. The most recent full week applied
      <b>${lastB.inches} in</b> (${lastB.liters} L) = <b>${lastB.x_etc}&times;</b> the top of the ET<sub>c</sub> band.
-     ${(()=>{const n=(CFG.plan.runs||[]).length, proj=CFG.plan.expected_in_per_week;
+     ${(()=>{const n=(CFG.plan.runs||[]).length, P=NAT.projection||{};
+        if(P.verdict==null) return '';
         const word=['zero','one','two','three','four','five','six'][n]||n;
-        const verdict = proj>hi ? `<b>above</b> the band — a deliberate refill surplus, to be trimmed once the afternoon trough settles`
+        const verdict = P.verdict==='over' ? `<b>above</b> the band by ${(P.inches-hi).toFixed(2)} in`
+                      : P.verdict==='under' ? `<b>below</b> the band by ${(lo-P.inches).toFixed(2)} in`
                       : `which would put the week <b>in band</b>`;
-        return `The current ${word}-run plan projects to <b>${proj} in/week</b>, ${verdict}.`;})()}
+        return `The current ${word}-run plan projects to <b>${P.inches} in/week</b>, ${verdict}.`;})()}
+     The band is one figure, the <b>August</b> estimate, drawn across every week; early- and late-season demand differs and is not modelled here.
      <span style="color:var(--mut)">ET<sub>c</sub> here is an estimate (ET₀ × a mid-season tomato crop coefficient), not a measurement — treat the band as a sanity check, not a target to hit precisely.</span>`;
 })();
 

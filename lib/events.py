@@ -641,6 +641,17 @@ def regime_summary(regimes, extremes, water_daily, skip_days=()):
     return out
 
 
+def band_verdict(inches, etc_band):
+    """'under' / 'in band' / 'over' for a weekly depth against [lo, hi]; None
+    when either is missing. The one owner of that comparison: panel 4 scored
+    its weeks here but its plan projection in the template, which had no
+    'under' branch and printed a below-band projection as in band (#13)."""
+    lo, hi = (etc_band or [None, None])[:2]
+    if inches is None or not lo or not hi:
+        return None
+    return "under" if inches < lo else ("over" if inches > hi else "in band")
+
+
 def water_budget(water_daily, liters_per_inch, etc_band):
     """
     Weekly applied depth against estimated crop demand -- the over-watering
@@ -676,13 +687,10 @@ def water_budget(water_daily, liters_per_inch, etc_band):
         if len(w["dates"]) < 7:
             continue
         inches = w["L"] / liters_per_inch
-        verdict = None
-        if lo and hi:
-            verdict = "under" if inches < lo else ("over" if inches > hi else "in band")
         out.append({
             "start": min(w["dates"]), "end": max(w["dates"]), "days": len(w["dates"]),
             "liters": round(w["L"], 1), "inches": round(inches, 2),
-            "etc_lo": lo, "etc_hi": hi, "verdict": verdict,
+            "etc_lo": lo, "etc_hi": hi, "verdict": band_verdict(inches, etc_band),
             "x_etc": round(inches / hi, 1) if hi else None,
         })
     return out

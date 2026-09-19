@@ -1085,6 +1085,7 @@ def build(readings, config, wx_hourly=None):
     health = _sensor_health(readings, config,
                             {"tom": {e["date"] for e in ev_tom},
                              "pep": {e["date"] for e in ev_pep}})
+    etc_band = (bed_cfg.get("target") or {}).get("august_etc_in_per_week")
     native = {
         "events": {"tom": ev_tom, "pep": ev_pep},
         "extremes": {"tom": ext_tom, "pep": ext_pep},
@@ -1118,8 +1119,12 @@ def build(readings, config, wx_hourly=None):
             skip_days=events_mod.metered_manual_days(manual)),
         "budget": events_mod.water_budget(
             water.get("daily") if water else None,
-            bed_cfg.get("liters_per_inch_of_water"),
-            (bed_cfg.get("target") or {}).get("august_etc_in_per_week")),
+            bed_cfg.get("liters_per_inch_of_water"), etc_band),
+        # The live plan's weekly depth, scored by the same rule as the weeks.
+        "projection": {
+            "inches": plan_cfg.get("expected_in_per_week"),
+            "verdict": events_mod.band_verdict(
+                plan_cfg.get("expected_in_per_week"), etc_band)},
         "regime_bands": plan_cfg.get("regimes") or [],
     }
     wx_daily = weather_mod.daily(wx_hourly, config["location"]["lat"]) if wx_hourly else []
