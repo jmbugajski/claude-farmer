@@ -60,6 +60,15 @@ dashboard. It is intentionally manual — nothing runs on a schedule.
 Edit `config.json` (not the code) to change setpoints, gauge bands, the
 irrigation plan, location/lat-lon, or the resample interval. Re-run step 3.
 
+**A tomato plan change is three edits, all under `plan`:** set the last
+`regimes[]` row's `end` to the last full day on the old plan, add a row whose
+`start` is the next day and whose `runs` are the new `{time, seconds}` list, and
+add the `schedule_log` entry. Nothing else stores the schedule:
+`lib/farm_config.py` derives the current runs, the effective dates and the
+projected L/day, L/wk and in/wk from that last row, and the build refuses a
+config whose rows overlap, leave a gap, or that stores one of those keys again.
+The gauge bar's zones are `bands.stress_floor` / `drainage_ceiling`.
+
 ## Writing schedule-log entries (section 8 · Irrigation schedule)
 
 Hard limit: **every entry in section 8 must read as a few sentences at most — 3

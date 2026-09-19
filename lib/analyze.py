@@ -173,13 +173,10 @@ def _regime_window(config, readings):
                 end = None      # regime is still the current one in practice
         return dt, end, r.get("label")
 
-    # No regimes recorded at all -- fall back to the plan's effective date, with
-    # the same future-date guard (see _scope()).
-    start = (config.get("plan", {}) or {}).get("runs_effective")
-    dt = _d(start)
-    if dt is None or (last is not None and dt > last):
-        return None, None, None
-    return dt, None, None
+    # No regime has started. This fell back to plan.runs_effective, which is
+    # now the last regime's start (farm_config, #15) and so cannot have started
+    # either.
+    return None, None, None
 
 
 def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=None):
@@ -1155,8 +1152,7 @@ def build(readings, config, wx_hourly=None):
         "onset": {
             "tom": events_mod.onset_check(
                 ev_tom, sched_tom, readings, "tom", ad_floor=ad_floor,
-                since=_scope(plan_cfg.get("runs_time_effective")
-                             or plan_cfg.get("runs_effective"), readings)),
+                since=_scope(plan_cfg.get("runs_time_effective"), readings)),
             "pep": events_mod.onset_check(
                 ev_pep, sched_pep, readings, "pep", ad_floor=ad_floor,
                 since=_scope(max([d for d in (plan_cfg.get("pepper_time_effective")

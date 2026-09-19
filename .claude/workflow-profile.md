@@ -24,7 +24,7 @@ source "$(git rev-parse --show-toplevel)/.claude/workflow-helpers.sh"
 | `wf_test` | unittest runner, verdict captured to a log, prints `EXIT=` |
 | `wf_build` | full parse → analyze → render on real inputs, `--no-publish`, output to scratch |
 | `wf_sentences [tag] [page]` | runs the built page's JS in jsdom, writes every generated sentence to `sentences-<tag>.txt`; fails on a script error |
-| `wf_config` | proves `config.json` parses; prints bands, `verified`, runs, open regime |
+| `wf_config` | proves `config.json` parses and passes `farm_config.validate()`; prints bands, `verified`, the derived runs / dates / projection, open regime |
 | `wf_bands [tag]` | `derive_bands.py` on real inputs → `bands-<tag>.txt`, for before/after diffs |
 | `wf_mutate f` / `wf_revert f` | byte-copy backup and verified restore, clears `__pycache__` |
 | `wf_pyc` | clear bytecode (done for you by `wf_test` and `wf_revert`) |
