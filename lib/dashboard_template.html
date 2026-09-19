@@ -252,6 +252,9 @@ const CFG = __CFG__;
 if(CFG.bands&&(CFG.bands.tom.verified===false||CFG.bands.pep.verified===false)){
   var _bn=document.getElementById('bands-notice'); if(_bn) _bn.style.display='block';
 }
+// config.json free text (schedule_log, emitters, regime labels) is prose, not
+// markup: escape it before it meets innerHTML (#16).
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const COL={tom:'#D9533B',pep:'#E0A43C',wx:'#6FA8A0',ink:'#E8E6DA',mut:'#9AA08C',line:'#2E3322',trend:'#B98BD9',leaf:'#6FA53F'};
 
 /* ---------- header ---------- */
@@ -408,7 +411,7 @@ const NAT=DATA.native||{};
 (function(){
   const R=NAT.regimes||[]; if(!R.length) return;
   const rows=R.map(r=>`<tr>
-      <td>${r.label} <span style="color:var(--faint)">${r.start}${r.end?'→'+r.end:'→ now'}</span></td>
+      <td>${esc(r.label)} <span style="color:var(--faint)">${r.start}${r.end?'→'+r.end:'→ now'}</span></td>
       <td class="num">${r.days}</td>
       <td class="num">${r.liters_day==null?'—':r.liters_day}</td>
       <td class="num"><b>${r.pre_irrigation==null?'—':r.pre_irrigation}</b></td>
@@ -427,8 +430,8 @@ const NAT=DATA.native||{};
     const diff=most.pre_irrigation-least.pre_irrigation;
     const [first,second]=most.start<least.start?[most,least]:[least,most];
     const brk=(((DATA.health||{}).tom||{}).breaks||[]).filter(k=>k.date>first.start&&k.date<=(second.end||'9999'));
-    msg=`The wettest regime (${most.label}, <b>${most.liters_day} L/day</b>) held a pre-irrigation floor of
-      <b>${most.pre_irrigation}%</b>; the driest (${least.label}, <b>${least.liters_day} L/day</b>) held
+    msg=`The wettest regime (${esc(most.label)}, <b>${most.liters_day} L/day</b>) held a pre-irrigation floor of
+      <b>${most.pre_irrigation}%</b>; the driest (${esc(least.label)}, <b>${least.liters_day} L/day</b>) held
       <b>${least.pre_irrigation}%</b>. That is <b>${(most.liters_day/least.liters_day).toFixed(1)}&times; the water for
       ${Math.abs(diff).toFixed(1)} points ${diff>0?'MORE':'LESS'}</b> retained. `+
       (diff<=0
@@ -666,7 +669,7 @@ const NAT=DATA.native||{};
     `<div class="caveat" style="border-left-color:var(--leaf);color:#D7D5C8">
       <b style="color:var(--ink)">Actual watering — pulsed multi-start timer:</b>
       the <b>tomato raised bed</b> runs ${runList}
-      ${effD?'(<b>as of '+effD+'</b>)':''}, through <b>${PLAN.emitters}</b>.
+      ${effD?'(<b>as of '+effD+'</b>)':''}, through <b>${esc(PLAN.emitters)}</b>.
       ${(PLAN.runs||[]).filter(r=>r.time<'12:00').length>1
         ? `The morning starts are a <b>manual cycle-and-soak</b>: each pulse infiltrates and redistributes
            downward before the next arrives, which wets deeper per litre than one long run that out-paces
@@ -689,7 +692,7 @@ const NAT=DATA.native||{};
       50%→90%. 6.5× the water for 6 more points.`:''}
       <br><br><b style="color:var(--ink)">Peppers are on a different system entirely:</b>
       the 6× fabric bags are a zone on the <b>house multi-zone irrigation controller</b> (which also runs lawn, roses and trees) —
-      <b>not EcoWitt hardware</b>. Currently <b>${PLAN.pepper_run_min} min, ${PLAN.pepper_freq}${PLAN.pepper_time?' @ '+PLAN.pepper_time+' PT':''}</b>${PLAN.pepper_effective?' (<b>as of '+new Date(PLAN.pepper_effective+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</b>)':''},
+      <b>not EcoWitt hardware</b>. Currently <b>${esc(PLAN.pepper_run_min)} min, ${esc(PLAN.pepper_freq)}${PLAN.pepper_time?' @ '+esc(PLAN.pepper_time)+' PT':''}</b>${PLAN.pepper_effective?' (<b>as of '+new Date(PLAN.pepper_effective+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</b>)':''},
       <b>unmetered and unlogged</b> — so nothing below reflects pepper watering, and pepper faults are a
       separate troubleshooting domain. Note the pepper soil probe is the <b>only sensor of any kind</b> on that
       house system, which makes it an accidental run-log for one of its zones.</div>`;
@@ -725,13 +728,13 @@ const NAT=DATA.native||{};
       const k=e.kind||'note';
       rows+=`<div style="display:flex;gap:9px;padding:3px 0;align-items:baseline">
         <span style="flex:0 0 62px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;
-          letter-spacing:.06em;color:${KC[k]||'var(--mut)'}">${k}</span>
+          letter-spacing:.06em;color:${KC[k]||'var(--mut)'}">${esc(k)}</span>
         <span>${(()=>{const b=brief(e);
-          return b.head + (b.rest
+          return esc(b.head) + (b.rest
             ? ` <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--wx);
                 font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.04em">why &rsaquo;</summary>
-                <span style="color:var(--mut)"> ${b.rest}</span></details>`
-            : '');})()}${e.logged?`<span style="color:var(--mut);font-family:'IBM Plex Mono';font-size:10px"> &nbsp;· logged ${e.logged.replace('T',' ').slice(0,16)}</span>`:''}</span></div>`;
+                <span style="color:var(--mut)"> ${esc(b.rest)}</span></details>`
+            : '');})()}${e.logged?`<span style="color:var(--mut);font-family:'IBM Plex Mono';font-size:10px"> &nbsp;· logged ${esc(e.logged.replace('T',' ').slice(0,16))}</span>`:''}</span></div>`;
     });
     document.getElementById('plan-note').innerHTML+=
       `<div class="caveat" style="border-left-color:var(--wx);color:#D7D5C8;margin-top:10px">
