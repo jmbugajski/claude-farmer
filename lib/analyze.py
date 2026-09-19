@@ -354,6 +354,7 @@ def _daily(series, extremes):
             row[f"{k}_mean"] = _mean(days[d][k])
             row[f"{k}_min"] = round(e["day_min"], 1) if e else None
             row[f"{k}_max"] = round(e["day_max"], 1) if e else None
+            row[f"{k}_partial"] = bool(e and e.get("partial"))
         out.append(row)
     return out
 
@@ -527,8 +528,12 @@ def _cycle(daily, key, since=None, until=None):
     change, and n_days, always 7, could no longer trip the "only N days on this
     schedule" warning (#7). An empty window reports None; it does not fall back
     to the unscoped one.
+
+    A `partial` day is dropped before the window is taken, so n_days counts
+    complete days. Its trough is the overnight value and its peak is only the
+    morning's; 2026-09-19 (export to 12:45) sat in the median until #9.
     """
-    rows = daily
+    rows = [r for r in daily if not r.get(f"{key}_partial")]
     if since is not None:
         rows = [r for r in rows if r["date"] >= f"{since:%Y-%m-%d}"]
     if until is not None:       # exclusive: _regime_window returns end + 1 day

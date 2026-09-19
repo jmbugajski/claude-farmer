@@ -92,5 +92,14 @@ class BudgetWeeksAreComplete(unittest.TestCase):
         self.assertEqual(len(self._weeks(self._rows(14))), 2)
 
 
+class CycleSkipsThePartialDay(unittest.TestCase):
+    def test_partial_day_is_out_of_the_median_and_the_count(self):
+        ext = {"tom": events.daily_extremes(TAIL, "tom"), "pep": []}
+        daily = analyze._daily(TAIL, ext)
+        self.assertEqual([r["date"] for r in daily if r["tom_partial"]], ["2026-09-04"])
+        c = analyze._cycle(daily[1:], "tom")     # 60, 60, partial 70
+        self.assertEqual((c["trough"], c["n_days"]), (60, 2))
+
+
 if __name__ == "__main__":
     unittest.main()
