@@ -42,5 +42,29 @@ class PartialTailIsMarked(unittest.TestCase):
         self.assertEqual(self.w["total_L"], 100.0)
 
 
+class RegimeMeansUseRepresentativeDays(unittest.TestCase):
+    REGIME = [{"label": "r", "start": "2026-09-01", "end": None}]
+
+    def _summary(self, skip_days=()):
+        w = analyze._water(TAIL)
+        ext = events.daily_extremes(TAIL, "tom")
+        return events.regime_summary(self.REGIME, ext, w["daily"], skip_days)[0]
+
+    def test_day_min_skips_the_partial_day(self):
+        # three complete days at 60, a partial morning at 70
+        self.assertEqual(self._summary()["day_min"], 60.0)
+
+    def test_liters_day_skips_metered_manual_days(self):
+        manual = [{"date": "2026-09-02", "metered": True},
+                  {"date": "2026-09-03", "metered": False}]
+        rows = [{"date": f"2026-09-0{d}", "draw": L, "span_days": 1}
+                for d, L in ((1, 40.0), (2, 110.0), (3, 42.0))]
+        skip = events.metered_manual_days(manual)
+        self.assertEqual(skip, {"2026-09-02"})
+        ext = events.daily_extremes(TAIL, "tom")
+        got = events.regime_summary(self.REGIME, ext, rows, skip)[0]
+        self.assertEqual(got["liters_day"], 41.0)
+
+
 if __name__ == "__main__":
     unittest.main()

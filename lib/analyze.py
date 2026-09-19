@@ -1117,7 +1117,8 @@ def build(readings, config, wx_hourly=None):
                              readings)),
         },
         "regimes": events_mod.regime_summary(
-            plan_cfg.get("regimes"), ext_tom, water.get("daily") if water else None),
+            plan_cfg.get("regimes"), ext_tom, water.get("daily") if water else None,
+            skip_days=events_mod.metered_manual_days(manual)),
         "budget": events_mod.water_budget(
             water.get("daily") if water else None,
             bed_cfg.get("liters_per_inch_of_water"),

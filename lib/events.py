@@ -144,6 +144,20 @@ def manual_days(evs):
     return {e["date"] for e in evs if e.get("manual")}
 
 
+def metered_manual_days(manual):
+    """
+    Days whose WFC01 draw includes water the timer did not deliver.
+
+    The opposite case from manual_days(): hand-applied water never passes the
+    meter, so a fertigation day's draw is still a clean timer day. An entry
+    marked `metered: true` went THROUGH the meter -- the 2026-09-10 diagnostic
+    run put 69.8 L on top of 54.9 L of scheduled water -- so that day's litres
+    do not describe the schedule. The flag was written in config from that day
+    and read by nothing until #9.
+    """
+    return {m["date"] for m in (manual or []) if m.get("metered")}
+
+
 def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
                   settle_min=SETTLE_MIN, rise_window=RISE_WINDOW_MIN,
                   stall_min=STALL_MIN):
@@ -484,7 +498,7 @@ def onset_check(events, scheduled, tol_min=15, since=None, fault_frac=0.6):
     return out
 
 
-def regime_summary(regimes, extremes, water_daily):
+def regime_summary(regimes, extremes, water_daily, skip_days=()):
     """
     Collapse each irrigation regime to the few numbers that decide whether it
     worked. Regimes come from config (plan.regimes), never from parsing prose.
@@ -494,6 +508,13 @@ def regime_summary(regimes, extremes, water_daily):
     setpoint crossing from it. That regression had R^2 = 0.28 and its projection
     was undefined, which is what a slope fitted across regime changes deserves.
     Comparing regimes side by side is the honest version of that question.
+
+    Each mean is over schedule-representative days only. `day_min` skips a
+    `partial` day, whose minimum is the overnight value and not the afternoon
+    trough (2026-09-19 12:45 read 64 in a regime troughing at 62). `liters_day`
+    skips `skip_days` -- metered_manual_days() -- and whatever per_day_draw()
+    withholds. `pre_irrigation` is read before the day's first run, so a
+    partial day's is as good as any other.
     """
     draw = per_day_draw(water_daily)
     ext = {r["date"]: r for r in extremes}
@@ -504,8 +525,9 @@ def regime_summary(regimes, extremes, water_daily):
         if not days:
             continue
         pre = [ext[d]["pre_irrigation"] for d in days if ext[d]["pre_irrigation"] is not None]
-        mins = [ext[d]["day_min"] for d in days if ext[d]["day_min"] is not None]
-        lit = [draw[d] for d in days if d in draw and draw[d] > 0]
+        mins = [ext[d]["day_min"] for d in days
+                if ext[d]["day_min"] is not None and not ext[d].get("partial")]
+        lit = [draw[d] for d in days if d in draw and draw[d] > 0 and d not in skip_days]
         out.append({
             "label": rg["label"],
             "start": rg["start"], "end": rg.get("end"),
