@@ -76,5 +76,23 @@ class Neighbours(unittest.TestCase):
                          (48.0, 45.0, 5.0, 3.0))
 
 
+class Pulses(unittest.TestCase):
+    def test_two_steps_of_one_climb_are_one_pulse(self):
+        evs = events.detect_events(_trace(4, {60: 10, 65: 3, 80: -4}), "tom")
+        self.assertEqual(evs[0]["pulses"], [{"t": "01:05", "peak": 53.0}])
+        self.assertIsNone(evs[0]["floor_between"])
+
+    def test_peak_is_dated_where_the_climb_tops_out(self):
+        evs = events.detect_events(_trace(4, {60: 3}), "tom")
+        self.assertEqual(evs[0]["pulses"], [{"t": "01:00", "peak": 43.0}])
+
+    def test_block_crossing_midnight_has_a_floor(self):
+        bumps = {50: 8, 55: -3, 65: 5, 70: -3}                 # 23:50 and 00:05
+        evs = events.detect_events(
+            _trace(4, bumps, start=D0 + timedelta(hours=23)), "tom")
+        self.assertEqual([p["t"] for p in evs[0]["pulses"]], ["23:50", "00:05"])
+        self.assertEqual(evs[0]["floor_between"], 45.0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -279,31 +279,44 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
         # block (the Aug 4 regime fired 4 x 90 s at 15-minute spacing and the
         # probe never dipped between them), which would collapse n_pulses to 1
         # and silently kill floor_between -- the field-capacity tell. So pulses
-        # are found by the ORIGINAL steep-step criterion, scanned across the
-        # event window, and only fall back to the ascent top when the water
-        # arrived too gradually to show discrete steps.
+        # are found by a steep single step, scanned across the event window, and
+        # only fall back to the ascent top when the water arrived too gradually
+        # to show discrete steps. The step is min_rise, not the 3 it was before
+        # 2026-09-10: at 3 the 2026-08-09 block (three +2 pulses, floor 70) reads
+        # as one pulse, and it is the only block on the record the two disagree
+        # on bar a +1 tick on 08-20 (#17).
         starts = []
         for a, b in zip(win, win[1:]):
             if (b["dt"] - a["dt"]).total_seconds() / 60 > MAX_GAP_MIN:
                 continue
             if b[key] - a[key] >= min_rise:
                 starts.append(b)
-        pulses = []
+        # Pulses are kept as rows and keyed on their peak. Two steep steps of
+        # ONE climb walk to the same peak and are one pulse: until #17 a single
+        # 14-minute run that rose +10 then +3 reported n_pulses = 2 (34 events on
+        # the 06-29 -> 09-19 record, every one with floor_between = None).
+        peaks = []
         for start in starts:
             seg = [r for r in vals if start["dt"] <= r["dt"]
                    <= start["dt"] + timedelta(minutes=group_min)]
             if not seg:
                 continue
-            best = seg[0]
+            # The peak is where the climb first tops out. Walking `best` along
+            # the plateau behind it dated a 05:25 peak 05:55, and gave two steps
+            # of one climb different "peaks" whenever their 45-minute walks ended
+            # on different plateau samples.
+            best = prev = seg[0]
             for r in seg:
-                if r[key] >= best[key]:
-                    best = r
-                else:
+                if r[key] < prev[key]:
                     break
-            pulses.append({"t": best["dt"].strftime("%H:%M"), "peak": best[key]})
-        if not pulses:
-            top = max(g, key=lambda x: x[2]["dt"])[2]
-            pulses = [{"t": top["dt"].strftime("%H:%M"), "peak": top[key]}]
+                if r[key] > best[key]:
+                    best = r
+                prev = r
+            if not peaks or best["dt"] > peaks[-1]["dt"]:
+                peaks.append(best)
+        if not peaks:
+            peaks = [max(g, key=lambda x: x[2]["dt"])[2]]
+        pulses = [{"t": r["dt"].strftime("%H:%M"), "peak": r[key]} for r in peaks]
 
         peak_row = max(win, key=lambda r: r[key])
 
@@ -317,16 +330,11 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
         after = [r for r in vals if r["dt"] >= target]
         settled = after[0][key] if after and (after[0]["dt"] - target).total_seconds() / 60 <= 15 else None
 
-        # floor between first and last pulse peak -- the field-capacity tell
-        floor_between = None
-        if len(pulses) >= 2:
-            t_first = datetime.strptime(
-                onset.strftime("%Y-%m-%d") + " " + pulses[0]["t"], "%Y-%m-%d %H:%M")
-            t_last = datetime.strptime(
-                onset.strftime("%Y-%m-%d") + " " + pulses[-1]["t"], "%Y-%m-%d %H:%M")
-            mid = [r[key] for r in vals if t_first < r["dt"] < t_last]
-            if mid:
-                floor_between = min(mid)
+        # floor between first and last pulse peak -- the field-capacity tell.
+        # Compared as datetimes: rebuilt from "HH:MM" on the onset's date, a
+        # block crossing midnight had its window inverted.
+        mid = [r[key] for r in vals if peaks[0]["dt"] < r["dt"] < peaks[-1]["dt"]]
+        floor_between = min(mid) if mid else None
 
         out.append({
             "date": onset.strftime("%Y-%m-%d"),
