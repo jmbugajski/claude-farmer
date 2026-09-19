@@ -376,7 +376,17 @@ def _daily(series, extremes):
 # floor). Neither was rendered by the dashboard.
 
 
-def _water(readings, since=None):
+def _water(readings, since=None, until=None, label=None):
+    """Metered litres. `since`/`until`/`label` are _regime_window()'s, passed by
+    build(): `recent_avg_L` is the mean under the regime the readings cover
+    (`until` exclusive), and `recent_label` names it.
+
+    It used to take plan.runs_effective raw. Plan changes are entered the day
+    before they first run, so that date routinely sits ahead of the newest
+    reading; the window was then empty and _advice() quoted the LIFETIME mean
+    as the new plan's delivery (#12: 96.0 L/day against a 2 x 90 s plan that
+    delivers ~39).
+    """
     wr = [(r["dt"], r["water"]) for r in readings if r["water"] is not None]
     if not wr:
         return None
@@ -458,8 +468,8 @@ def _water(readings, since=None):
     # Average since the current schedule took effect, separate from the all-time
     # one. The whole-window mean is dominated by the OLD regime -- it reported
     # ~140 L/day for days after the bed had actually dropped to ~78 -- so advice
-    # must quote the current-regime figure. Anchoring on the plan's effective
-    # date rather than a rolling 7 days matters: a fixed window straddles the
+    # must quote the current-regime figure. Anchoring on the regime window
+    # rather than a rolling 7 days matters: a fixed window straddles the
     # change and silently mixes both regimes.
     # Drop a trailing PARTIAL day before averaging. An export pulled midday has
     # logged that morning's runs but not the evening's, so its draw is a
@@ -487,7 +497,8 @@ def _water(readings, since=None):
         daily_out[-1]["partial"] = True
     usable = [d for d in display_days if d != partial_tail]
     if since:
-        recent_days = [d for d in usable if d >= since and draws[d] > 0]
+        recent_days = [d for d in usable if d >= since and draws[d] > 0
+                       and (until is None or d < until)]
     else:
         recent_days = [d for d in usable[-7:] if draws[d] > 0]
     recent_avg = (round(sum(draws[d] for d in recent_days) / len(recent_days), 1)
@@ -503,6 +514,7 @@ def _water(readings, since=None):
         "recent_avg_L": recent_avg,
         "recent_n": len(recent_days),
         "recent_since": since,
+        "recent_label": label,
         "daily": daily_out,
         "gaps": [g for g in gaps if g["booked_to"] >= first_flow_date],
         "resets": resets,
@@ -638,6 +650,14 @@ def _advice(data, config, cycle):
         plan_desc = f"{plan.get('run_min', '?')}-min daily timer"
 
     w = data["water"]
+    # The litres below were metered under the regime the readings cover, which
+    # is not `plan.runs` while a logged change has yet to run (#12). Name the
+    # schedule that produced them, and say the new one is pending.
+    effective = plan.get("runs_effective")
+    pending = ""
+    if w and effective and effective > w["end"][:10]:
+        pending = f" The {plan_desc} logged for {effective} has not run yet."
+        plan_desc = f"previous schedule ({w.get('recent_label') or 'label not recorded'})"
     if not w or not w["first_flow"]:
         water = "no metered flow yet — confirm the WFC01 meter is paired and reporting."
     elif w["active_days"] < 14:
@@ -648,14 +668,18 @@ def _advice(data, config, cycle):
         older = w["avg_active_L"]
         shift = ""
         if older and abs(older - w["recent_avg_L"]) / older > 0.15:
-            shift = (f" — down from a {older} L lifetime average, which still reflects "
-                     f"the pre-{plan.get('runs_effective', 'change')} flood dosing")
+            # Direction from the sign, and no cause: this said "down from ...
+            # flood dosing" whatever the numbers or the previous regime were.
+            way = "down" if w["recent_avg_L"] < older else "up"
+            shift = (f" — {way} from a {older} L lifetime average, which spans "
+                     f"earlier schedules")
         water = (f"metered ~{w['recent_avg_L']} L per watering day over the last "
                  f"{w['recent_n']} active days on the tomato bed's {plan_desc}{shift}. "
                  f"Read as delivered volume, not against a target.")
     else:
         water = (f"metered ~{w['avg_active_L']} L per watering day on the tomato bed's "
                  f"{plan_desc} — read as delivered volume, not against a target.")
+    water += pending
 
     return {"tom": tom, "pep": pep, "water": water}
 
@@ -1079,13 +1103,14 @@ def build(readings, config, wx_hourly=None):
 
     tom_stats = _probe_stats(series, "tom", tom_cfg["bands"])
     pep_stats = _probe_stats(series, "pep", pep_cfg["bands"])
-    water = _water(readings, since=config.get("plan", {}).get("runs_effective"))
 
     # Regime split and drainage/uptake partition -- the two figures that replace
     # the setpoint. Partition is computed on RAW readings, not `series`: it needs
     # the native 5-minute resolution to catch the post-irrigation shed, which an
     # hourly resample averages straight out of existence.
     regime_since, regime_until, regime_label = _regime_window(config, readings)
+    _day = lambda dt: dt.strftime("%Y-%m-%d") if dt else None
+    water = _water(readings, _day(regime_since), _day(regime_until), regime_label)
     split = {k: _regime_split(series, k, c["bands"], regime_since, regime_until)
              for k, c in (("tom", tom_cfg), ("pep", pep_cfg))}
     partition = {"tom": _partition(readings, wx_hourly, "tom", tom_cfg["bands"],
