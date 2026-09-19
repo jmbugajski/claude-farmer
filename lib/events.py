@@ -354,6 +354,21 @@ def daily_extremes(readings, key, events=None):
     return out
 
 
+def per_day_draw(water_daily):
+    """
+    {date: litres} for the days whose draw is that ONE day's measured water.
+
+    analyze._water() spreads a draw that spans a missing export evenly over the
+    days it covers (`span_days` > 1) and flags a meter reset (`reset`). Totals
+    and means survive that; a per-day figure does not -- the split is assumed,
+    and a reset day's litres are unknown. 2026-09-04 carried two days of water
+    and its points-per-100 L read 5.5 between neighbours at 16.3 and 9.0 (#8).
+    Withheld rather than estimated.
+    """
+    return {r["date"]: r["draw"] for r in (water_daily or [])
+            if r.get("span_days", 1) == 1 and not r.get("reset")}
+
+
 def retention(events, water_daily):
     """
     Points of retained moisture per litre applied, per day (tomato only -- the
@@ -365,7 +380,7 @@ def retention(events, water_daily):
     whole case open ("6.5x the water bought 6 more points of peak") was this
     number computed once, by hand, on a single pair of runs.
     """
-    draw = {r["date"]: r["draw"] for r in (water_daily or [])}
+    draw = per_day_draw(water_daily)
     skip = manual_days(events)          # meter is blind to hand-applied water
     by_day: dict[str, float] = {}
     for e in events:
@@ -475,7 +490,7 @@ def regime_summary(regimes, extremes, water_daily):
     was undefined, which is what a slope fitted across regime changes deserves.
     Comparing regimes side by side is the honest version of that question.
     """
-    draw = {r["date"]: r["draw"] for r in (water_daily or [])}
+    draw = per_day_draw(water_daily)
     ext = {r["date"]: r for r in extremes}
     out = []
     for rg in (regimes or []):

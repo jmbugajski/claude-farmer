@@ -398,13 +398,37 @@ def _water(readings, since=None):
             break
         prev = cum
 
-    # daily draw = end-of-day cumulative minus previous day's end (clamp >= 0)
+    # daily draw = end-of-day cumulative minus the previous PRESENT day's end.
+    # When an export is missing that difference is several days of water, and
+    # it used to be booked to the one day after the gap: 2026-09-03 was absent
+    # and 09-04 showed 108.4 L against ~55 either side (#8). The sum and the
+    # number of days it covers are both measured; only the split is not, so
+    # spread it evenly over the span and mark every row of it `span_days`. That
+    # keeps totals, weekly bins and means right; anything that needs ONE day's
+    # actual litres (events.per_day_draw) skips the marked rows.
+    # A negative difference is a meter reset. The day's water is unknowable, so
+    # it stays 0 -- but flagged, not swallowed.
     draws: dict[str, float] = {}
-    prev_cum = None
-    for d in order:
+    span: dict[str, int] = {}
+    gaps, resets = [], []
+    prev_cum = prev_day = None
+    for d in list(order):
         c = last_cum[d]
-        draws[d] = max(0.0, c - prev_cum) if prev_cum is not None else 0.0
-        prev_cum = c
+        diff = c - prev_cum if prev_cum is not None else 0.0
+        if diff < 0:
+            resets.append({"date": d, "from_L": round(prev_cum, 1), "to_L": round(c, 1)})
+            diff = 0.0
+        day = datetime.strptime(d, "%Y-%m-%d")
+        n = (day - prev_day).days if prev_day is not None else 1
+        covered = [(day - timedelta(days=k)).strftime("%Y-%m-%d") for k in range(n - 1, -1, -1)]
+        for cd in covered:
+            draws[cd] = diff / n
+            span[cd] = n
+        if n > 1:
+            gaps.append({"missing": covered[:-1], "booked_to": d, "liters": round(diff, 1)})
+        prev_cum, prev_day = c, day
+    order = sorted(draws)
+    reset_days = {r["date"] for r in resets}
 
     if first_flow_dt is None:
         # meter present but no flow yet
@@ -412,6 +436,7 @@ def _water(readings, since=None):
             "meter_online": meter_online, "first_flow": None,
             "end": wr[-1][0].strftime("%Y-%m-%d %H:%M"),
             "total_L": 0.0, "active_days": 0, "avg_active_L": 0.0, "daily": [],
+            "gaps": [], "resets": resets,
         }
 
     first_flow_date = first_flow_dt.strftime("%Y-%m-%d")
@@ -422,7 +447,11 @@ def _water(readings, since=None):
     for d in display_days:
         cum += draws[d]
         total += draws[d]
-        daily_out.append({"date": d, "cum": round(cum, 1), "draw": round(draws[d], 1)})
+        row = {"date": d, "cum": round(cum, 1), "draw": round(draws[d], 1),
+               "span_days": span[d]}
+        if d in reset_days:
+            row["reset"] = True
+        daily_out.append(row)
     active = sum(1 for d in display_days if draws[d] > 0)
 
     # Average since the current schedule took effect, separate from the all-time
@@ -469,6 +498,8 @@ def _water(readings, since=None):
         "recent_n": len(recent_days),
         "recent_since": since,
         "daily": daily_out,
+        "gaps": [g for g in gaps if g["booked_to"] >= first_flow_date],
+        "resets": resets,
     }
 
 
