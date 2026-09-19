@@ -553,25 +553,34 @@ const NAT=DATA.native||{};
   if(!rows.length) return;
   // Displacement is EXPECTED here (Justin confirmed 2026-08-22: other house
   // zones run serially ahead of the peppers), so it is styled as information,
-  // not as a fault. Only `fault` -- late AND short on retained -- gets the
-  // warning colour. A table that shouts on normal behaviour stops being read.
+  // not as a fault. Only `short` (low retained gain, at any lateness) and
+  // `missed` (raw trace flat across the slot) get the warning colour. A table
+  // that shouts on normal behaviour stops being read. Rows come from the
+  // SCHEDULE (#10), so a slot with no event still has one: `undetected` means
+  // the trace rose but no event was scored, `no_data` that it cannot be judged.
   const KIND={on_time:['',''],displaced:['var(--mut)','displaced'],
-              fault:['#C4643C','SHORT RUN'],late_unclassified:['var(--mut)','late']};
+              short:['#C4643C','SHORT RUN'],missed:['#C4643C','NO RISE'],
+              undetected:['var(--mut)','rise seen, not scored'],
+              no_data:['var(--faint)','no data'],extra:['var(--mut)','unscheduled'],
+              late_unclassified:['var(--mut)','late']};
   const tr=rows.slice(0,14).map(o=>{
     const [col,lab]=KIND[o.kind]||KIND.late_unclassified;
     return `<tr>
       <td><span style="color:${o.k==='tom'?'var(--tom)':'var(--pep)'}">${o.k==='tom'?'Tomato':'Pepper'}</span>
           <span style="color:var(--faint)">${o.date}</span></td>
       <td class="num">${o.scheduled}</td>
-      <td class="num">${o.onset}</td>
-      <td class="num" style="color:${col||'var(--mut)'}">${o.delta_min>0?'+':''}${o.delta_min} min</td>
-      <td class="num">${o.retained==null?'—':(o.retained>0?'+':'')+o.retained}</td>
+      <td class="num">${o.onset||'—'}</td>
+      <td class="num" style="color:${col||'var(--mut)'}">${o.delta_min==null?'—':(o.delta_min>0?'+':'')+o.delta_min+' min'}</td>
+      <td class="num">${o.retained==null?(o.rise?'(+'+o.rise+' raw)':'—'):(o.retained>0?'+':'')+o.retained}</td>
       <td style="color:${col||'var(--faint)'};font-size:11px">${lab||'on time'}</td>
     </tr>`;}).join('');
   document.getElementById('onset-table').innerHTML=
     `<thead><tr><th>Run</th><th>Scheduled</th><th>Actual</th><th>Delta</th><th>Retained</th><th></th></tr></thead><tbody>${tr}</tbody>`;
-  const P=(O.pep||[]), nP=P.length;
-  const disp=P.filter(o=>o.kind==='displaced'), fault=P.filter(o=>o.kind==='fault');
+  const of=k=>(O.pep||[]).filter(o=>o.kind===k);
+  const P=(O.pep||[]).filter(o=>o.onset&&o.kind!=='extra'), nP=P.length;      // runs that were scored
+  const disp=of('displaced'), short=of('short'), missed=of('missed');
+  const undet=of('undetected'), nodata=of('no_data');
+  const dates=a=>a.slice(-4).map(o=>o.date.slice(5)).join(', ')+(a.length>4?', …':'');
   const ds=disp.map(o=>o.delta_min).sort((a,b)=>a-b);
   document.getElementById('onset-caveat').innerHTML=
     `The pepper bags are a zone on the <b>house multi-zone controller</b> (lawn, roses, trees), which is unmetered and keeps no
@@ -580,8 +589,11 @@ const NAT=DATA.native||{};
        That is an upstream zone overrunning, confirmed by Justin and not a concern for the peppers — though it does mean
        whichever zone runs <b>before</b> them is taking ~${Math.round(ds.reduce((a,b)=>a+b,0)/ds.length)} extra minutes of water
        roughly one day in ${Math.max(2,Math.round(nP/disp.length))}. `:''}
-     ${fault.length?`<b style="color:#C4643C">${fault.length} run(s) fired late AND short</b> — that points at the pepper valve itself, not upstream.`
-       :`<b>No short runs:</b> every late run still delivered a normal retained gain, which is what separates a displaced schedule from a failing valve.`}`;
+     ${missed.length?`<b style="color:#C4643C">${missed.length} scheduled run(s) left no rise at all</b> (${dates(missed)}): the probe was sampling and the raw trace stayed flat — the valve did not open, or the probe did not respond. `:''}
+     ${short.length?`<b style="color:#C4643C">${short.length} of ${nP} run(s) retained under 60% of the median gain</b> (${dates(short)}), on time or not — that points at the pepper valve or the pepper probe, not upstream. `:''}
+     ${!missed.length&&!short.length?`<b>No missed or short runs:</b> every scheduled slot the probe could see shows a rise, and every scored run retained a normal gain. `:''}
+     ${undet.length?`${undet.length} slot(s) show a rise in the raw trace that was not scored as an event (${dates(undet)}) — water arrived, its size is unknown. `:''}
+     ${nodata.length?`${nodata.length} slot(s) could not be judged (export gap, probe dropout or dead-probe window) and are not counted either way.`:''}`;
 })();
 
 /* water-usage panel removed with panel 9 -- see the HTML comment above panel 8.
