@@ -19,6 +19,12 @@
 #   3. It is free. 42 days is ~1,000 rows / 54 KB; a full year is ~8,800 rows.
 # So: one file, no datestamp. The staleness check below is what stops it from
 # hitting the API pointlessly, not incremental fetching.
+#
+# Coverage is fetch_weather.py's job, not this script's (#3, 2026-09-19): it
+# exits non-zero and leaves weather.csv alone if the series it got back does not
+# span the window, and `set -e` stops here before "Done" is printed. Until then
+# a truncated pull reported success, and because the file could never reach
+# NEED_START the check below read STALE forever and re-fetched on every run.
 
 set -euo pipefail
 
