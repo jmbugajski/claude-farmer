@@ -38,6 +38,21 @@ wf_build() {
   tail -8 "$log"; return $rc
 }
 
+# The template's JS has no unit tests. This runs the last wf_build output in
+# jsdom and prints every generated sentence, folded, to sentences-<tag>.txt --
+# diff a `before` against an `after`, or hand-edit the DATA/CFG JSON in a copy
+# of the built page to force the branch today's data does not take.
+#   wf_sentences before; ...edit...; wf_build; wf_sentences after
+#   wf_sentences variant path/to/edited.html
+wf_sentences() {
+  local out="$WF_SCRATCH/sentences-${1:-now}.txt"
+  local page="${2:-$(ls -t "$WF_SCRATCH"/out/*.html 2>/dev/null | head -1)}"
+  [ -f "$page" ] || { echo "no built page: run wf_build first"; return 1; }
+  node "$(_wf_root)/.claude/render-text.cjs" "$page" 2>&1 | fold -s -w 160 > "$out"
+  tail -1 "$out"; echo "full: $out"
+  grep -q '^SCRIPT_ERRORS=0' "$out"
+}
+
 # config.json is hand-edited and 700+ lines: prove it still parses, and print
 # the values a change must not move by accident.
 wf_config() {

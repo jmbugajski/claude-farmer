@@ -23,6 +23,7 @@ source "$(git rev-parse --show-toplevel)/.claude/workflow-helpers.sh"
 |---|---|
 | `wf_test` | unittest runner, verdict captured to a log, prints `EXIT=` |
 | `wf_build` | full parse → analyze → render on real inputs, `--no-publish`, output to scratch |
+| `wf_sentences [tag] [page]` | runs the built page's JS in jsdom, writes every generated sentence to `sentences-<tag>.txt`; fails on a script error |
 | `wf_config` | proves `config.json` parses; prints bands, `verified`, runs, open regime |
 | `wf_bands [tag]` | `derive_bands.py` on real inputs → `bands-<tag>.txt`, for before/after diffs |
 | `wf_mutate f` / `wf_revert f` | byte-copy backup and verified restore, clears `__pycache__` |
@@ -134,9 +135,10 @@ Runner: `wf_test` (= `.venv/bin/python -m unittest discover -v tests`). Gate: `w
   `inputs/` — that data is gitignored, grows weekly, and would make yesterday's green today's red.
 - `wf_build` is the only check that exercises real data and the template. It needs `inputs/`;
   with none it fails with `FileNotFoundError`, which is the environment, not your change.
-- The template's JS has no test harness. A change to `lib/dashboard_template.html` is checked by
-  opening the scratch output from `wf_build`; say in the closing comment that it was eyeballed,
-  not tested.
+- The template's JS has no unit tests. A change to `lib/dashboard_template.html` is checked with
+  `wf_sentences before` / `after` (jsdom; needs the local, gitignored `npm i jsdom`), and a branch
+  today's data does not take is forced by editing the DATA/CFG JSON in a copy of the built page.
+  Charts are stubbed: a drawing change is still eyeballed, and the closing comment says which.
 - Network: `fetch_weather.py` / `pull_weather_data.sh` need Open-Meteo. Nothing in the gate does.
 - Before writing a test on a statistical claim, check the claim survives the ideal case. (#1: a
   constant-rate series could not distinguish the two estimators; the first test survived
