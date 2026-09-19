@@ -69,5 +69,30 @@ class CycleIsOneMedian(unittest.TestCase):
         self.assertEqual((c["peak"], c["trough"], c["n_days"]), (None, None, 0))
 
 
+class RegimeSplitIsScoped(unittest.TestCase):
+    BANDS = {"drainage_ceiling": 75, "stress_floor": 50}
+
+    def setUp(self):
+        # three days flooded at 80, then three days in band at 60, hourly
+        t0 = datetime(2026, 9, 1)
+        self.series = [{"dt": t0 + timedelta(hours=h), "tom": 80.0 if h < 72 else 60.0}
+                       for h in range(144)]
+
+    def test_retired_regime_does_not_count_as_draining_now(self):
+        whole = analyze._regime_split(self.series, "tom", self.BANDS)
+        self.assertEqual((whole["pct_draining"], whole["n"]), (50.0, 144))
+        now = analyze._regime_split(self.series, "tom", self.BANDS, since=datetime(2026, 9, 4))
+        self.assertEqual((now["pct_draining"], now["pct_working"], now["n"]), (0.0, 100.0, 72))
+
+    def test_closed_regime_bounds_the_split_from_above(self):
+        s = analyze._regime_split(self.series, "tom", self.BANDS, until=datetime(2026, 9, 4))
+        self.assertEqual((s["pct_draining"], s["n"]), (100.0, 72))
+
+    def test_withheld_split_still_reports_the_scoped_n(self):
+        s = analyze._regime_split(self.series, "tom", dict(self.BANDS, verified=False),
+                                  since=datetime(2026, 9, 4))
+        self.assertEqual((s["pct_draining"], s["n"]), (None, 72))
+
+
 if __name__ == "__main__":
     unittest.main()

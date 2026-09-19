@@ -79,7 +79,7 @@ def resample(readings, interval_min):
 
 
 # ----------------------------------------------------------------------------- soil stats
-def _regime_split(series, key, bands):
+def _regime_split(series, key, bands, since=None, until=None):
     """Share of readings in each irrigation regime: draining / working / dry.
 
     This replaces pct_above/pct_below a setpoint. The old figure answered "how
@@ -87,8 +87,14 @@ def _regime_split(series, key, bands):
     unanswerable in agronomic terms on a factory-calibrated index. These three
     answer "how often was applied water being wasted, used, or short" -- which
     is the only question the dashboard exists to serve.
+
+    Scoped by _regime_window()'s `since`/`until` (until exclusive). The gauge
+    shows this as a present-tense figure, and over the whole history it
+    averaged nine schedules and two battery eras into it (#7).
     """
-    vals = [p[key] for p in series if p[key] is not None]
+    vals = [p[key] for p in series if p[key] is not None
+            and (since is None or p["dt"] >= since)
+            and (until is None or p["dt"] < until)]
     if not vals:
         return {"pct_draining": None, "pct_working": None, "pct_dry": None, "n": 0}
     # Every share below is a share RELATIVE TO the ceiling and floor. If those
@@ -1025,9 +1031,9 @@ def build(readings, config, wx_hourly=None):
     # the setpoint. Partition is computed on RAW readings, not `series`: it needs
     # the native 5-minute resolution to catch the post-irrigation shed, which an
     # hourly resample averages straight out of existence.
-    split = {"tom": _regime_split(series, "tom", tom_cfg["bands"]),
-             "pep": _regime_split(series, "pep", pep_cfg["bands"])}
     regime_since, regime_until, regime_label = _regime_window(config, readings)
+    split = {k: _regime_split(series, k, c["bands"], regime_since, regime_until)
+             for k, c in (("tom", tom_cfg), ("pep", pep_cfg))}
     partition = {"tom": _partition(readings, wx_hourly, "tom", tom_cfg["bands"],
                                    regime_since, regime_until, regime_label),
                  "pep": _partition(readings, wx_hourly, "pep", pep_cfg["bands"],
