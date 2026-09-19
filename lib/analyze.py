@@ -207,6 +207,25 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
     # _regime_window): bound the window above as well as below.
     if until is not None and until < t_end:
         t_end = until
+
+    # The ET0 series is the ONLY thing separating day from night here, and
+    # et.get(..., 0.0) below treats a missing hour as ET0 = 0, i.e. as night.
+    # So a weather.csv that stops before the window does not degrade the split,
+    # it inverts it: every interval lands in night_loss and the panel reports a
+    # confident "100% drainage / 0% uptake". That is exactly what happened on
+    # 2026-09-19, when the 2 x 90 s regime started 2026-09-15 and the cached
+    # weather ended 2026-09-14. Clamp the window to the weather we actually
+    # have, and return None rather than publish a split computed off the end of
+    # the series -- a silently wrong figure is worse than a missing one, the
+    # same rule manual_events applies to retention().
+    et_end = max(
+        datetime.strptime(k, "%Y-%m-%d %H") for k in et
+    ) + timedelta(hours=1)
+    if et_end < t_end:
+        t_end = et_end
+    if (t_end - cutoff) < timedelta(days=2):
+        return None
+
     ceiling = bands["drainage_ceiling"]
     night_loss = day_loss = 0.0
     night_hi = 0.0   # night loss occurring at or above the ceiling = clear waste

@@ -159,42 +159,30 @@
  },
  "plan": {
   "_comment": "Actual watering is a fixed timer, not a volume-based/Smart plan (that was never implemented). The WFC01 meters the tomato raised bed line ONLY. THE PEPPERS ARE NOT ON ECOWITT HARDWARE AT ALL — corrected 2026-08-19; they run off the HOUSE MULTI-ZONE IRRIGATION CONTROLLER alongside lawn/roses/trees. See pepper_system below before troubleshooting anything pepper-related. The pepper_freq/pepper_time/pepper_run_min keys live in this block for dashboard-rendering reasons only; they describe a different device on a different network with different failure modes. Delivery figures below are the MEASURED metered rate on clean days, not a nameplate estimate — real flow runs well above emitter nameplate.",
-  "set": "2026-08-19",
+  "set": "2026-09-15",
   "mode": "plan mode, three-start pulsed timer",
   "scope": "tomato raised bed only",
-  "freq": "5 runs daily",
+  "freq": "2 runs daily",
   "time": "05:05",
-  "run_seconds": 80,
+  "run_seconds": 90,
   "runs": [
    {
     "time": "05:05",
-    "seconds": 80
-   },
-   {
-    "time": "08:05",
-    "seconds": 80
-   },
-   {
-    "time": "11:05",
-    "seconds": 80
-   },
-   {
-    "time": "14:05",
-    "seconds": 80
+    "seconds": 90
    },
    {
     "time": "17:05",
-    "seconds": 80
+    "seconds": 90
    }
   ],
-  "runs_effective": "2026-09-11",
-  "run_min": 6.7,
-  "run_min_effective": "2026-09-11",
+  "runs_effective": "2026-09-15",
+  "run_min": 3.0,
+  "run_min_effective": "2026-09-15",
   "emitters": "12 bubblers + 8–10 drip-flag emitters (4 gph)",
-  "metered_daily": 87.5,
-  "metered_weekly": 612.5,
-  "expected_in_per_week": 5.39,
-  "live_plan_note": "ACTIVE from the 2026-09-11 05:05 run; set by Justin 2026-09-10 evening, first FULL day 2026-09-11. Five plain-duration entries of 80 s at 05:05 / 08:05 / 11:05 / 14:05 / 17:05, cycle mode OFF. START TIMES MOVED (13:05 retired, 08:05 / 11:05 / 14:05 added), so runs_time_effective advances to 2026-09-11 and onset checking rescopes -- unlike the 2026-08-28 change, which was duration-only. Projection on the measured 0.2188 L/s rate: ~87.5 L/day, ~612 L/wk, ~5.39 in/wk. DELIBERATE REFILL with a defined exit: drop 08:05 for 4 x 80 s (~70.0 L/day) once the afternoon trough holds above 58. Supersedes a 3 x 120 s plan that was set and replaced the same evening without ever running.",
+  "metered_daily": 39.4,
+  "metered_weekly": 275.7,
+  "expected_in_per_week": 2.43,
+  "live_plan_note": "ACTIVE from the 2026-09-15 05:05 run; set by Justin, logged retroactively 2026-09-19. Two plain-duration entries of 90 s at 05:05 / 17:05, cycle mode OFF. The 08:05 / 11:05 / 14:05 starts added on 2026-09-11 are RETIRED and each remaining run goes 80 -> 90 s, so total runtime falls 400 -> 180 s/day (-55%). THE SET OF START TIMES CHANGED, so runs_time_effective advances to 2026-09-15 and onset checking rescopes -- it would otherwise expect five onsets and find two. Projection on the measured 0.2188 L/s rate: ~39.4 L/day, ~275.7 L/wk, ~2.43 in/wk; the first four clean days (Sep 15-18) metered 38.5 / 40.6 / 39.1 / 40.5 L, mean 39.7 L/day, so the projection holds. RATIONALE (Justin, 2026-09-19): tomato fruiting is winding down, so this is a deliberate end-of-season taper, NOT a refill or a correction. It ends the 2026-09-11 refill early -- that plan's own exit was 'drop 08:05 for 4 x 80 s once the afternoon trough holds above 58', and the trough was 69 when this was set, so the exit condition was met and then some. WATCH: this is the SECOND run of 2 x 90 s. The first (2026-08-20 to 08-27) failed -- PM trough fell 65 -> 55 over 8 days with daytime draw never narrowing (-9 to -18 %/day). Sep 15-18 is tracking differently: draw is narrowing (-8, -7, -6, -6) against steady +5-6 overnight recharge, converging toward a trough near 59-61. ET0 is comparable across both runs (Aug 3.8-5.2 mm, Sep 4.1-4.8 mm), so the difference is crop demand, not weather -- which is what a winding-down canopy should look like. But August only blew out on days 4-6 and Sep 18 is day 4, so this is not yet settled. REVERT TRIGGER: daytime draw widening back past -8 pts on two consecutive days, or PM trough below 55. Add back the 11:05 start (3 x 90 s, ~59 L/day) if either fires.",
   "schedule_log": [
    {
     "date": "2026-09-11",
@@ -517,6 +505,13 @@
     "logged": "2026-07-23T13:42:57",
     "kind": "change",
     "change": "Tomato timer set: 14 min once daily @ 05:05 PT, a fixed timer replacing earlier irregular hand-timing."
+   },
+   {
+    "date": "2026-09-15",
+    "logged": "2026-09-19T13:10:00",
+    "kind": "change",
+    "summary": "Tomato plan 5 x 80 s -> 2 x 90 s at 05:05 / 17:05. The 08:05 / 11:05 / 14:05 starts are retired and run length goes 80 -> 90 s; total runtime 400 -> 180 s/day (-55%), ~87.5 -> ~39.4 L/day. Set by Justin; first full day 2026-09-15. LOGGED RETROACTIVELY on 2026-09-19 -- the 2026-09-19 dashboard build flagged the drop from meter data before it was logged, and initially read it as three runs having failed to fire.",
+    "change": "End-of-season taper, not a correction: tomato fruiting is winding down and Justin cut water deliberately. Ends the 2026-09-11 heat-wave refill ahead of its written exit (4 x 80 s once the PM trough held above 58) -- the trough was 69 on 2026-09-14, so the condition was met and the cut went two steps further, straight to 2 x 90 s. Meter confirms the new plan exactly: 90 s at 0.2188 L/s predicts 19.7 L/run against 19.9 L observed mean over Sep 15-18."
    }
   ],
   "proposed_plan": {
@@ -700,8 +695,14 @@
    {
     "label": "5 x 80 s pulsed",
     "start": "2026-09-11",
-    "end": null,
+    "end": "2026-09-14",
     "note": "heat-wave refill; 3-hourly across the demand window 05:05-17:05; ~87.5 L/day projected. NOTE: the 3 x 80 s regime's final day (2026-09-10) carries 69.8 L of diagnostic-test water on top of its 54.9 L of scheduled water, so that regime's liters/day average is inflated by its last day -- water_budget() and regime_summary() have no manual-event exclusion."
+   },
+   {
+    "label": "2 x 90 s pulsed (end-of-season taper)",
+    "start": "2026-09-15",
+    "end": null,
+    "note": "deliberate taper as tomato fruiting winds down; ~39.4 L/day projected, 39.7 L/day measured over the first four clean days. SECOND run of this exact regime -- compare against 2026-08-20/08-27, which fell 65 -> 55 without flattening. This one is narrowing its daytime draw (-8, -7, -6, -6) at comparable ET0, i.e. lower crop demand rather than milder weather."
    }
   ],
   "_regimes_comment": "Irrigation regime boundaries for the TOMATO line, maintained by hand from schedule_log. Charts shade by these and regime_summary() compares them side by side. This exists because the old dashboard fitted ONE linear trend across all of them and projected a setpoint crossing from it (R^2 0.28, projection undefined) — a slope fitted across regime changes is not a trend, it is an artefact. ADD A ROW HERE whenever the plan changes, or the comparison silently goes stale.",
@@ -768,7 +769,7 @@
   ],
   "_manual_events_comment": "Hand applications: fertigation, spot watering, anything poured by hand. LOG THEM HERE. Two reasons, both of which bit on 2026-08-16 before this key existed. (1) The WFC01 never sees hand-applied water, so the meter under-reports what the bed got while the probe records the full response — points-per-100L read 23.9 that day, the highest in the record, purely because the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, since a silently wrong efficiency figure is worse than a missing one. (2) They are not schedule violations, so onset_check() skips them; otherwise every fertigation shows up as a broken timer. Detection hint: a manual application shows as simultaneous off-schedule events on BOTH channels within a few minutes — that signature appears exactly once in the record (2026-08-16, 5 min apart).",
   "pepper_prev_run_min": 15,
-  "runs_time_effective": "2026-09-11",
+  "runs_time_effective": "2026-09-15",
   "pepper_time_effective": "2026-07-24",
   "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations."
  }
