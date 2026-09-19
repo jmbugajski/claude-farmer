@@ -61,5 +61,36 @@ class MissingEt0(unittest.TestCase):
         self.assertAlmostEqual(sum(d for d, _ in day[70]), 1.0)
 
 
+class OffNominalDays(unittest.TestCase):
+    HEALTH = {"nominal_volts": 1.5, "volt_tolerance": 0.15}
+
+    def _two_days(self):
+        # Day 1 on a lithium cell (1.70 V) and flat -- the 2026-07 pepper
+        # failure; day 2 on alkaline (1.60 V) with one tick per hour.
+        d1, d2 = datetime(2026, 8, 1, 10), datetime(2026, 8, 2, 10)
+        dead, et1 = _flat_with_ticks(d1, 37, [0.5, 0.5], set())
+        live, et2 = _flat_with_ticks(d2, 37, [0.5, 0.5], {6, 18})
+        for r in dead:
+            r["v_tom"] = 1.70
+        for r in live:
+            r["v_tom"] = 1.60
+        return dead + live, {**et1, **et2}, d1.date(), d2.date()
+
+    def test_day_outside_volt_tolerance_is_returned(self):
+        rows, _, d1, _ = self._two_days()
+        self.assertEqual(db.off_nominal_days(rows, "v_tom", self.HEALTH), {d1})
+
+    def test_excluded_day_never_reaches_a_bin(self):
+        # Unfiltered, the flat day halves the bin's rate: 2 points over 46
+        # intervals instead of over 23.
+        rows, et, d1, _ = self._two_days()
+        _, mixed, _ = db.curves(rows, et, "tom", 5)
+        _, day, skipped = db.curves(rows, et, "tom", 5, exclude_days={d1})
+        self.assertEqual(len(mixed[35]), 46)
+        self.assertEqual(len(day[35]), 23)
+        self.assertEqual(skipped, 0)
+        self.assertAlmostEqual(db._day_rate(day[35]), 2 * db._day_rate(mixed[35]), places=6)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -88,6 +88,27 @@ def load_et0(path: str) -> dict:
     return et
 
 
+def off_nominal_days(readings, vkey, health):
+    """Dates whose mean supply voltage is outside health.nominal_volts +/-
+    volt_tolerance -- the same rule analyze._sensor_health warns on.
+
+    The %-scale is only stationary at one excitation voltage, and everything
+    below bins by level, so a day on a shifted scale lands in the wrong bin.
+    On 2026-09-19 this was pepper 07-13 -> 08-06: a sagging alkaline (1.28-1.34
+    V), then the lithium cell (1.70 V) whose flatline put 985 zero-drop
+    intervals into the 1433-interval 36-38 day bin -- a dead sensor read as a
+    plant that had stopped drinking (#4). The AD-range floor is NOT used: per
+    day it also fires on live low-swing days (pepper 09-11 -> 09-18, range 7-9).
+    """
+    nominal = health.get("nominal_volts", 1.5)
+    tol = health.get("volt_tolerance", 0.08)
+    by_day = collections.defaultdict(list)
+    for r in readings:
+        if r.get(vkey) is not None:
+            by_day[r["dt"].date()].append(r[vkey])
+    return {d for d, vs in by_day.items() if abs(statistics.mean(vs) - nominal) > tol}
+
+
 def _day_rate(intervals):
     """Day loss for one bin, in %AD per mm ET0: total drop over total demand.
 
@@ -107,7 +128,7 @@ def _day_rate(intervals):
     return sum(d for d, _ in intervals) / demand
 
 
-def curves(readings, et, key, step):
+def curves(readings, et, key, step, exclude_days=frozenset()):
     """Bin night loss (%AD/hr) and day (drop, mm ET0) pairs by moisture level.
 
     Returns (night, day, skipped). `skipped` counts loss intervals whose hour
@@ -117,6 +138,9 @@ def curves(readings, et, key, step):
     On 2026-09-19 weather.csv began 07-08 against readings from 06-29, which
     filed the whole flood-dosing period, day and night, as night and moved the
     pepper ceiling from 48 to 45 (#2).
+
+    Intervals starting on a date in `exclude_days` (see off_nominal_days) are
+    dropped before anything else and are not counted in `skipped`.
     """
     night = collections.defaultdict(list)
     day = collections.defaultdict(list)
@@ -124,6 +148,8 @@ def curves(readings, et, key, step):
     for a, b in zip(readings, readings[1:]):
         hrs = (b["dt"] - a["dt"]).total_seconds() / 3600.0
         if not 0 < hrs <= MAX_GAP_HR:
+            continue
+        if a["dt"].date() in exclude_days:
             continue
         if a[key] is None or b[key] is None:
             continue
@@ -179,20 +205,31 @@ def find_floor(day, step, drop_to=0.65):
     return None, plateau
 
 
-def report(label, night, day, step, skipped=0):
+def report(label, night, day, step, skipped=0, excluded=(), full=None):
+    """`full` is the (night, day) pair binned WITHOUT exclusions; when days were
+    excluded each n prints as kept/all, so a bin that was mostly untrusted data
+    stays visible as one."""
     print(f"\n=== {label} ===")
+    if excluded:
+        print(f"  {len(excluded)} days excluded -- supply voltage off nominal, %-scale shifted "
+              f"({min(excluded)} -> {max(excluded)})")
     if skipped:
         used = sum(len(v) for v in night.values()) + sum(len(v) for v in day.values())
         print(f"  {skipped} loss intervals skipped -- no ET0 row for their hour "
               f"({skipped / (skipped + used):.0%} of {skipped + used})")
-    print(f"{'level':>11} {'n':>6} {'night %AD/hr':>13} {'n':>6} {'day %AD/mm ET0':>15}")
+    nw = 11 if excluded else 6
+    print(f"{'level':>11} {'n':>{nw}} {'night %AD/hr':>13} {'n':>{nw}} {'day %AD/mm ET0':>15}")
     for lv in sorted(set(night) | set(day)):
         nv, dv = night.get(lv, []), day.get(lv, [])
         if len(nv) < MIN_N and len(dv) < MIN_N:
             continue
         ns = f"{statistics.mean(nv):+.3f}" if len(nv) >= MIN_N else "--"
         ds = f"{_day_rate(dv):.2f}" if len(dv) >= MIN_N else "--"
-        print(f"{lv:>7}-{lv + step - 1:<3} {len(nv):>6} {ns:>13} {len(dv):>6} {ds:>15}")
+        nn, dn = str(len(nv)), str(len(dv))
+        if excluded:
+            nn += f"/{len(full[0].get(lv, []))}"
+            dn += f"/{len(full[1].get(lv, []))}"
+        print(f"{lv:>7}-{lv + step - 1:<3} {nn:>{nw}} {ns:>13} {dn:>{nw}} {ds:>15}")
 
     ceiling, ratio = find_ceiling(night, step)
     floor, plateau = find_floor(day, step)
@@ -230,11 +267,14 @@ def main() -> int:
     print(f"{len(readings)} readings  {readings[0]['dt']:%Y-%m-%d} → {readings[-1]['dt']:%Y-%m-%d}")
     print(f"{len(et)} hourly ET0 rows  {min(et)[:10]} → {max(et)[:10]}")
     any_skipped = False
-    for key, pname, default_step in (("tom", "tomato", 5), ("pep", "pepper", 3)):
+    for key, vkey, pname, default_step in (("tom", "v_tom", "tomato", 5),
+                                           ("pep", "v_pep", "pepper", 3)):
         step = args.step or default_step
         gauge = cfg["probes"][pname]["gauge"]
-        night, day, skipped = curves(readings, et, key, step)
-        report(f"{gauge['name']} — {gauge['loc']}", night, day, step, skipped)
+        excluded = off_nominal_days(readings, vkey, cfg.get("health", {}))
+        night, day, skipped = curves(readings, et, key, step, excluded)
+        full = curves(readings, et, key, step)[:2] if excluded else None
+        report(f"{gauge['name']} — {gauge['loc']}", night, day, step, skipped, excluded, full)
         any_skipped = any_skipped or bool(skipped)
     if any_skipped:
         print(f"\nWARNING: weather.csv covers {min(et)[:10]} → {max(et)[:10]} but readings cover "
