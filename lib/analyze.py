@@ -317,7 +317,17 @@ def _probe_stats(series, key, bands):
     }
 
 
-def _daily(series):
+def _daily(series, extremes):
+    """Per-day mean, trough and peak for each probe.
+
+    min/max come from events.daily_extremes() at native resolution, NOT from
+    `series`. A 90 s pulse at 05:05 peaks at ~05:15 and has shed most of its
+    excursion by 06:00, so the hourly point samples understated the tomato peak
+    by 5.2 points on average (up to 16) and missed 8 of 44 ceiling days; pepper
+    25 of 40 (#6, 82 exports to 2026-09-19). Every ceiling test downstream --
+    _cycle(), _weather_analysis() draw -- reads these rows. The mean stays on
+    the hourly series, which samples the day evenly.
+    """
     days: dict[str, dict] = {}
     for p in series:
         d = p["dt"].strftime("%Y-%m-%d")
@@ -326,16 +336,18 @@ def _daily(series):
             days[d]["tom"].append(p["tom"])
         if p["pep"] is not None:
             days[d]["pep"].append(p["pep"])
+    ext = {k: {e["date"]: e for e in extremes.get(k) or []} for k in ("tom", "pep")}
     out = []
     for d in sorted(days):
-        t, pe = days[d]["tom"], days[d]["pep"]
-        if not t and not pe:
+        if not days[d]["tom"] and not days[d]["pep"]:
             continue
-        out.append({
-            "date": d,
-            "tom_mean": _mean(t), "tom_min": round(min(t), 1) if t else None, "tom_max": round(max(t), 1) if t else None,
-            "pep_mean": _mean(pe), "pep_min": round(min(pe), 1) if pe else None, "pep_max": round(max(pe), 1) if pe else None,
-        })
+        row = {"date": d}
+        for k in ("tom", "pep"):
+            e = ext[k].get(d)
+            row[f"{k}_mean"] = _mean(days[d][k])
+            row[f"{k}_min"] = round(e["day_min"], 1) if e else None
+            row[f"{k}_max"] = round(e["day_max"], 1) if e else None
+        out.append(row)
     return out
 
 
@@ -992,7 +1004,6 @@ def build(readings, config, wx_hourly=None):
 
     tom_stats = _probe_stats(series, "tom", tom_cfg["bands"])
     pep_stats = _probe_stats(series, "pep", pep_cfg["bands"])
-    daily = _daily(series)
     water = _water(readings, since=config.get("plan", {}).get("runs_effective"))
 
     # Regime split and drainage/uptake partition -- the two figures that replace
@@ -1017,6 +1028,7 @@ def build(readings, config, wx_hourly=None):
     ev_pep = events_mod.tag_manual(events_mod.detect_events(readings, "pep"), manual, channel="pep")
     ext_tom = events_mod.daily_extremes(readings, "tom", ev_tom)
     ext_pep = events_mod.daily_extremes(readings, "pep", ev_pep)
+    daily = _daily(series, {"tom": ext_tom, "pep": ext_pep})
     sched_tom = [r["time"] for r in plan_cfg.get("runs", [])]
     sched_pep = [plan_cfg["pepper_time"]] if plan_cfg.get("pepper_time") else []
     native = {
