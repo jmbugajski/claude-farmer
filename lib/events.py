@@ -29,7 +29,7 @@ import statistics
 from datetime import datetime, timedelta
 
 # A "rise" is a NET gain of at least this many points, accumulated from a local
-# trough within RISE_WINDOW_MIN. The probes quantise to whole percent and normal
+# trough over one contiguous ascent. The probes quantise to whole percent and normal
 # diurnal movement is well under 1 point per 5 minutes, so 3 is comfortably
 # above noise.
 #
@@ -52,13 +52,13 @@ from datetime import datetime, timedelta
 # threshold bought recall without buying a single false positive. Recall over
 # Sep 4-10 went from 8 events to 19 against 21 scheduled runs.
 MIN_RISE = 2
-# How long a rise may take to accumulate. Set from the slowest real ascent in the
-# record -- the 2026-09-10 05:05 tomato run needed 110 minutes to gather its 3
-# points. Merging risk is low: starts are >= 3 h apart, and GROUP_MIN still folds
-# genuine multi-pulse blocks into one event. Overnight drift (~-0.2 pts/hr) cannot
-# manufacture a false positive in either direction over this span.
-RISE_WINDOW_MIN = 120
-# An ascent ENDS after this long without gaining a point. Without it, a flat hour
+# An ascent ENDS after this long without gaining a point. This is also the only
+# bound on how long a rise may take: an ascent that keeps going gains a point at
+# least every STALL_MIN, i.e. >= 2 pts/hr against overnight drift of ~0.2. Until
+# #17 a 120-minute cap sat on top of it and DISCARDED any ascent that ran longer,
+# so a ramp detected at 110 min (2026-09-10 05:05 tomato, the slowest on record)
+# would have vanished at 125 -- blind in the direction the garden is trending.
+# No ascent on the record (06-29 -> 09-19) reached the cap. Without the stall, a flat hour
 # glues unrelated movement together: on 2026-09-10 a +1 blip at 19:05 and the
 # 20:05 diagnostic run merged into one "event" dated 19:05, which put it outside
 # tag_manual()'s 45-minute window and would have left the test unlabelled in
@@ -163,8 +163,7 @@ def metered_manual_days(manual):
 
 
 def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
-                  settle_min=SETTLE_MIN, rise_window=RISE_WINDOW_MIN,
-                  stall_min=STALL_MIN):
+                  settle_min=SETTLE_MIN, stall_min=STALL_MIN):
     """
     Find irrigation events for one probe channel at native resolution.
 
@@ -175,6 +174,7 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
       peak        highest value reached during the event
       settled     value at onset + settle_min -- what it actually KEPT
       retained    settled - pre_floor        <- the only gain that matters
+                  (None when the data resumed mid-climb: no floor to measure from)
       shed        peak - settled             <- water that arrived and left
       pulses      per-pulse (time, peak) within the event
       floor_between  lowest value between the first and last pulse peak. When
@@ -192,8 +192,8 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
         return []
 
     # --- locate rises
-    # Each rise is (trough, onset_row, ascent_top). A rise is a NET gain of
-    # min_rise points from a local trough, reached within rise_window -- so it
+    # Each rise is (trough, onset_row, ascent_top, floor_known). A rise is a NET gain of
+    # min_rise points from a local trough over one contiguous ascent -- so it
     # fires whether the water arrives in one 5-minute step (the old high-volume
     # regimes) or trickles in over two hours (the short-pulse regimes). Starting
     # only from a local trough is what keeps a slow ramp from registering once
@@ -202,8 +202,13 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
     n = len(vals)
     i = 0
     while i < n - 1:
-        if vals[i + 1][key] <= vals[i][key]:
-            i += 1                      # flat or falling: no ascent starts here
+        # Flat or falling: no ascent starts here. Nor across a sample gap -- the
+        # sample after it may be the true trough. Until #17 a gap in this first
+        # pair discarded the WHOLE ascent behind it: 2026-08-15 pepper resumed
+        # at 06:40 = 49 after a dropout and ran to 57, and the day had no event.
+        if (vals[i + 1][key] <= vals[i][key]
+                or (vals[i + 1]["dt"] - vals[i]["dt"]).total_seconds() / 60 > MAX_GAP_MIN):
+            i += 1
             continue
         # walk the CONTIGUOUS non-decreasing ascent that starts at i. Requiring
         # contiguity is what stops the window from reaching back past a long flat
@@ -219,11 +224,15 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
             if vals[k][key] > vals[k - 1][key]:
                 last_up = k
         k = last_up                     # trim the flat tail off the ascent
-        gain = vals[k][key] - vals[i][key]
-        span = (vals[k]["dt"] - vals[i]["dt"]).total_seconds() / 60
-        gap_ok = (vals[i + 1]["dt"] - vals[i]["dt"]).total_seconds() / 60 <= MAX_GAP_MIN
-        if gain >= min_rise and span <= rise_window and gap_ok:
-            rises.append((vals[i], vals[i + 1], vals[k]))
+        if vals[k][key] - vals[i][key] >= min_rise:
+            # A trough that ROSE across a gap is only where the data resumed:
+            # 08-15's 49 was already mid-climb from 40. The event is real, its
+            # pre_floor is not a floor, and `retained` is withheld -- read as
+            # -2 it would have scored the run `short` in onset_check.
+            floor_known = i > 0 and (
+                vals[i][key] <= vals[i - 1][key]
+                or (vals[i]["dt"] - vals[i - 1]["dt"]).total_seconds() / 60 <= MAX_GAP_MIN)
+            rises.append((vals[i], vals[i + 1], vals[k], floor_known))
         i = max(k, i + 1)
     if not rises:
         return []
@@ -238,14 +247,14 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
 
     out = []
     for g in groups:
-        onset_prev, onset_row, _ = g[0]
+        onset_prev, onset_row, _, floor_known = g[0]
         onset = onset_row["dt"]
         pre_floor = onset_prev[key]
 
         # End of the slowest ascent in this group. Everything below is floored at
         # the old onset-relative timing, so fast events are byte-identical to the
         # pre-2026-09-10 detector; only ramps that outlast settle_min move.
-        top_dt = max(t["dt"] for _, _, t in g)
+        top_dt = max(r[2]["dt"] for r in g)
 
         # window covering the event plus its settling tail
         w_end = max(onset + timedelta(minutes=settle_min + 10),
@@ -316,7 +325,8 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
             "peak_t": peak_row["dt"].strftime("%H:%M"),
             "min_to_peak": round((peak_row["dt"] - onset).total_seconds() / 60),
             "settled": settled,
-            "retained": round(settled - pre_floor, 1) if settled is not None else None,
+            "retained": round(settled - pre_floor, 1)
+                        if settled is not None and floor_known else None,
             "shed": round(peak_row[key] - settled, 1) if settled is not None else None,
             "pulses": pulses,
             "n_pulses": len(pulses),
