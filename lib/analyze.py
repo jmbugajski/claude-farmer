@@ -39,6 +39,35 @@ def _fmt_md(d: datetime) -> str:
     return d.strftime("%b %-d")
 
 
+# ----------------------------------------------------------------------------- page payload
+# The page is public (docs/index.html on GitHub Pages) and config.json doubles
+# as the lab notebook, so config reaches DATA / CFG only through these lists:
+# the keys lib/dashboard_template.html reads, nothing else. Until 2026-09-19
+# (#16) CFG.plan was the whole plan subtree -- proposed_plan, manual_events,
+# instrumentation_todo and every _comment shipped in the page source, and any
+# note typed under a new key would have too. A key the template starts reading
+# is added here; a deny-list would not fail closed.
+PAGE_PLAN_KEYS = (
+    "mode", "emitters", "set",
+    "runs", "run_seconds", "runs_effective",
+    "metered_daily", "metered_weekly", "expected_in_per_week",
+    "pepper_run_min", "pepper_freq", "pepper_time", "pepper_effective",
+)
+PAGE_LOG_KEYS = ("date", "logged", "kind", "summary", "change")
+PAGE_BAND_KEYS = ("drainage_ceiling", "stress_floor", "verified")
+PAGE_REGIME_KEYS = ("start", "end", "label")
+
+
+def _pick(d, keys):
+    return {k: d[k] for k in keys if k in d}
+
+
+def _page_plan(plan):
+    out = _pick(plan, PAGE_PLAN_KEYS)
+    out["schedule_log"] = [_pick(e, PAGE_LOG_KEYS) for e in plan.get("schedule_log") or []]
+    return out
+
+
 def _linreg(xs, ys):
     """Ordinary least squares. Returns (slope, intercept, r2)."""
     n = len(xs)
@@ -1172,7 +1201,7 @@ def build(readings, config, wx_hourly=None):
             "inches": plan_cfg.get("expected_in_per_week"),
             "verdict": events_mod.band_verdict(
                 plan_cfg.get("expected_in_per_week"), etc_band)},
-        "regime_bands": plan_cfg.get("regimes") or [],
+        "regime_bands": [_pick(r, PAGE_REGIME_KEYS) for r in plan_cfg.get("regimes") or []],
     }
     cycle = {k: _cycle(daily, k, regime_since, regime_until) for k in ("tom", "pep")}
     wx_daily = weather_mod.daily(wx_hourly, config["location"]["lat"]) if wx_hourly else []
@@ -1225,8 +1254,9 @@ def build(readings, config, wx_hourly=None):
         "interval_label": f" @ {interval_hr_disp} h",
         # Derived thresholds, replacing the retired `setpoints` key. See
         # probes._bands_provenance in config.json and lib/derive_bands.py.
-        "bands": {"tom": tom_cfg["bands"], "pep": pep_cfg["bands"]},
-        "plan": config["plan"],
+        "bands": {"tom": _pick(tom_cfg["bands"], PAGE_BAND_KEYS),
+                  "pep": _pick(pep_cfg["bands"], PAGE_BAND_KEYS)},
+        "plan": _page_plan(config["plan"]),
         "gauge": {
             "tom": _gauge_for("tom", tom_cfg, tom_stats, cycle["tom"], split["tom"], partition["tom"]),
             "pep": _gauge_for("pep", pep_cfg, pep_stats, cycle["pep"], split["pep"], partition["pep"]),
