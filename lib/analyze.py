@@ -742,16 +742,7 @@ def _scope(since, readings):
     return since if since <= last else None
 
 
-def _trust_from(config, key, _cache={}):
-    """
-    Date after which a channel's readings are trustworthy: the day AFTER its
-    most recent calibration break. Set by _sensor_health as a side effect, so
-    this just reads what that computed; returns None if there was no break.
-    """
-    return _cache.get(key)
-
-
-def _sensor_health(readings, config):
+def _sensor_health(readings, config, event_days):
     """
     Per-channel instrument trust check. Two failure modes matter for remote
     diagnosis, and neither shows up in the moisture % series itself:
@@ -765,6 +756,15 @@ def _sensor_health(readings, config):
          trailing norm, the probe is degrading or has lost contact with the
          medium (air gap) — the reading may still look plausible but is no
          longer responsive.
+
+    `event_days` is {channel: set of ISO dates with a detected irrigation
+    event}. It exists for `trust_from`, the date from which the channel's
+    readings can be scored: the later of the last voltage step and the day
+    after the last DEAD RUN. A dead run is 3+ consecutive days under
+    `ad_range_floor` with no detected event. The floor alone cannot say this
+    (#11, #19): pepper sat at 4-9 counts on 2026-07-22 -> 08-05 with zero
+    events, and at 7-9 counts on 09-11 -> 09-18 with an event every scored
+    day. Only the first is a probe that could not register an onset.
     """
     hc = config.get("health", {})
     v_tol = hc.get("volt_tolerance", 0.08)
@@ -816,9 +816,11 @@ def _sensor_health(readings, config):
         # a RECENT step, where the reader may still be comparing across it,
         # stays in `flags`.
         breaks = []
+        step_dates = []
         last_day = days[-1]["date"]
         for a, b in zip(days, days[1:]):
             if a["v"] is not None and b["v"] is not None and abs(b["v"] - a["v"]) > v_tol:
+                step_dates.append(b["date"])
                 age = (datetime.fromisoformat(last_day)
                        - datetime.fromisoformat(b["date"])).days
                 msg = (f"voltage stepped {a['v']:.2f} → {b['v']:.2f} V on "
@@ -875,20 +877,30 @@ def _sensor_health(readings, config):
                             f"suspecting the instrument."),
                 })
 
-        # Publish the trust boundary for other panels (see _trust_from): the
-        # date of the most recent calibration break, recent or historical.
-        all_breaks = [b["date"] for b in breaks] + \
-                     [d["date"] for d in days for f in flags
-                      if d["date"] in f.get("msg", "")]
-        if all_breaks:
-            _trust_from.__defaults__[0][key] = max(all_breaks)
+        # Trust boundary (see docstring). ISO dates, so max() is chronological.
+        # A run needs 3 days, the same window the `bad` grade's median uses:
+        # pepper 2026-09-11 was one under-floor day with no detected event,
+        # yet the raw trace still moved +2 on the 06:45 run.
+        seen = event_days.get(key) or set()
+        trust = step_dates[-1:]
+        run = 0
+        dead_end = None
+        for d in days:
+            is_dead = (d["ad_range"] is not None and d["ad_range"] < range_floor
+                       and d["date"] not in seen)
+            run = run + 1 if is_dead else 0
+            if run >= 3:
+                dead_end = d["date"]
+        if dead_end:
+            trust.append((datetime.fromisoformat(dead_end)
+                          + timedelta(days=1)).date().isoformat())
 
         out[key] = {
             "label": label,
             "days": days[-14:],
             "v_last": last_v,
             "ad_range_last": days[-1]["ad_range"],
-            "trust_from": max(all_breaks) if all_breaks else None,
+            "trust_from": max(trust) if trust else None,
             "flags": flags,
             "breaks": breaks,
             "ok": not flags,
@@ -1097,6 +1109,9 @@ def build(readings, config, wx_hourly=None):
     # Same absolute floor _sensor_health grades `bad` on: under it a flat trace
     # says nothing about whether a scheduled run fired.
     ad_floor = config.get("health", {}).get("ad_range_floor", 12)
+    health = _sensor_health(readings, config,
+                            {"tom": {e["date"] for e in ev_tom},
+                             "pep": {e["date"] for e in ev_pep}})
     native = {
         "events": {"tom": ev_tom, "pep": ev_pep},
         "extremes": {"tom": ext_tom, "pep": ext_pep},
@@ -1121,7 +1136,8 @@ def build(readings, config, wx_hourly=None):
                 ev_pep, sched_pep, readings, "pep", ad_floor=ad_floor,
                 since=_scope(max([d for d in (plan_cfg.get("pepper_time_effective")
                                               or plan_cfg.get("pepper_effective"),
-                                              _trust_from(config, "pep")) if d] or [None]),
+                                              (health.get("pep") or {}).get("trust_from"))
+                                   if d] or [None]),
                              readings)),
         },
         "regimes": events_mod.regime_summary(
@@ -1156,7 +1172,7 @@ def build(readings, config, wx_hourly=None):
         "partition": partition,
         "water": water,
         "native": native,
-        "health": _sensor_health(readings, config),
+        "health": health,
         # None when inputs/weather.csv is absent -- the template falls back to
         # its client-side Open-Meteo fetch in that case.
         "weather": wx,
