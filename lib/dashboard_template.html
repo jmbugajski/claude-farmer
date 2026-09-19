@@ -416,18 +416,26 @@ const NAT=DATA.native||{};
     </tr>`).join('');
   document.getElementById('regime-table').innerHTML=
     `<thead><tr><th>Regime</th><th>Days</th><th>L/day</th><th>Pre-irrig. floor</th><th>Daily min</th></tr></thead><tbody>${rows}</tbody>`;
-  const wet=R.filter(r=>r.liters_day!=null&&r.pre_irrigation!=null);
+  // The sentence follows the numbers: more water for a LOWER-or-equal floor is
+  // the application-rate diagnosis; more water for a HIGHER floor is not, and
+  // says so. A regime of under 3 days is one morning, not a regime (#13).
+  const wet=R.filter(r=>r.liters_day!=null&&r.pre_irrigation!=null&&r.days>=3);
   let msg='';
   if(wet.length>=2){
     const most=wet.reduce((a,b)=>b.liters_day>a.liters_day?b:a);
     const least=wet.reduce((a,b)=>b.liters_day<a.liters_day?b:a);
-    msg=`<b>The headline of this whole project is in this table.</b> The wettest regime (${most.label},
-      <b>${most.liters_day} L/day</b>) held a pre-irrigation floor of <b>${most.pre_irrigation}%</b>;
-      the driest (${least.label}, <b>${least.liters_day} L/day</b>) holds <b>${least.pre_irrigation}%</b>.
-      That is <b>${(most.liters_day/least.liters_day).toFixed(1)}&times; the water for
-      ${Math.abs(most.pre_irrigation-least.pre_irrigation).toFixed(1)} points
-      ${most.pre_irrigation>least.pre_irrigation?'MORE':'LESS'}</b> retained —
-      the application-rate diagnosis, visible without any statistics.`;
+    const diff=most.pre_irrigation-least.pre_irrigation;
+    const [first,second]=most.start<least.start?[most,least]:[least,most];
+    const brk=(((DATA.health||{}).tom||{}).breaks||[]).filter(k=>k.date>first.start&&k.date<=(second.end||'9999'));
+    msg=`The wettest regime (${most.label}, <b>${most.liters_day} L/day</b>) held a pre-irrigation floor of
+      <b>${most.pre_irrigation}%</b>; the driest (${least.label}, <b>${least.liters_day} L/day</b>) held
+      <b>${least.pre_irrigation}%</b>. That is <b>${(most.liters_day/least.liters_day).toFixed(1)}&times; the water for
+      ${Math.abs(diff).toFixed(1)} points ${diff>0?'MORE':'LESS'}</b> retained. `+
+      (diff<=0
+        ? `More water did not buy a higher floor &mdash; the application-rate diagnosis: the extra litres left the profile instead of staying in it.`
+        : `Here more water did hold a higher floor, so this table does <b>not</b> show the application-rate diagnosis on its own; read panel 5's per-run retention before cutting volume.`)+
+      (brk.length?` <b>A probe calibration break (${brk.map(k=>k.date).join(', ')}) falls between these two regimes</b>, so their absolute % are not directly comparable.`:'')+
+      ` The regimes also ran in different weeks of the season; demand is not held constant between them.`;
   }
   document.getElementById('regime-caveat').innerHTML=msg+
     ` <span style="color:var(--mut)">Regime boundaries are maintained by hand in <code>plan.regimes</code>; add a row when the plan changes or this comparison goes stale.</span>`;
@@ -658,15 +666,17 @@ const NAT=DATA.native||{};
     `<div class="caveat" style="border-left-color:var(--leaf);color:#D7D5C8">
       <b style="color:var(--ink)">Actual watering — pulsed multi-start timer:</b>
       the <b>tomato raised bed</b> runs ${runList||PLAN.run_min+' min '+PLAN.freq}
-      ${effD?'(<b>as of '+effD+'</b>)':''}, through <b>${PLAN.emitters}</b>, cycle mode off.
+      ${effD?'(<b>as of '+effD+'</b>)':''}, through <b>${PLAN.emitters}</b>.
       ${(PLAN.runs||[]).filter(r=>r.time<'12:00').length>1
         ? `The morning starts are a <b>manual cycle-and-soak</b>: each pulse infiltrates and redistributes
            downward before the next arrives, which wets deeper per litre than one long run that out-paces
            infiltration and channels through.`
-        : `<b>Single morning pulse.</b> The extra 05:20 and 05:35 starts were retired on Aug 19 &mdash; at
-           5-minute resolution the inter-pulse floor was pinned at 79&ndash;81% (field capacity), which pulse
-           one alone reached, so later pulses spiked ~10 points and shed every point back within 10 minutes.`}
-      Each 90 s pulse meters <b>~19.9 L</b>, so
+        : ''}
+      ${(()=>{const rs=PLAN.runs||[], sec=rs.length?rs[0].seconds:null;
+        // Per-pulse litres only when every run is the same length; it is the
+        // plan's own daily figure divided out, not a separate constant (#13).
+        return rs.length&&rs.every(r=>r.seconds===sec)&&PLAN.metered_daily
+          ? `Each ${sec} s pulse meters <b>~${(PLAN.metered_daily/rs.length).toFixed(1)} L</b>, so` : `The plan meters`;})()}
       <b>~${PLAN.metered_daily} L/day</b> (~${PLAN.metered_weekly} L/wk).
       ${BED?`<br><br><b style="color:var(--ink)">Now expressible as depth:</b> the bed is
       <b>${BED.length_ft}×${BED.width_ft} ft (${BED.area_ft2} sq ft)</b> with soil <b>${BED.soil_depth_in} in</b> deep, so
@@ -679,7 +689,7 @@ const NAT=DATA.native||{};
       50%→90%. 6.5× the water for 6 more points.`:''}
       <br><br><b style="color:var(--ink)">Peppers are on a different system entirely:</b>
       the 6× fabric bags are a zone on the <b>house multi-zone irrigation controller</b> (which also runs lawn, roses and trees) —
-      <b>not EcoWitt hardware</b>. Currently <b>${PLAN.pepper_run_min} min, ${PLAN.pepper_freq}${PLAN.pepper_time?' @ '+PLAN.pepper_time+' PT':''}</b>${PLAN.pepper_effective?' (<b>as of '+new Date(PLAN.pepper_effective+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</b>, was every 12 h)':''},
+      <b>not EcoWitt hardware</b>. Currently <b>${PLAN.pepper_run_min} min, ${PLAN.pepper_freq}${PLAN.pepper_time?' @ '+PLAN.pepper_time+' PT':''}</b>${PLAN.pepper_effective?' (<b>as of '+new Date(PLAN.pepper_effective+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})+'</b>)':''},
       <b>unmetered and unlogged</b> — so nothing below reflects pepper watering, and pepper faults are a
       separate troubleshooting domain. Note the pepper soil probe is the <b>only sensor of any kind</b> on that
       house system, which makes it an accidental run-log for one of its zones.</div>`;
@@ -761,9 +771,19 @@ const NAT=DATA.native||{};
         y:{beginAtZero:true,title:{display:true,text:'L / week',color:COL.mut},ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(46,51,34,.5)'}}}},
     plugins:[targetLine]});
 
+  // The one alarm this chart can raise, so it is checked, not waved away: the
+  // newest complete week that lies wholly under the current plan, against the
+  // plan's own weekly figure. Same +/-25% the bar colours use (#13).
+  const planCheck=(()=>{
+    const wk=(NAT.budget||[]).filter(b=>PLAN.runs_effective&&b.start>=PLAN.runs_effective).pop();
+    if(!wk||!PLAN.metered_weekly) return `No complete week lies wholly under this plan yet, so the step cannot be checked against it.`;
+    const x=wk.liters/PLAN.metered_weekly, span=`${fmt(wk.start)}–${fmt(wk.end)}`;
+    return x<0.75 ? `<b style="color:var(--tom)">${span} metered ${wk.liters} L, ${Math.round((1-x)*100)}% under plan</b> — check for a clogged filter, low pressure or missed runs.`
+         : x>1.25 ? `<b style="color:var(--tom)">${span} metered ${wk.liters} L, ${Math.round((x-1)*100)}% over plan</b> — a leak, a stuck valve or unlogged extra runs.`
+         : `${span} metered ${wk.liters} L, within 25% of plan: the step down is the schedule change.`;})();
   const WG=(DATA.water||{}).gaps||[], WR=(DATA.water||{}).resets||[];
   document.getElementById('tva-caveat').innerHTML=
-    `There <b>is</b> a volume target now that bed geometry is recorded${BED?` — <b>${BED.area_ft2} sq ft</b>, so <b>1 in of water = ${BED.liters_per_inch_of_water} L</b> and the estimated August ETc of ${BED.target.august_etc_in_per_week[0]}–${BED.target.august_etc_in_per_week[1]} in/wk works out to <b>${Math.round(BED.target.august_etc_in_per_week[0]*BED.liters_per_inch_of_water)}–${Math.round(BED.target.august_etc_in_per_week[1]*BED.liters_per_inch_of_water)} L/wk</b>`:''}. The dashed line is the <b>new plan's ~${PLAN.metered_weekly} L/wk</b>; earlier bars sit far above it because the bed was being flood-dosed. Every week from Jul 16 to Aug 3 ran a single long morning timer (14 min, then 10, then 12) metering ~118–129 L/day — about <b>8 in/week</b>, roughly <b>6× the 1–1.5 in/wk target</b> and more than the whole 10-in profile's plant-available capacity in one shot, which is why the probe spiked past 90% and shed ~15 points within 45 min. <b>From ${effD||'Aug 4'} the bed runs ${(PLAN.runs||[]).length} × ${PLAN.run_seconds||90} s</b>, so expect the bars to drop to ~<b>${PLAN.metered_weekly} L</b> — that step down is the schedule change, not a leak or clog. The WFC01 is cumulative and batches: a 0 L day followed by a double is the meter catching up, not a skipped watering. Peppers water on a separate, unmetered line and never appear here.`
+    `There <b>is</b> a volume target now that bed geometry is recorded${BED?` — <b>${BED.area_ft2} sq ft</b>, so <b>1 in of water = ${BED.liters_per_inch_of_water} L</b> and the estimated August ETc of ${BED.target.august_etc_in_per_week[0]}–${BED.target.august_etc_in_per_week[1]} in/wk works out to <b>${Math.round(BED.target.august_etc_in_per_week[0]*BED.liters_per_inch_of_water)}–${Math.round(BED.target.august_etc_in_per_week[1]*BED.liters_per_inch_of_water)} L/wk</b>`:''}. The dashed line is the <b>new plan's ~${PLAN.metered_weekly} L/wk</b>; earlier bars sit far above it because the bed was being flood-dosed. Every week from Jul 16 to Aug 3 ran a single long morning timer (14 min, then 10, then 12) metering ~118–129 L/day — about <b>8 in/week</b>, roughly <b>6× the 1–1.5 in/wk target</b> and more than the whole 10-in profile's plant-available capacity in one shot, which is why the probe spiked past 90% and shed ~15 points within 45 min. <b>From ${effD||'Aug 4'} the bed runs ${(PLAN.runs||[]).length} × ${PLAN.run_seconds||90} s</b>, so a week under it should meter ~<b>${PLAN.metered_weekly} L</b>. ${planCheck} The WFC01 is cumulative and batches: a 0 L day followed by a double is the meter catching up, not a skipped watering. Peppers water on a separate, unmetered line and never appear here.`
     // A missing export or a meter reset (#8). Only rendered when one exists:
     // the odometer cannot say which of the covered days the water fell on.
     +(WG.length?` <b>No export exists for ${WG.map(g=>g.missing.join(', ')).join(', ')}.</b> The meter is an odometer, so the day after a gap reads the whole gap's water; that draw (${WG.map(g=>g.liters+' L on '+g.booked_to).join('; ')}) is spread evenly over the days it covers. Weekly totals are measured; those days are left out of the points-per-100 L and regime L/day figures.`:'')
@@ -814,7 +834,12 @@ function writeFindings(){
   document.getElementById('f-pep').innerHTML= (hp&&hp.has_bad)
     ? `<b style="color:var(--tom)">Pepper readings are not usable right now.</b> The daily AD range has collapsed to <b>${hp.ad_range_last} counts</b>, against a healthy norm many times that. Soil breathes on a daily cycle; a flat trace is a sensor, not a substrate — so the reported <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}) describes the instrument, not the bed. <b>Do not act on pepper numbers until the AD range recovers.</b> First check the battery: this channel must run on alkaline (~1.5 V nominal). A lithium AA reads ~1.7 V and has previously pinned this probe flat for two weeks while the derived % drifted smoothly downward, which reads convincingly like a bed drying out and is not.`
     : (hp&&hp.ok===false)
-    ? `Pepper channel is <b>measuring normally</b> (daily AD range ${hp.ad_range_last} counts) but carries a calibration caveat: ${hp.flags[0].msg} Day-to-day <em>swings</em> are trustworthy; absolute % is comparable only within a single battery era. Current mean <b>${S.pep.mean}%</b> (range ${S.pep.min}–${S.pep.max}%).`
+    ? (()=>{
+        // Worded from the flag that fired, as the health badge is: a narrowed AD
+        // range is not a calibration shift, and only a voltage step makes
+        // absolute % incomparable across battery eras (#13).
+        const f=hp.flags.find(x=>x.level==='warn')||hp.flags[0], volt=/volt/i.test(f.msg);
+        return `Pepper channel is reporting (daily AD range ${hp.ad_range_last} counts) with a <b>${volt?'calibration':'narrowed-range'}</b> caveat: ${f.msg} ${volt?`Day-to-day <em>swings</em> are trustworthy; absolute % is comparable only within a single battery era.`:''} Current mean <b>${S.pep.mean}%</b> (range ${S.pep.min}–${S.pep.max}%).`;})()
     : (()=>{const PE=((DATA.native||{}).events||{}).pep||[];
         const es=PE.filter(e=>e.retained!=null&&!e.manual).slice(-7);
         if(!es.length) return `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%).`;
