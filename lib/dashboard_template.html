@@ -278,7 +278,7 @@ function gauge(key,name,loc,g,verdict,vclass,note){
   const peak=g.peak, trough=g.trough;
   return `<div class="gauge">
     <h2>${name}</h2><div class="loc">${loc}</div>
-    <div class="readout"><span class="big" style="color:${col}">${s.last}<span style="font-size:20px;color:var(--mut)">%</span></span>
+    <div class="readout"><span class="big" style="color:${col}">${s.last!=null?s.last:'—'}<span style="font-size:20px;color:var(--mut)">%</span></span>
       <span class="verdict ${vclass}">${verdict}</span></div>
     <div class="bandwrap">
       <div class="bar">
@@ -286,7 +286,7 @@ function gauge(key,name,loc,g,verdict,vclass,note){
         <div class="ideal" style="left:${pos(g.floor)}%;width:${pos(g.ceiling)-pos(g.floor)}%"></div>
         <div class="zone drain" style="left:${pos(g.ceiling)}%;width:${100-pos(g.ceiling)}%" title="above ${g.ceiling}% — drains away"></div>
         <div class="zone dry" style="left:0%;width:${pos(g.floor)}%" title="below ${g.floor}% — uptake falls off"></div>`}
-        <div class="needle" style="left:${pos(s.last)}%;background:${col}"></div>
+        ${s.last!=null?`<div class="needle" style="left:${pos(s.last)}%;background:${col}"></div>`:``}
       </div>
       <div class="scale"><span>${lo}%</span><span>${g.verified===false?`<span style="color:var(--mut)">bands under review &mdash; zones not shown</span>`:`<b>${g.floor}% floor</b> &nbsp;·&nbsp; plant-fed &nbsp;·&nbsp; <b>${g.ceiling}% ceiling</b>`}</span><span>${hi}%</span></div>
     </div>
@@ -832,7 +832,7 @@ function writeFindings(){
     : `Tomato bed mean is <b>${S.tom.mean}%</b> (range ${S.tom.min}–${S.tom.max}%), latest <b>${S.tom.last}%</b>.`;
   const hp=(DATA.health||{}).pep;
   document.getElementById('f-pep').innerHTML= (hp&&hp.has_bad)
-    ? `<b style="color:var(--tom)">Pepper readings are not usable right now.</b> The daily AD range has collapsed to <b>${hp.ad_range_last} counts</b>, against a healthy norm many times that. Soil breathes on a daily cycle; a flat trace is a sensor, not a substrate — so the reported <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}) describes the instrument, not the bed. <b>Do not act on pepper numbers until the AD range recovers.</b> First check the battery: this channel must run on alkaline (~1.5 V nominal). A lithium AA reads ~1.7 V and has previously pinned this probe flat for two weeks while the derived % drifted smoothly downward, which reads convincingly like a bed drying out and is not.`
+    ? `<b style="color:var(--tom)">Pepper readings are not usable right now.</b> The daily AD range has collapsed to <b>${hp.ad_range_last} counts</b>, against a healthy norm many times that. Soil breathes on a daily cycle; a flat trace is a sensor, not a substrate — ${S.pep.mean!=null?`so the reported <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}) describes the instrument, not the bed.`:`and the channel returned no moisture reading at all in this window.`} <b>Do not act on pepper numbers until the AD range recovers.</b> First check the battery: this channel must run on alkaline (~1.5 V nominal). A lithium AA reads ~1.7 V and has previously pinned this probe flat for two weeks while the derived % drifted smoothly downward, which reads convincingly like a bed drying out and is not.`
     : (hp&&hp.ok===false)
     ? (()=>{
         // Worded from the flag that fired, as the health badge is: a narrowed AD

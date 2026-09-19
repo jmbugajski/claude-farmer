@@ -310,12 +310,15 @@ def _probe_stats(series, key, bands):
             last = round(statistics.fmean(recent), 1)
         else:
             last = next((p[key] for p in reversed(series) if p[key] is not None), None)
+    # A channel with no readings at all -- a renamed group header, a probe
+    # offline for the whole window -- reports None and the gauge renders
+    # NO READING. min()/median() of nothing used to take the build down (#14).
     return {
         "mean": _mean(vals),
-        "min": round(min(vals), 1),
-        "max": round(max(vals), 1),
+        "min": round(min(vals), 1) if vals else None,
+        "max": round(max(vals), 1) if vals else None,
         "std": _std(vals),
-        "median": round(statistics.median(vals), 1),
+        "median": round(statistics.median(vals), 1) if vals else None,
         "ceiling": bands["drainage_ceiling"],
         "floor": bands["stress_floor"],
         "working_lo": bands["working_lo"],
@@ -731,6 +734,10 @@ def _gauge_for(pkey, pcfg, stats, cycle, split=None, partition=None):
     b = pcfg["bands"]
     ceiling, floor, work_lo = b["drainage_ceiling"], b["stress_floor"], b["working_lo"]
     last = stats["last"]
+    # Set before any return: the tile draws its floor/ceiling zones unless told
+    # not to, and the NO READING tile drew the unverified ones (#14).
+    if not b.get("verified", True):
+        g["verified"] = False
 
     if last is None:
         g["verdict"] = "NO READING"
@@ -754,7 +761,6 @@ def _gauge_for(pkey, pcfg, stats, cycle, split=None, partition=None):
             f"peak/trough and the metered water below are all measured, not inferred."
         )
         g["bands"] = None
-        g["verified"] = False
         return g
 
     state = _classify(cycle, b)
@@ -1082,6 +1088,8 @@ def _weather_analysis(daily_soil, wx_daily, regimes=None):
 
 # ----------------------------------------------------------------------------- top-level
 def build(readings, config, wx_hourly=None):
+    if not readings:
+        raise ValueError("no readings: nothing parsed from the EcoWitt exports")
     interval = config["sample_interval_minutes"]
     series = resample(readings, interval)
 

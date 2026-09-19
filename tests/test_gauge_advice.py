@@ -5,9 +5,11 @@ repo root:
     .venv/bin/python -m unittest discover tests
 """
 
+import json
 import os
 import sys
 import unittest
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
 
@@ -79,6 +81,33 @@ class GaugeAndAdviceNameOneState(unittest.TestCase):
     def test_gauge_tile_carries_the_classified_peak_and_trough(self):
         gauge, _ = _render(_cycle(82, 60))
         self.assertEqual((gauge["peak"], gauge["trough"]), (82, 60))
+
+
+class EmptyChannelStillBuilds(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+        with open(os.path.join(root, "config.json"), encoding="utf-8") as f:
+            cls.config = json.load(f)
+
+    def test_probe_offline_for_the_whole_window_reads_no_reading(self):
+        t0 = datetime(2026, 9, 10)
+        readings = [{"dt": t0 + timedelta(minutes=5 * i), "tom": 60.0, "pep": None,
+                     "water": None} for i in range(288 * 3)]
+        data, cfg = analyze.build(readings, self.config)
+        self.assertEqual(cfg["gauge"]["pep"]["verdict"], "NO READING")
+        self.assertIsNone(data["stats"]["pep"]["min"])
+        self.assertIn("check the sensor", cfg["advice"]["pep"])
+
+    def test_no_reading_tile_does_not_draw_unverified_bands(self):
+        pcfg = dict(PCFG, bands=dict(BANDS, verified=False))
+        gauge = analyze._gauge_for("pep", pcfg, {"last": None}, _cycle(None, None))
+        self.assertEqual(gauge["verdict"], "NO READING")
+        self.assertIs(gauge["verified"], False)
+
+    def test_no_readings_is_a_named_error(self):
+        with self.assertRaisesRegex(ValueError, "no readings"):
+            analyze.build([], self.config)
 
 
 if __name__ == "__main__":

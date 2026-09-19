@@ -104,6 +104,9 @@ def main() -> int:
 
     print(f"Reading EcoWitt exports from {args.inputs} ...")
     readings = parse_ecowitt.load_readings(args.inputs, config)
+    if not readings:
+        print(f"No readings parsed from {args.inputs} — nothing to build.", file=sys.stderr)
+        return 1
     print(f"  {len(readings)} raw readings "
           f"({readings[0]['dt']:%Y-%m-%d %H:%M} → {readings[-1]['dt']:%Y-%m-%d %H:%M})")
 

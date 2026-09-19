@@ -7,7 +7,7 @@ const path = require('path');
 const { JSDOM } = require(path.join(__dirname, '..', 'node_modules', 'jsdom'));
 const fs = require('fs');
 
-const IDS = ['cv-cards', 'cv-caveat', 'regime-caveat', 'budget-caveat', 'health-flags',
+const IDS = ['gauges', 'cv-cards', 'cv-caveat', 'regime-caveat', 'budget-caveat', 'health-flags',
              'plan-note', 'tva-caveat', 'f-tom', 'f-pep', 'f-wx', 'f-act'];
 const html = fs.readFileSync(process.argv[2], 'utf8').replace(/<script src=[^>]*><\/script>/g, '');
 const errs = [];
