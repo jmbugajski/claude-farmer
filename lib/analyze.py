@@ -20,6 +20,7 @@ import math
 import statistics
 
 import events as events_mod
+import parse_ecowitt
 from datetime import datetime, timedelta
 
 import weather as weather_mod
@@ -1117,6 +1118,9 @@ def build(readings, config, wx_hourly=None):
         "stats": {
             "range_start": t0.strftime("%Y-%m-%d %H:%M"),
             "range_end": t1.strftime("%Y-%m-%d %H:%M"),
+            # Days with no export at all. Named on the page and in the build
+            # log; _water() spreads the draw that spans them (#8).
+            "missing_days": parse_ecowitt.missing_days(readings),
             "n": len(series),
             "interval_hr": interval_hr_disp,
             "tom": tom_stats,

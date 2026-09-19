@@ -21,7 +21,7 @@ from __future__ import annotations
 import glob
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 import openpyxl
@@ -163,6 +163,27 @@ def load_readings(inputs_dir: str, config: dict) -> list[dict]:
             }
 
     return [by_dt[k] for k in sorted(by_dt)]
+
+
+def missing_days(readings: list[dict]) -> list[str]:
+    """
+    Calendar dates between the first and last reading that have no reading at
+    all -- an export that was never pulled. Nothing downstream can infer this:
+    the WFC01 is an odometer, so the day after a gap silently books the missing
+    day's water as its own (2026-09-03 was absent and 09-04 showed 108.4 L
+    against ~55 either side, #8). analyze._water() handles the draw; this is
+    the list the build log and the page name.
+    """
+    if not readings:
+        return []
+    have = {r["dt"].date() for r in readings}
+    d, end = min(have), max(have)
+    out = []
+    while d < end:
+        d += timedelta(days=1)
+        if d not in have:
+            out.append(d.isoformat())
+    return out
 
 
 if __name__ == "__main__":

@@ -116,6 +116,8 @@ def main() -> int:
 
     data, cfg = analyze.build(readings, config, wx_hourly=wx_hourly)
     s = data["stats"]
+    if s["missing_days"]:
+        print(f"  missing days: {', '.join(s['missing_days'])}  (no export)")
     print(f"  resampled to {s['n']} points @ {s['interval_hr']} h")
     # Report against the derived bands rather than a trend slope: the slope was
     # one OLS across five irrigation regimes (R^2 0.29) and is retired. See
