@@ -25,7 +25,7 @@ import csv
 import math
 import os
 import statistics
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def _f(row, key):
@@ -75,6 +75,22 @@ def load(inputs_dir: str, filename: str = "weather.csv"):
 
 
 # ----------------------------------------------------------------------------- physics
+def et0_by_hour(hourly) -> dict:
+    """Hourly ET0 keyed by the hour it COVERS, 'YYYY-MM-DD HH'.
+
+    Open-Meteo's hourly et0_fao_evapotranspiration is a PRECEDING-hour sum: the
+    value stamped 07:00 is demand over 06:00-07:00. Keyed by its own stamp, an
+    interval starting 06:20 reads demand from 05:00-06:00, which files the first
+    sunlit hour as night and the first dark hour as day, every day (#5). In
+    weather.csv on 2026-08-01 the first shortwave value (29 W/m2, also a
+    preceding-hour mean) is stamped 07:00 against a ~06:10 PDT sunrise.
+
+    Rows with no et0 are omitted, so a lookup miss means "no data", never 0.
+    """
+    return {(r["dt"] - timedelta(hours=1)).strftime("%Y-%m-%d %H"): r["et0"]
+            for r in hourly or [] if r.get("dt") is not None and r.get("et0") is not None}
+
+
 def _ra_mm(lat_deg: float, doy: int) -> float:
     """
     Extraterrestrial radiation for a latitude and day-of-year, expressed in

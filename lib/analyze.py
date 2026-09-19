@@ -218,12 +218,7 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
     # weather.load() yields {"dt": datetime, "et0": mm, ...}. et0 is optional --
     # an older weather.csv predating the et0 column loads fine but cannot support
     # this calculation, hence the explicit None below rather than a silent zero.
-    et = {}
-    for row in wx_hourly:
-        dt, v = row.get("dt"), row.get("et0")
-        if dt is None or v is None:
-            continue
-        et[dt.strftime("%Y-%m-%d %H")] = v
+    et = weather_mod.et0_by_hour(wx_hourly)
     if not et:
         return None
 

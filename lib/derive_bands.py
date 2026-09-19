@@ -46,7 +46,6 @@ from __future__ import annotations
 
 import argparse
 import collections
-import csv
 import json
 import os
 import statistics
@@ -57,6 +56,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
 import parse_ecowitt  # noqa: E402
+import weather  # noqa: E402
 
 # A bin needs at least this many intervals before its mean is worth printing.
 MIN_N = 40
@@ -75,17 +75,8 @@ DAY_ET0 = 0.02
 
 
 def load_et0(path: str) -> dict:
-    """Hourly ET0 keyed 'YYYY-MM-DD HH'."""
-    et = {}
-    if not os.path.exists(path):
-        return et
-    with open(path) as fh:
-        for row in csv.DictReader(fh):
-            try:
-                et[row["datetime"][:13]] = float(row["et0_fao_evapotranspiration"])
-            except (KeyError, TypeError, ValueError):
-                continue
-    return et
+    """Hourly ET0 keyed by the hour it covers -- see weather.et0_by_hour."""
+    return weather.et0_by_hour(weather.load(*os.path.split(path)))
 
 
 def off_nominal_days(readings, vkey, health):

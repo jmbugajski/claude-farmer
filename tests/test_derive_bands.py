@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
 
 import derive_bands as db  # noqa: E402
+import weather  # noqa: E402
 
 
 def _flat_with_ticks(start, level, hourly_et0, tick_at):
@@ -58,6 +59,22 @@ class MissingEt0(unittest.TestCase):
         self.assertEqual(len(night[70]), 12)              # the ET0 = 0 hour only
         self.assertAlmostEqual(sum(night[70]), 12.0)      # one tick / (5 min)
         self.assertEqual(len(day[70]), 11)
+        self.assertAlmostEqual(sum(d for d, _ in day[70]), 1.0)
+
+
+class Et0Hour(unittest.TestCase):
+    def test_first_sunlit_hour_is_day(self):
+        # Open-Meteo stamps the 06:00-07:00 sum at 07:00. One tick at 06:30:
+        # keyed by stamp it reads the 06:00 value (0.0) and is filed as night.
+        start = datetime(2026, 8, 1, 6)
+        hourly = [{"dt": start, "et0": 0.0},
+                  {"dt": start + timedelta(hours=1), "et0": 0.3},
+                  {"dt": start + timedelta(hours=2), "et0": None}]
+        et = weather.et0_by_hour(hourly)
+        self.assertEqual(et, {"2026-08-01 05": 0.0, "2026-08-01 06": 0.3})
+        rows, _ = _flat_with_ticks(start, 73, [0.0], {6})
+        night, day, skipped = db.curves(rows, et, "tom", 5)
+        self.assertEqual((len(night[70]), skipped), (0, 0))
         self.assertAlmostEqual(sum(d for d, _ in day[70]), 1.0)
 
 
