@@ -506,8 +506,10 @@ const NAT=DATA.native||{};
   const summ=k=>{const es=(EV[k]||[]).filter(e=>e.retained!=null&&!e.manual).slice(-7);
     if(!es.length)return null;
     const r=es.reduce((a,e)=>a+e.retained,0)/es.length, s=es.reduce((a,e)=>a+e.shed,0)/es.length;
-    return{r:r.toFixed(1),s:s.toFixed(1),eff:Math.round(r/(r+s)*100)};};
+    // res: points of "kept" one probe count is worth at this excursion (#17).
+    return{r:r.toFixed(1),s:s.toFixed(1),eff:Math.round(r/(r+s)*100),res:r+s>0?Math.round(100/(r+s)):null};};
   const t=summ('tom'), p=summ('pep');
+  const res=[t&&t.res?`<b>${t.res} points</b> for tomato`:'',p&&p.res?`<b>${p.res} points</b> for pepper`:''].filter(Boolean).join(' and ');
   const ret=NAT.retention||[]; const lastR=ret.length?ret[ret.length-1]:null;
   document.getElementById('event-cards').innerHTML=[
     t?['Tomato &mdash; kept per run',t.eff+'%',`+${t.r} retained vs ${t.s} shed &middot; last 7 runs`,'var(--tom)']:null,
@@ -521,6 +523,7 @@ const NAT=DATA.native||{};
      still held ~50 minutes later. A low figure does not mean the run was useless, but it does mean most of the water
      moved past the probe: in a raised bed that is deep percolation, and in a fabric bag it is drainage out the base,
      carrying dissolved nutrients with it.
+     ${res?`The probes read whole percent, so the figure is coarse when the excursion is small: across these runs one probe count moves it by ${res}. A run that peaks a few points above where it settles cannot show its overshoot at that resolution, so a high figure on short pulses is not comparable with a low one on long runs.`:''}
      ${p&&p.eff<45?`<b>The pepper figure (${p.eff}%) is the washout signature</b> — the bags reach container capacity part-way through the run and pass the rest straight through.`:''}
      <span style="color:var(--mut)">Both probes sit near the surface (tomato ~3 in, pepper ~2 in), so &ldquo;shed&rdquo; strictly means
      &ldquo;left this depth&rdquo; — water charging the zone below a 3-inch probe is counted as shed here. That ambiguity is exactly
