@@ -112,6 +112,30 @@ class CeilingSampleBar(unittest.TestCase):
         self.assertEqual(db.find_ceiling(night, 5)[0], 75)
 
 
+def _day_bins(rates, n=db.MIN_N_FLOOR):
+    """{level: intervals} whose _day_rate is exactly rates[level]."""
+    return {lv: [(r, 1.0)] * n for lv, r in rates.items()}
+
+
+class FloorSearch(unittest.TestCase):
+    # Pepper on 2026-09-19: 36-38 reads low with on-plateau bins beneath it.
+    RATES = {30: 1.06, 33: 1.79, 36: 0.76, 39: 1.40, 42: 1.31}
+
+    def test_low_bin_above_an_on_plateau_bin_is_not_a_floor(self):
+        self.assertIsNone(db.find_floor(_day_bins(self.RATES), 3)[0])
+
+    def test_floor_is_top_of_the_contiguous_dry_run(self):
+        floor, plateau = db.find_floor(_day_bins({**self.RATES, 30: 0.5, 33: 0.5}), 3)
+        self.assertEqual(floor, 39)   # 36-38 (0.76) < 0.65 x median(1.40, 1.31) too
+        self.assertAlmostEqual(plateau, 1.355)
+
+    def test_bins_at_or_above_the_ceiling_do_not_move_the_plateau(self):
+        dry = {**self.RATES, 30: 0.5, 33: 0.5}
+        wet = _day_bins({**dry, 45: 40.0, 48: 60.0, 51: 80.0})
+        self.assertEqual(db.find_floor(wet, 3, ceiling=45), db.find_floor(_day_bins(dry), 3))
+        self.assertNotEqual(db.find_floor(wet, 3), db.find_floor(_day_bins(dry), 3))
+
+
 class OffNominalDays(unittest.TestCase):
     HEALTH = {"nominal_volts": 1.5, "volt_tolerance": 0.15}
 

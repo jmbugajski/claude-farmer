@@ -217,18 +217,30 @@ def find_ceiling(night, step, jump=3.0, absolute=1.2):
     return None, None
 
 
-def find_floor(day, step, drop_to=0.65):
-    """Highest low-end bin whose day rate falls below `drop_to` x the plateau."""
-    levels = sorted(day)
-    usable = [lv for lv in levels if len(day[lv]) >= MIN_N_FLOOR]
+def find_floor(day, step, drop_to=0.65, ceiling=None):
+    """Top of the contiguous run of dry-end bins whose day rate is below
+    `drop_to` x the plateau; None when the driest usable bin is already on it.
+
+    Walks UP from the driest usable bin and stops at the first one back on the
+    plateau, so a single low mid-range bin with on-plateau bins beneath it is
+    not a floor. Until #5 this returned the first sub-threshold bin anywhere:
+    pepper 36-38 (0.76) was "the falloff" while 33-35 below it read 1.79.
+
+    Each bin is judged against the median of the usable bins ABOVE it and below
+    `ceiling`. The old plateau was the median of every usable bin, including the
+    falloff bins being tested and the above-ceiling bins, where "loss per mm
+    ET0" is redistribution after a run (tomato 80-84: 17.9 against ~3).
+    """
+    usable = [lv for lv in sorted(day) if len(day[lv]) >= MIN_N_FLOOR
+              and (ceiling is None or lv < ceiling)]
     if len(usable) < 3:
         return None, None
     rates = {lv: _day_rate(day[lv]) for lv in usable}
-    plateau = statistics.median(list(rates.values()))
-    for lv in usable:
-        if rates[lv] < drop_to * plateau:
-            return lv + step, plateau  # top of the falloff bin
-    return None, plateau
+    for i, lv in enumerate(usable[:-1]):    # the wettest bin has nothing to be judged against
+        if rates[lv] >= drop_to * statistics.median(rates[x] for x in usable[i + 1:]):
+            plateau = statistics.median(rates[x] for x in usable[i:])
+            return (lv if i else None), plateau
+    return None, None
 
 
 def report(label, night, day, step, skipped=0, excluded=(), full=None, sweep=(), n_spans=0):
@@ -260,7 +272,7 @@ def report(label, night, day, step, skipped=0, excluded=(), full=None, sweep=(),
         print(f"{lv:>7}-{lv + step - 1:<3} {nn:>{nw}} {ns:>13} {dn:>{nw}} {ds:>15}")
 
     ceiling, ratio = find_ceiling(night, step)
-    floor, plateau = find_floor(day, step)
+    floor, plateau = find_floor(day, step, ceiling=ceiling)
     print()
     if ceiling is not None:
         n_above = sum(len(night[lv]) for lv in night if lv >= ceiling)
