@@ -42,5 +42,22 @@ class DailyExtremesAreNative(unittest.TestCase):
         self.assertEqual(self.daily[0]["tom_mean"], 60.0)
 
 
+class CycleIsOneMedian(unittest.TestCase):
+    def _rows(self, peaks):
+        return [{"date": f"2026-09-{i + 1:02d}", "tom_max": float(v), "tom_min": 50.0}
+                for i, v in enumerate(peaks)]
+
+    def test_even_window_takes_the_true_median(self):
+        # upper-middle element, the template's old med(), would give 74
+        c = analyze._cycle(self._rows([60, 70, 74, 80]), "tom")
+        self.assertEqual((c["peak"], c["trough"], c["n_days"]), (72, 50, 4))
+
+    def test_window_is_scoped_to_the_current_regime(self):
+        rows = self._rows([90, 90, 90, 60, 62, 64])
+        self.assertEqual(analyze._cycle(rows, "tom")["peak"], 77)
+        c = analyze._cycle(rows, "tom", {"since": "2026-09-04"})
+        self.assertEqual((c["peak"], c["n_days"]), (62, 3))
+
+
 if __name__ == "__main__":
     unittest.main()

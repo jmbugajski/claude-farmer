@@ -272,9 +272,9 @@ function gauge(key,name,loc,g,verdict,vclass,note){
   const lo=g.lo, hi=g.hi, span=hi-lo;
   const pos=v=>Math.max(0,Math.min(100,(v-lo)/span*100));
   const col=COL[key];
-  const rows=(DATA.daily||[]).filter(r=>!pt||!pt.since||r.date>=pt.since).slice(-7);
-  const med=a=>{const v=a.filter(x=>x!=null).sort((p,q)=>p-q);return v.length?Math.round(v[Math.floor(v.length/2)]):null;};
-  const peak=med(rows.map(r=>r[key+'_max'])), trough=med(rows.map(r=>r[key+'_min']));
+  // Computed once, in analyze._cycle(), so this tile and the advice sentence
+  // cannot disagree.
+  const peak=g.peak, trough=g.trough;
   return `<div class="gauge">
     <h2>${name}</h2><div class="loc">${loc}</div>
     <div class="readout"><span class="big" style="color:${col}">${s.last}<span style="font-size:20px;color:var(--mut)">%</span></span>

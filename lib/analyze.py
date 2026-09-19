@@ -466,7 +466,30 @@ def _water(readings, since=None):
 
 
 # ----------------------------------------------------------------------------- gauges narrative
-def _advice(data, config):
+def _cycle(daily, key, part=None):
+    """Median daily peak and trough over the last 7 days of the current regime.
+
+    The ONE place this is computed: _advice() words it and the gauge tiles show
+    it. It used to be computed twice, here with statistics.median and in the
+    template with an upper-middle-element median, and the tile and the sentence
+    beside it disagreed by a point whenever n was even (#6).
+
+    Scoped to the current regime for the same reason the partition is: a flat
+    "last 7 days" window straddles a plan change and describes a schedule that
+    is no longer running.
+    """
+    rows = daily
+    if part and part.get("since"):
+        rows = [r for r in daily if r["date"] >= part["since"]] or daily
+    rows = rows[-7:]
+    peaks = [r[f"{key}_max"] for r in rows if r.get(f"{key}_max") is not None]
+    troughs = [r[f"{key}_min"] for r in rows if r.get(f"{key}_min") is not None]
+    return {"peak": round(statistics.median(peaks)) if peaks else None,
+            "trough": round(statistics.median(troughs)) if troughs else None,
+            "n_days": len(rows)}
+
+
+def _advice(data, config, cycle):
     """Short, current-state-aware 'what to do next' lines for the findings box."""
     tcfg = config["probes"]["tomato"]
     pcfg = config["probes"]["pepper"]
@@ -486,39 +509,22 @@ def _advice(data, config):
         ceiling, floor, work_lo = b["drainage_ceiling"], b["stress_floor"], b["working_lo"]
         if last is None:
             return "no recent probe reading — check the sensor before reading anything else."
+        peak, trough, n_days = (cycle[key][k] for k in ("peak", "trough", "n_days"))
 
         # Each branch below is an instruction derived from the ceiling/floor
         # ("shorten the run", "add water now"). Unverified thresholds would make
         # this advise an action on a number we cannot defend, so state what was
         # observed and stop there.
         if not b.get("verified", True):
-            rows = [r for r in data["daily"]][-7:]
-            pk = [r[f"{key}_max"] for r in rows if r.get(f"{key}_max") is not None]
-            tr = [r[f"{key}_min"] for r in rows if r.get(f"{key}_min") is not None]
             obs = ""
-            if pk and tr:
-                obs = (f" Over the last {len(rows)} days it cycled "
-                       f"{round(statistics.median(tr))}–{round(statistics.median(pk))}%.")
+            if peak is not None and trough is not None:
+                obs = f" Over the last {n_days} days it cycled {trough}–{peak}%."
             return (f"~{last}% (24 h avg).{obs} No recommendation this build: the drainage "
                     f"ceiling and stress floor are being re-derived, and the advice here is a "
                     f"function of both. Watch the daily trough in the trend chart — that is a "
                     f"direct reading and does not depend on the bands.")
 
         part = (data.get("partition") or {}).get(key)
-        # Scope peaks/troughs to the current regime, for the same reason the
-        # partition is scoped: a flat "last 5 days" window straddles a plan
-        # change and describes a schedule that is no longer running.
-        rows = data["daily"]
-        if part and part.get("since"):
-            in_regime = [r for r in rows if r["date"] >= part["since"]]
-            if in_regime:
-                rows = in_regime
-        rows = rows[-7:]
-        peaks = [r[f"{key}_max"] for r in rows if r.get(f"{key}_max") is not None]
-        troughs = [r[f"{key}_min"] for r in rows if r.get(f"{key}_min") is not None]
-        peak = round(statistics.median(peaks)) if peaks else None
-        trough = round(statistics.median(troughs)) if troughs else None
-        n_days = len(rows)
         thin = (f" Only {n_days} day{'s' if n_days != 1 else ''} on this schedule so far, so treat "
                 f"this as provisional." if n_days < 5 else "")
 
@@ -1124,5 +1130,8 @@ def build(readings, config, wx_hourly=None):
         "location_desc": loc["name"],
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M %Z").strip(),
     }
-    CFG["advice"] = _advice(DATA, config)
+    cycle = {k: _cycle(daily, k, partition[k]) for k in ("tom", "pep")}
+    for k in ("tom", "pep"):
+        CFG["gauge"][k].update(peak=cycle[k]["peak"], trough=cycle[k]["trough"])
+    CFG["advice"] = _advice(DATA, config, cycle)
     return DATA, CFG
