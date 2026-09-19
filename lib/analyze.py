@@ -558,6 +558,39 @@ def _cycle(daily, key, since=None, until=None):
             "n_days": len(rows)}
 
 
+def _classify(cycle, bands):
+    """The probe's irrigation state, from _cycle()'s native peak and trough.
+
+    The ONE classifier: _gauge_for() words the verdict from it and _advice()
+    words the action. They used to test separately -- the gauge put the 24 h
+    mean against the ceiling and floor, the advice put the peak and the trough
+    against the same two numbers. A mean sits between peak and trough, so on 82
+    exports to 2026-09-19 the two disagreed on 44 of 80 tomato days and 42 of
+    77 pepper days, 37 and 36 of them WORKING on the gauge over "shorten the
+    run" beneath it; the mean reached the ceiling on 5 tomato days and no
+    pepper day against 44 and 40 for the peak (#14).
+
+    The order is deliberate: DRAINAGE IS CHECKED FIRST. A bed can be above the
+    ceiling at its peak and below the floor at its trough, and waste is the
+    more actionable finding. Strictly greater than: landing exactly on the
+    ceiling is the target, not a fault, and a `>=` here produced the nonsense
+    "0 points past the ceiling".
+
+    None when the current regime has no complete day yet -- there is no cycle
+    to classify, and the mean is not a stand-in for one.
+    """
+    peak, trough = cycle["peak"], cycle["trough"]
+    if peak is None or trough is None:
+        return None
+    if peak > bands["drainage_ceiling"]:
+        return "DRAINING"
+    if trough < bands["stress_floor"]:
+        return "STRESS RISK"
+    if trough < bands["working_lo"]:
+        return "DRYING"
+    return "WORKING"
+
+
 def _advice(data, config, cycle):
     """Short, current-state-aware 'what to do next' lines for the findings box."""
     tcfg = config["probes"]["tomato"]
@@ -568,11 +601,8 @@ def _advice(data, config, cycle):
     def _line(key, cfg, label, last, unit_desc):
         """Advice against the derived ceiling/floor rather than a setpoint.
 
-        The order of tests matters and is deliberate: DRAINAGE IS CHECKED FIRST.
-        A bed can be simultaneously above the drainage ceiling and trending down,
-        and the old code would report the downtrend and advise adding water --
-        which is precisely backwards when the problem is that water is running
-        past the roots. Waste is the more actionable finding, so it wins.
+        One sentence per _classify() state; the comparisons live there, so this
+        and the gauge verdict cannot name different states (#14).
         """
         b = cfg["bands"]
         ceiling, floor, work_lo = b["drainage_ceiling"], b["stress_floor"], b["working_lo"]
@@ -597,10 +627,14 @@ def _advice(data, config, cycle):
         thin = (f" Only {n_days} day{'s' if n_days != 1 else ''} on this schedule so far, so treat "
                 f"this as provisional." if n_days < 5 else "")
 
-        # 1. Are the peaks pushing PAST field capacity? Strictly greater than:
-        # landing exactly on the ceiling is the target, not a fault, and a `>=`
-        # here produced the nonsense "0 points past the ceiling".
-        if peak is not None and peak > ceiling:
+        state = _classify(cycle[key], b)
+        if state is None:
+            return (f"~{last}% (24 h avg). No complete day on the current schedule yet, so "
+                    f"there is no peak or trough to read against the {ceiling}% ceiling and "
+                    f"{floor}% floor — re-check next export.")
+
+        # 1. The peaks are pushing PAST field capacity.
+        if state == "DRAINING":
             over = peak - ceiling
             waste = ""
             if part and part.get("above_ceiling_pts"):
@@ -612,28 +646,25 @@ def _advice(data, config, cycle):
                     f"whether or not the plant wants it.{waste} Shorten the run rather than the "
                     f"frequency; the goal is to land the peak just under {ceiling}.{thin}")
 
-        # 2. Are the troughs approaching the point where uptake falls off?
-        if trough is not None and trough < floor:
+        # 2. The troughs are approaching the point where uptake falls off.
+        if state == "STRESS RISK":
             return (f"troughs are down to ~{trough}%, below the {floor}% stress floor where uptake "
                     f"measurably falls off — add water now, and add it as an extra run rather than "
                     f"a longer one so the peak stays under {ceiling}%.{thin}")
-        if trough is not None and trough < work_lo:
+        if state == "DRYING":
             return (f"troughs at ~{trough}% are inside the {work_lo}–{ceiling}% working band but "
                     f"heading for the {floor}% floor. Every point of loss here is going through a "
                     f"plant, so this is demand, not waste — add ~10–15 s to one run if the trough "
                     f"keeps sliding, and re-check next export.{thin}")
 
         # 3. Peak under the ceiling, trough above the working floor: this is the target.
-        if peak is not None and trough is not None:
-            extra = ""
-            if part and part.get("pct_uptake") is not None:
-                extra = (f" Since {part['since']}, {part['pct_uptake']}% of moisture loss has happened "
-                         f"under daytime demand, i.e. through the plants.")
-            return (f"cycling {trough}–{peak}% against a {ceiling}% ceiling and a {floor}% floor — "
-                    f"the whole band sits in plant-fed territory, which is the target.{extra} "
-                    f"Hold the schedule and watch the trough.{thin}")
-        return (f"~{last}% (24 h avg), inside the {work_lo}–{ceiling}% working band. Hold and watch "
-                f"the daily trough — the trough is the control variable, not the mean.")
+        extra = ""
+        if part and part.get("pct_uptake") is not None:
+            extra = (f" Since {part['since']}, {part['pct_uptake']}% of moisture loss has happened "
+                     f"under daytime demand, i.e. through the plants.")
+        return (f"cycling {trough}–{peak}% against a {ceiling}% ceiling and a {floor}% floor — "
+                f"the whole band sits in plant-fed territory, which is the target.{extra} "
+                f"Hold the schedule and watch the trough.{thin}")
 
     tom = _line("tom", tcfg, "Tomatoes", t_last, "root zone")
     pep = _line("pep", pcfg, "Peppers", p_last, "bags")
@@ -684,15 +715,19 @@ def _advice(data, config, cycle):
     return {"tom": tom, "pep": pep, "water": water}
 
 
-def _gauge_for(pkey, pcfg, stats, split=None, partition=None):
+def _gauge_for(pkey, pcfg, stats, cycle, split=None, partition=None):
     """Gauge verdict stated as an irrigation regime, not a distance from a number.
 
     The old verdict read "+8 vs setpoint", which is a true statement about an
     arbitrary index and tells the reader nothing about what to do. These four
     states map one-to-one onto an action: DRAINING means shorten the run, DRY
-    means add one, WORKING means hold.
+    means add one, WORKING means hold. They do so because the state is
+    _classify()'s, the same one _advice() words the action from; the 24 h mean
+    is the reading on the tile and takes no part in the verdict (#14).
     """
     g = dict(pcfg["gauge"])
+    peak, trough = cycle["peak"], cycle["trough"]
+    g.update(peak=peak, trough=trough)
     b = pcfg["bands"]
     ceiling, floor, work_lo = b["drainage_ceiling"], b["stress_floor"], b["working_lo"]
     last = stats["last"]
@@ -722,18 +757,22 @@ def _gauge_for(pkey, pcfg, stats, split=None, partition=None):
         g["verified"] = False
         return g
 
-    if last >= ceiling:
-        state, vclass = "DRAINING", "v-wet"
-        detail = f"{round(last - ceiling)} pt above the {ceiling}% ceiling"
-    elif last < floor:
-        state, vclass = "STRESS RISK", "v-trend"
-        detail = f"{round(floor - last)} pt below the {floor}% floor"
-    elif last < work_lo:
-        state, vclass = "DRYING", "v-ok"
-        detail = f"{round(last - floor)} pt above the {floor}% floor"
+    state = _classify(cycle, b)
+    if state is None:
+        state, vclass = "NO CYCLE YET", "v-trend"
+        detail = "no complete day on this schedule"
+    elif state == "DRAINING":
+        vclass = "v-wet"
+        detail = f"peaks {peak - ceiling} pt past the {ceiling}% ceiling"
+    elif state == "STRESS RISK":
+        vclass = "v-trend"
+        detail = f"troughs {floor - trough} pt below the {floor}% floor"
+    elif state == "DRYING":
+        vclass = "v-ok"
+        detail = f"troughs {trough - floor} pt above the {floor}% floor"
     else:
-        state, vclass = "WORKING", "v-ok"
-        detail = f"in the {work_lo}–{ceiling}% plant-fed band"
+        vclass = "v-ok"
+        detail = f"cycling {trough}–{peak}% in the {work_lo}–{ceiling}% plant-fed band"
     g["verdict"] = f"{state} · {detail}"
     g["vclass"] = vclass
 
@@ -1127,6 +1166,7 @@ def build(readings, config, wx_hourly=None):
                 plan_cfg.get("expected_in_per_week"), etc_band)},
         "regime_bands": plan_cfg.get("regimes") or [],
     }
+    cycle = {k: _cycle(daily, k, regime_since, regime_until) for k in ("tom", "pep")}
     wx_daily = weather_mod.daily(wx_hourly, config["location"]["lat"]) if wx_hourly else []
     wx = _weather_analysis(daily, wx_daily, plan_cfg.get("regimes"))
 
@@ -1180,15 +1220,12 @@ def build(readings, config, wx_hourly=None):
         "bands": {"tom": tom_cfg["bands"], "pep": pep_cfg["bands"]},
         "plan": config["plan"],
         "gauge": {
-            "tom": _gauge_for("tom", tom_cfg, tom_stats, split["tom"], partition["tom"]),
-            "pep": _gauge_for("pep", pep_cfg, pep_stats, split["pep"], partition["pep"]),
+            "tom": _gauge_for("tom", tom_cfg, tom_stats, cycle["tom"], split["tom"], partition["tom"]),
+            "pep": _gauge_for("pep", pep_cfg, pep_stats, cycle["pep"], split["pep"], partition["pep"]),
         },
         "footer_meta": footer_meta,
         "location_desc": loc["name"],
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M %Z").strip(),
     }
-    cycle = {k: _cycle(daily, k, regime_since, regime_until) for k in ("tom", "pep")}
-    for k in ("tom", "pep"):
-        CFG["gauge"][k].update(peak=cycle[k]["peak"], trough=cycle[k]["trough"])
     CFG["advice"] = _advice(DATA, config, cycle)
     return DATA, CFG
