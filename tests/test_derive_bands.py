@@ -34,7 +34,7 @@ class DayRate(unittest.TestCase):
         # tick 20, so a mean of ratios reports ~8.8; the bin actually lost 2
         # points against 1.18 mm of demand, i.e. 1.69.
         rows, et = _flat_with_ticks(datetime(2026, 8, 1, 6), 73, [0.03, 0.60, 0.60], {6, 30})
-        _, day = db.curves(rows, et, "tom", 5)
+        _, day, _ = db.curves(rows, et, "tom", 5)
         self.assertEqual(sorted(day), [70])
         demand = (12 * 0.03 + 12 * 0.60 + 11 * 0.60) / 12   # 36 rows = 35 intervals
         self.assertAlmostEqual(sum(e for _, e in day[70]), demand, places=6)
@@ -43,6 +43,22 @@ class DayRate(unittest.TestCase):
     def test_bin_without_demand_has_no_rate(self):
         self.assertIsNone(db._day_rate([]))
         self.assertIsNone(db._day_rate([(1.0, 0.0)]))
+
+
+class MissingEt0(unittest.TestCase):
+    def test_hour_without_et0_row_is_skipped_not_night(self):
+        # Three hours, one tick in each. Hour 0 has ET0 = 0 (a real night),
+        # hour 1 has NO row, hour 2 is day. Defaulting the missing hour to 0.0
+        # files its 12 intervals as night drainage.
+        start = datetime(2026, 8, 1, 4)
+        rows, et = _flat_with_ticks(start, 73, [0.0, 0.5, 0.5], {6, 18, 30})
+        del et[(start + timedelta(hours=1)).strftime("%Y-%m-%d %H")]
+        night, day, skipped = db.curves(rows, et, "tom", 5)
+        self.assertEqual(skipped, 12)
+        self.assertEqual(len(night[70]), 12)              # the ET0 = 0 hour only
+        self.assertAlmostEqual(sum(night[70]), 12.0)      # one tick / (5 min)
+        self.assertEqual(len(day[70]), 11)
+        self.assertAlmostEqual(sum(d for d, _ in day[70]), 1.0)
 
 
 if __name__ == "__main__":

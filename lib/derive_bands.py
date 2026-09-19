@@ -108,9 +108,19 @@ def _day_rate(intervals):
 
 
 def curves(readings, et, key, step):
-    """Bin night loss (%AD/hr) and day (drop, mm ET0) pairs by moisture level."""
+    """Bin night loss (%AD/hr) and day (drop, mm ET0) pairs by moisture level.
+
+    Returns (night, day, skipped). `skipped` counts loss intervals whose hour
+    has NO ET0 row. They are dropped, not defaulted: ET0 is the only thing
+    separating night from day here, so a missing hour read as 0.0 is filed as
+    night drainage -- the inversion fixed in analyze._partition on 2026-09-19.
+    On 2026-09-19 weather.csv began 07-08 against readings from 06-29, which
+    filed the whole flood-dosing period, day and night, as night and moved the
+    pepper ceiling from 48 to 45 (#2).
+    """
     night = collections.defaultdict(list)
     day = collections.defaultdict(list)
+    skipped = 0
     for a, b in zip(readings, readings[1:]):
         hrs = (b["dt"] - a["dt"]).total_seconds() / 3600.0
         if not 0 < hrs <= MAX_GAP_HR:
@@ -119,14 +129,17 @@ def curves(readings, et, key, step):
             continue
         if b[key] > a[key]:
             continue  # wetting event, not a loss interval
-        e = et.get(a["dt"].strftime("%Y-%m-%d %H"), 0.0)
+        e = et.get(a["dt"].strftime("%Y-%m-%d %H"))
+        if e is None:
+            skipped += 1
+            continue
         level = int(a[key] // step) * step
         drop = a[key] - b[key]
         if e <= NIGHT_ET0:
             night[level].append(drop / hrs)
         elif e > DAY_ET0:
             day[level].append((drop, e * hrs))
-    return night, day
+    return night, day, skipped
 
 
 def find_ceiling(night, step, jump=3.0, absolute=1.2):
@@ -166,8 +179,12 @@ def find_floor(day, step, drop_to=0.65):
     return None, plateau
 
 
-def report(label, night, day, step):
+def report(label, night, day, step, skipped=0):
     print(f"\n=== {label} ===")
+    if skipped:
+        used = sum(len(v) for v in night.values()) + sum(len(v) for v in day.values())
+        print(f"  {skipped} loss intervals skipped -- no ET0 row for their hour "
+              f"({skipped / (skipped + used):.0%} of {skipped + used})")
     print(f"{'level':>11} {'n':>6} {'night %AD/hr':>13} {'n':>6} {'day %AD/mm ET0':>15}")
     for lv in sorted(set(night) | set(day)):
         nv, dv = night.get(lv, []), day.get(lv, [])
@@ -211,12 +228,19 @@ def main() -> int:
         return 1
 
     print(f"{len(readings)} readings  {readings[0]['dt']:%Y-%m-%d} → {readings[-1]['dt']:%Y-%m-%d}")
-    print(f"{len(et)} hourly ET0 rows")
+    print(f"{len(et)} hourly ET0 rows  {min(et)[:10]} → {max(et)[:10]}")
+    any_skipped = False
     for key, pname, default_step in (("tom", "tomato", 5), ("pep", "pepper", 3)):
         step = args.step or default_step
         gauge = cfg["probes"][pname]["gauge"]
-        night, day = curves(readings, et, key, step)
-        report(f"{gauge['name']} — {gauge['loc']}", night, day, step)
+        night, day, skipped = curves(readings, et, key, step)
+        report(f"{gauge['name']} — {gauge['loc']}", night, day, step, skipped)
+        any_skipped = any_skipped or bool(skipped)
+    if any_skipped:
+        print(f"\nWARNING: weather.csv covers {min(et)[:10]} → {max(et)[:10]} but readings cover "
+              f"{readings[0]['dt']:%Y-%m-%d} → {readings[-1]['dt']:%Y-%m-%d}. Intervals without an "
+              "ET0 row were skipped, so the bands above describe the covered span only.",
+              file=sys.stderr)
     print("\nPaste results into config.json probes.*.bands, and note n before trusting the floor.")
     return 0
 
