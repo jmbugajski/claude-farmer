@@ -466,7 +466,7 @@ def _water(readings, since=None):
 
 
 # ----------------------------------------------------------------------------- gauges narrative
-def _cycle(daily, key, part=None):
+def _cycle(daily, key, since=None, until=None):
     """Median daily peak and trough over the last 7 days of the current regime.
 
     The ONE place this is computed: _advice() words it and the gauge tiles show
@@ -477,10 +477,19 @@ def _cycle(daily, key, part=None):
     Scoped to the current regime for the same reason the partition is: a flat
     "last 7 days" window straddles a plan change and describes a schedule that
     is no longer running.
+
+    `since`/`until` are _regime_window()'s bounds, passed by build(). They used
+    to arrive as partition["since"], so withholding the partition on 2026-09-19
+    silently reverted this to a flat 7 days straddling the 2026-09-15 plan
+    change, and n_days, always 7, could no longer trip the "only N days on this
+    schedule" warning (#7). An empty window reports None; it does not fall back
+    to the unscoped one.
     """
     rows = daily
-    if part and part.get("since"):
-        rows = [r for r in daily if r["date"] >= part["since"]] or daily
+    if since is not None:
+        rows = [r for r in rows if r["date"] >= f"{since:%Y-%m-%d}"]
+    if until is not None:       # exclusive: _regime_window returns end + 1 day
+        rows = [r for r in rows if r["date"] < f"{until:%Y-%m-%d}"]
     rows = rows[-7:]
     peaks = [r[f"{key}_max"] for r in rows if r.get(f"{key}_max") is not None]
     troughs = [r[f"{key}_min"] for r in rows if r.get(f"{key}_min") is not None]
@@ -1130,7 +1139,7 @@ def build(readings, config, wx_hourly=None):
         "location_desc": loc["name"],
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M %Z").strip(),
     }
-    cycle = {k: _cycle(daily, k, partition[k]) for k in ("tom", "pep")}
+    cycle = {k: _cycle(daily, k, regime_since, regime_until) for k in ("tom", "pep")}
     for k in ("tom", "pep"):
         CFG["gauge"][k].update(peak=cycle[k]["peak"], trough=cycle[k]["trough"])
     CFG["advice"] = _advice(DATA, config, cycle)

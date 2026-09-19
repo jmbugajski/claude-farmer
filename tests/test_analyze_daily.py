@@ -55,8 +55,18 @@ class CycleIsOneMedian(unittest.TestCase):
     def test_window_is_scoped_to_the_current_regime(self):
         rows = self._rows([90, 90, 90, 60, 62, 64])
         self.assertEqual(analyze._cycle(rows, "tom")["peak"], 77)
-        c = analyze._cycle(rows, "tom", {"since": "2026-09-04"})
+        c = analyze._cycle(rows, "tom", since=datetime(2026, 9, 4))
         self.assertEqual((c["peak"], c["n_days"]), (62, 3))
+
+    def test_closed_regime_bounds_the_window_from_above(self):
+        # until is exclusive: _regime_window returns the regime's end + 1 day
+        rows = self._rows([60, 62, 64, 90, 90])
+        c = analyze._cycle(rows, "tom", until=datetime(2026, 9, 4))
+        self.assertEqual((c["peak"], c["n_days"]), (62, 3))
+
+    def test_empty_regime_window_does_not_fall_back_to_all_days(self):
+        c = analyze._cycle(self._rows([60, 62]), "tom", since=datetime(2026, 9, 10))
+        self.assertEqual((c["peak"], c["trough"], c["n_days"]), (None, None, 0))
 
 
 if __name__ == "__main__":
