@@ -66,5 +66,31 @@ class RegimeMeansUseRepresentativeDays(unittest.TestCase):
         self.assertEqual(got["liters_day"], 41.0)
 
 
+class BudgetWeeksAreComplete(unittest.TestCase):
+    @staticmethod
+    def _rows(n, **last):
+        d0 = datetime(2026, 9, 1)
+        rows = [{"date": f"{d0 + timedelta(days=i):%Y-%m-%d}", "draw": 40.0, "span_days": 1}
+                for i in range(n)]
+        rows[-1].update(last)
+        return rows
+
+    def _weeks(self, rows):
+        return [(w["start"], w["days"], w["liters"])
+                for w in events.water_budget(rows, 100.0, [1.75, 2.45])]
+
+    def test_a_six_day_block_is_not_a_week(self):
+        self.assertEqual(self._weeks(self._rows(13)), [("2026-09-01", 7, 280.0)])
+
+    def test_a_partial_seventh_day_drops_the_week(self):
+        self.assertEqual(self._weeks(self._rows(14, partial=True)), [("2026-09-01", 7, 280.0)])
+
+    def test_a_reset_day_drops_the_week(self):
+        self.assertEqual(self._weeks(self._rows(14, reset=True)), [("2026-09-01", 7, 280.0)])
+
+    def test_two_full_weeks_are_both_kept(self):
+        self.assertEqual(len(self._weeks(self._rows(14))), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

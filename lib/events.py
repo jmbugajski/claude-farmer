@@ -545,6 +545,13 @@ def water_budget(water_daily, liters_per_inch, etc_band):
     question in one line, and the only place litres become agronomically
     meaningful. Needs bed geometry, which is why this could not be asked before
     2026-08-03 (and why the bed looked under-watered until it was measured).
+
+    Only weeks of seven complete, measured days are returned (no `partial`
+    tail, no meter `reset`). The band is a weekly depth
+    and the page words these as "complete weeks"; a 4-6-day total used to be
+    scored against it unscaled, which can only ever read low (#9). Blocks run
+    from the first metered day, so the short one is always the trailing one.
+    Metered test water stays in: it reached the bed.
     """
     if not water_daily or not liters_per_inch:
         return []
@@ -554,6 +561,8 @@ def water_budget(water_daily, liters_per_inch, etc_band):
     d0 = datetime.strptime(rows[0]["date"], "%Y-%m-%d")
     weeks: dict[int, dict] = {}
     for r in rows:
+        if r.get("partial") or r.get("reset"):   # not a day's water / unknown
+            continue
         wi = (datetime.strptime(r["date"], "%Y-%m-%d") - d0).days // 7
         w = weeks.setdefault(wi, {"L": 0.0, "dates": []})
         w["L"] += r["draw"]
@@ -562,7 +571,7 @@ def water_budget(water_daily, liters_per_inch, etc_band):
     out = []
     for wi in sorted(weeks):
         w = weeks[wi]
-        if len(w["dates"]) < 4:      # partial weeks are misleading as a rate
+        if len(w["dates"]) < 7:
             continue
         inches = w["L"] / liters_per_inch
         verdict = None
