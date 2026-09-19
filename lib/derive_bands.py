@@ -199,9 +199,12 @@ def find_ceiling(night, step, jump=3.0, absolute=1.2):
     that is the 75-79 bin at 1.66 %AD/hr against a ~0.44 baseline, not the 80-84
     bin at 12.07. A stricter test picks 80, which reads as "you may fill to 80"
     and is exactly the over-application this whole exercise exists to stop.
+
+    A bin needs MIN_N intervals -- the bar report() prints at. It was MIN_N // 2
+    until #5, so a ceiling could come from a bin the table showed as "--".
     """
     levels = sorted(night)
-    usable = [lv for lv in levels if len(night[lv]) >= MIN_N // 2]
+    usable = [lv for lv in levels if len(night[lv]) >= MIN_N]
     if len(usable) < 3:
         return None, None
     for i in range(2, len(usable)):
@@ -209,7 +212,7 @@ def find_ceiling(night, step, jump=3.0, absolute=1.2):
         below = [statistics.mean(night[x]) for x in usable[:i]]
         base = statistics.median(below)
         cur = statistics.mean(night[lv])
-        if base >= 0 and cur > max(jump * max(base, 0.05), absolute):
+        if cur > max(jump * max(base, 0.05), absolute):
             return lv, (cur / max(base, 0.05))
     return None, None
 

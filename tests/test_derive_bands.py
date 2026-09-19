@@ -104,6 +104,14 @@ class PostEventExclusion(unittest.TestCase):
         self.assertEqual(n(db.curves(rows, et, "tom", 5, exclude_spans=())[0]), n(night))
 
 
+class CeilingSampleBar(unittest.TestCase):
+    def test_bin_below_min_n_cannot_be_the_ceiling(self):
+        night = {60: [0.2] * 50, 65: [0.2] * 50, 70: [0.2] * 50, 75: [5.0] * (db.MIN_N - 1)}
+        self.assertEqual(db.find_ceiling(night, 5), (None, None))
+        night[75].append(5.0)
+        self.assertEqual(db.find_ceiling(night, 5)[0], 75)
+
+
 class OffNominalDays(unittest.TestCase):
     HEALTH = {"nominal_volts": 1.5, "volt_tolerance": 0.15}
 
