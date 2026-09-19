@@ -88,8 +88,27 @@ def load_et0(path: str) -> dict:
     return et
 
 
+def _day_rate(intervals):
+    """Day loss for one bin, in %AD per mm ET0: total drop over total demand.
+
+    NOT the mean of per-interval drop/ET0. The probe reports integers, so a
+    5-minute drop is 0 or 1, while hourly ET0 runs from 0.02 at dawn to ~0.7 at
+    midday: one tick at ET0 = 0.03 scores 400, the same tick at noon scores 20.
+    For ticks that track demand the two estimators agree in expectation; for
+    ticks that do NOT -- the +/-1 dither -- a mean of ratios weights each by
+    1/ET0, so a bin's figure is set by how much of its time fell in low-demand
+    hours. That read the flat 2.7-2.9 tomato plateau (50-69%) as 3.5-9.4 and
+    put a "falloff" at 55-59 that the totals do not show. Totals still carry
+    the dither (as ticks / total ET0); they just stop amplifying it.
+    """
+    demand = sum(e for _, e in intervals)
+    if demand <= 0:
+        return None
+    return sum(d for d, _ in intervals) / demand
+
+
 def curves(readings, et, key, step):
-    """Bin night loss (%AD/hr) and day loss (%AD per mm ET0) by moisture level."""
+    """Bin night loss (%AD/hr) and day (drop, mm ET0) pairs by moisture level."""
     night = collections.defaultdict(list)
     day = collections.defaultdict(list)
     for a, b in zip(readings, readings[1:]):
@@ -106,7 +125,7 @@ def curves(readings, et, key, step):
         if e <= NIGHT_ET0:
             night[level].append(drop / hrs)
         elif e > DAY_ET0:
-            day[level].append(drop / (e * hrs))
+            day[level].append((drop, e * hrs))
     return night, day
 
 
@@ -139,7 +158,7 @@ def find_floor(day, step, drop_to=0.65):
     usable = [lv for lv in levels if len(day[lv]) >= MIN_N_FLOOR]
     if len(usable) < 3:
         return None, None
-    rates = {lv: statistics.mean(day[lv]) for lv in usable}
+    rates = {lv: _day_rate(day[lv]) for lv in usable}
     plateau = statistics.median(list(rates.values()))
     for lv in usable:
         if rates[lv] < drop_to * plateau:
@@ -155,7 +174,7 @@ def report(label, night, day, step):
         if len(nv) < MIN_N and len(dv) < MIN_N:
             continue
         ns = f"{statistics.mean(nv):+.3f}" if len(nv) >= MIN_N else "--"
-        ds = f"{statistics.mean(dv):.2f}" if len(dv) >= MIN_N else "--"
+        ds = f"{_day_rate(dv):.2f}" if len(dv) >= MIN_N else "--"
         print(f"{lv:>7}-{lv + step - 1:<3} {len(nv):>6} {ns:>13} {len(dv):>6} {ds:>15}")
 
     ceiling, ratio = find_ceiling(night, step)
