@@ -678,7 +678,8 @@ def _advice(data, config, cycle):
     plan = config.get("plan", {})
     runs = plan.get("runs") or []
     if runs:
-        plan_desc = (f"{len(runs)} × {plan.get('run_seconds', 90)} s pulsed plan "
+        each = f" × {plan['run_seconds']} s" if plan.get("run_seconds") else "-run"
+        plan_desc = (f"{len(runs)}{each} pulsed plan "
                      f"({plan.get('run_min', 6)} min/day total)")
     else:
         plan_desc = f"{plan.get('run_min', '?')}-min daily timer"
@@ -730,9 +731,12 @@ def _gauge_for(pkey, pcfg, stats, cycle, split=None, partition=None):
     """
     g = dict(pcfg["gauge"])
     peak, trough = cycle["peak"], cycle["trough"]
-    g.update(peak=peak, trough=trough)
     b = pcfg["bands"]
     ceiling, floor, work_lo = b["drainage_ceiling"], b["stress_floor"], b["working_lo"]
+    # The bar's zones are the bands the verdict is scored against. They were a
+    # second hand-typed pair under `gauge`, which a re-derivation would have
+    # left drawing the old zones under text quoting the new numbers (#15).
+    g.update(peak=peak, trough=trough, floor=floor, ceiling=ceiling)
     last = stats["last"]
     # Set before any return: the tile draws its floor/ceiling zones unless told
     # not to, and the NO READING tile drew the unverified ones (#14).

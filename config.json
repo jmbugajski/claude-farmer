@@ -34,12 +34,7 @@
     "name": "Tomatoes",
     "loc": "raised bed · 3-inch probe",
     "lo": 45,
-    "hi": 85,
-    "idealLo": 58,
-    "idealHi": 74,
-    "ceiling": 75,
-    "floor": 50,
-    "watch": 55
+    "hi": 85
    }
   },
   "pepper": {
@@ -61,12 +56,7 @@
     "name": "Peppers",
     "loc": "6× 7-gal fabric bags",
     "lo": 30,
-    "hi": 55,
-    "idealLo": 38,
-    "idealHi": 46,
-    "ceiling": 48,
-    "floor": 36,
-    "watch": 38
+    "hi": 55
    }
   }
  },
@@ -163,29 +153,11 @@
  },
  "plan": {
   "_comment": "Actual watering is a fixed timer, not a volume-based/Smart plan (that was never implemented). The WFC01 meters the tomato raised bed line ONLY. THE PEPPERS ARE NOT ON ECOWITT HARDWARE AT ALL — corrected 2026-08-19; they run off the HOUSE MULTI-ZONE IRRIGATION CONTROLLER alongside lawn/roses/trees. See pepper_system below before troubleshooting anything pepper-related. The pepper_freq/pepper_time/pepper_run_min keys live in this block for dashboard-rendering reasons only; they describe a different device on a different network with different failure modes. Delivery figures below are the MEASURED metered rate on clean days, not a nameplate estimate — real flow runs well above emitter nameplate.",
-  "set": "2026-09-15",
-  "mode": "plan mode, three-start pulsed timer",
+  "mode": "plan mode, pulsed timer",
   "scope": "tomato raised bed only",
-  "freq": "2 runs daily",
-  "time": "05:05",
-  "run_seconds": 90,
-  "runs": [
-   {
-    "time": "05:05",
-    "seconds": 90
-   },
-   {
-    "time": "17:05",
-    "seconds": 90
-   }
-  ],
-  "runs_effective": "2026-09-15",
-  "run_min": 3.0,
-  "run_min_effective": "2026-09-15",
   "emitters": "12 bubblers + 8–10 drip-flag emitters (4 gph)",
-  "metered_daily": 39.4,
-  "metered_weekly": 275.7,
-  "expected_in_per_week": 2.43,
+  "measured_rate_lps": 0.2188,
+  "_measured_rate_comment": "RECORDED 2026-09-19 (#15). Metered litres per second of scheduled runtime: 39.4 L/day over the 7 clean full days Aug 20-26 on 2 x 90 s = 180 s/day. It already carried every projection in schedule_log ('on the measured 0.2188 L/s rate') but lived only in that prose, while its products metered_daily 39.4 / metered_weekly 275.7 / expected_in_per_week 2.43 were typed in beside it. lib/farm_config.py now derives those three from this rate, the current regimes[] row's runs and bed.liters_per_inch_of_water. It is linear in runtime, so it ignores the fixed line-charge cost per run; Sep 15-18 metered 39.7 L/day against the 39.4 it projects. Re-measure after any emitter or pressure change.",
   "live_plan_note": "ACTIVE from the 2026-09-15 05:05 run; set by Justin, logged retroactively 2026-09-19. Two plain-duration entries of 90 s at 05:05 / 17:05, cycle mode OFF. The 08:05 / 11:05 / 14:05 starts added on 2026-09-11 are RETIRED and each remaining run goes 80 -> 90 s, so total runtime falls 400 -> 180 s/day (-55%). THE SET OF START TIMES CHANGED, so runs_time_effective advances to 2026-09-15 and onset checking rescopes -- it would otherwise expect five onsets and find two. Projection on the measured 0.2188 L/s rate: ~39.4 L/day, ~275.7 L/wk, ~2.43 in/wk; the first four clean days (Sep 15-18) metered 38.5 / 40.6 / 39.1 / 40.5 L, mean 39.7 L/day, so the projection holds. RATIONALE (Justin, 2026-09-19): tomato fruiting is winding down, so this is a deliberate end-of-season taper, NOT a refill or a correction. It ends the 2026-09-11 refill early -- that plan's own exit was 'drop 08:05 for 4 x 80 s once the afternoon trough holds above 58', and the trough was 69 when this was set, so the exit condition was met and then some. WATCH: this is the SECOND run of 2 x 90 s. The first (2026-08-20 to 08-27) failed -- PM trough fell 65 -> 55 over 8 days with daytime draw never narrowing (-9 to -18 %/day). Sep 15-18 is tracking differently: draw is narrowing (-8, -7, -6, -6) against steady +5-6 overnight recharge, converging toward a trough near 59-61. ET0 is comparable across both runs (Aug 3.8-5.2 mm, Sep 4.1-4.8 mm), so the difference is crop demand, not weather -- which is what a winding-down canopy should look like. But August only blew out on days 4-6 and Sep 18 is day 4, so this is not yet settled. REVERT TRIGGER: daytime draw widening back past -8 pts on two consecutive days, or PM trough below 55. Add back the 11:05 start (3 x 90 s, ~59 L/day) if either fires.",
   "schedule_log": [
    {
@@ -658,58 +630,151 @@
     "label": "hand-timed (irregular)",
     "start": "2026-06-29",
     "end": "2026-07-15",
+    "runs": [],
     "note": "pre-timer; no fixed schedule"
    },
    {
     "label": "14 min daily",
     "start": "2026-07-16",
     "end": "2026-07-23",
+    "runs": [
+     {
+      "time": "05:05",
+      "seconds": 840
+     }
+    ],
     "note": "first fixed timer @05:05"
    },
    {
     "label": "10 min daily",
     "start": "2026-07-24",
     "end": "2026-08-02",
+    "runs": [
+     {
+      "time": "05:05",
+      "seconds": 600
+     }
+    ],
     "note": "trimmed to cut leaching; measured 118 L/day"
    },
    {
     "label": "12 min daily",
     "start": "2026-08-03",
     "end": "2026-08-03",
+    "runs": [
+     {
+      "time": "05:05",
+      "seconds": 720
+     }
+    ],
     "note": "one day only; overnight min had broken below band"
    },
    {
     "label": "4 x 90 s pulsed",
     "start": "2026-08-04",
     "end": "2026-08-19",
+    "runs": [
+     {
+      "time": "05:05",
+      "seconds": 90
+     },
+     {
+      "time": "05:20",
+      "seconds": 90
+     },
+     {
+      "time": "05:35",
+      "seconds": 90
+     },
+     {
+      "time": "17:00",
+      "seconds": 90
+     }
+    ],
     "note": "application-rate fix; ~79.6 L/day"
    },
    {
     "label": "2 x 90 s pulsed",
     "start": "2026-08-20",
     "end": "2026-08-27",
+    "runs": [
+     {
+      "time": "05:05",
+      "seconds": 90
+     },
+     {
+      "time": "17:05",
+      "seconds": 90
+     }
+    ],
     "note": "morning pulses 2-3 retired; measured 39.4 L/day over the 7 clean full days Aug 20-26; only week in ETc band (2.43 in); mean held mid-band but the PM trough fell 65 -> 56 without flattening"
    },
    {
     "label": "3 x 80 s pulsed",
     "start": "2026-08-28",
     "end": "2026-09-10",
+    "runs": [
+     {
+      "time": "05:05",
+      "seconds": 80
+     },
+     {
+      "time": "13:05",
+      "seconds": 80
+     },
+     {
+      "time": "17:05",
+      "seconds": 80
+     }
+    ],
     "note": "midday 13:05 start added to fill the 16:45 trough; ~52.5 L/day projected on the measured 0.2188 L/s rate; held the daily min at exactly 68.0 for Aug 31 - Sep 7, then lost 2-5 pts/day once tmax cleared 85 F"
    },
    {
     "label": "5 x 80 s pulsed",
     "start": "2026-09-11",
     "end": "2026-09-14",
+    "runs": [
+     {
+      "time": "05:05",
+      "seconds": 80
+     },
+     {
+      "time": "08:05",
+      "seconds": 80
+     },
+     {
+      "time": "11:05",
+      "seconds": 80
+     },
+     {
+      "time": "14:05",
+      "seconds": 80
+     },
+     {
+      "time": "17:05",
+      "seconds": 80
+     }
+    ],
     "note": "heat-wave refill; 3-hourly across the demand window 05:05-17:05; ~87.5 L/day projected. NOTE: the 3 x 80 s regime's final day (2026-09-10) carries 69.8 L of diagnostic-test water on top of its 54.9 L of scheduled water, so that regime's liters/day average is inflated by its last day -- water_budget() and regime_summary() have no manual-event exclusion. AMENDED 2026-09-19 (#9): regime_summary() now skips `metered: true` manual days; on exports 2026-06-29 -> 2026-09-19 the 3 x 80 s liters/day reads 55.9, was 61.6."
    },
    {
     "label": "2 x 90 s pulsed (end-of-season taper)",
     "start": "2026-09-15",
     "end": null,
+    "runs": [
+     {
+      "time": "05:05",
+      "seconds": 90
+     },
+     {
+      "time": "17:05",
+      "seconds": 90
+     }
+    ],
     "note": "deliberate taper as tomato fruiting winds down; ~39.4 L/day projected, 39.7 L/day measured over the first four clean days. SECOND run of this exact regime -- compare against 2026-08-20/08-27, which fell 65 -> 55 without flattening. This one is narrowing its daytime draw (-8, -7, -6, -6) at comparable ET0, i.e. lower crop demand rather than milder weather."
    }
   ],
-  "_regimes_comment": "Irrigation regime boundaries for the TOMATO line, maintained by hand from schedule_log. Charts shade by these and regime_summary() compares them side by side. This exists because the old dashboard fitted ONE linear trend across all of them and projected a setpoint crossing from it (R^2 0.28, projection undefined) — a slope fitted across regime changes is not a trend, it is an artefact. ADD A ROW HERE whenever the plan changes, or the comparison silently goes stale.",
+  "_regimes_comment": "Irrigation regime boundaries for the TOMATO line, maintained by hand from schedule_log. Charts shade by these and regime_summary() compares them side by side. This exists because the old dashboard fitted ONE linear trend across all of them and projected a setpoint crossing from it (R^2 0.28, projection undefined) — a slope fitted across regime changes is not a trend, it is an artefact. ADD A ROW HERE whenever the plan changes, or the comparison silently goes stale. AMENDED 2026-09-19 (#15): this array is now the ONLY record of the tomato schedule. Each row carries the `runs` the timer held from `start` to `end`; lib/farm_config.py derives plan.set, runs, run_seconds, run_min, runs_effective, runs_time_effective, metered_daily, metered_weekly and expected_in_per_week from the last row at load, and the build fails if any of those is stored here again, or if rows overlap, leave a gap, run out of order or end before they start. A plan change is now: close the last row's `end`, add a row with its `runs`, add the schedule_log entry. Run times for the rows before 2026-09-15 were filled in from schedule_log on 2026-09-19.",
   "manual_events": [
    {
     "date": "2026-09-10",
@@ -773,8 +838,7 @@
   ],
   "_manual_events_comment": "Hand applications: fertigation, spot watering, anything poured by hand. LOG THEM HERE. Two reasons, both of which bit on 2026-08-16 before this key existed. (1) The WFC01 never sees hand-applied water, so the meter under-reports what the bed got while the probe records the full response — points-per-100L read 23.9 that day, the highest in the record, purely because the numerator saw water the denominator did not. Manual days are now EXCLUDED from retention() rather than asterisked, since a silently wrong efficiency figure is worse than a missing one. (2) They are not schedule violations, so onset_check() skips them; otherwise every fertigation shows up as a broken timer. Detection hint: a manual application shows as simultaneous off-schedule events on BOTH channels within a few minutes — that signature appears exactly once in the record (2026-08-16, 5 min apart).",
   "pepper_prev_run_min": 15,
-  "runs_time_effective": "2026-09-15",
   "pepper_time_effective": "2026-07-24",
-  "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations."
+  "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations. AMENDED 2026-09-19 (#15): the tomato half is no longer stored. runs_time_effective is derived as the start of the oldest regimes[] row in the trailing streak that holds the current SET of start times, which gives 2026-09-15 today; by that rule the 2026-08-20 cut (05:20 / 05:35 retired, 17:00 -> 17:05) also moved it, where this key was left at 2026-08-04. pepper_time_effective is still hand-kept: the peppers have no regimes[] rows."
  }
 }

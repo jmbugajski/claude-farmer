@@ -6,7 +6,6 @@ schedule that delivered them (#12). Run from the repo root:
 """
 
 import copy
-import json
 import os
 import sys
 import unittest
@@ -16,6 +15,7 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 sys.path.insert(0, os.path.join(ROOT, "lib"))
 
 import analyze  # noqa: E402
+import farm_config  # noqa: E402
 
 
 def _readings(per_day):
@@ -32,18 +32,20 @@ def _readings(per_day):
 STEP_DOWN = _readings([100] * 20 + [40] * 5)
 STEP_UP = _readings([40] * 20 + [100] * 5)
 
-REGIMES = [{"label": "A", "start": "2026-09-01", "end": "2026-09-20"},
-           {"label": "B", "start": "2026-09-21", "end": "2026-09-25"},
-           {"label": "C", "start": "2026-09-26", "end": None}]
+RUNS = [{"time": "05:05", "seconds": 90}, {"time": "17:05", "seconds": 90}]
+REGIMES = [{"label": "A", "start": "2026-09-01", "end": "2026-09-20", "runs": RUNS},
+           {"label": "B", "start": "2026-09-21", "end": "2026-09-25", "runs": RUNS},
+           {"label": "C", "start": "2026-09-26", "end": None, "runs": RUNS}]
 
 
-def _config(regimes, effective):
-    """The tracked config with only the plan's dates replaced -- build() needs the rest."""
-    with open(os.path.join(ROOT, "config.json")) as f:
-        cfg = copy.deepcopy(json.load(f))
-    cfg["plan"]["regimes"] = regimes
-    cfg["plan"]["runs_effective"] = effective
-    return cfg
+def _config(regimes):
+    """The tracked config with only the regimes replaced -- build() needs the rest.
+    runs_effective is the last row's start: there is no second date to set (#15)."""
+    cfg = farm_config.load(os.path.join(ROOT, "config.json"))
+    for key in farm_config.DERIVED_PLAN_KEYS:
+        del cfg["plan"][key]
+    cfg["plan"]["regimes"] = copy.deepcopy(regimes)
+    return farm_config.resolve(cfg)
 
 
 class RecentAverageIsBoundedByTheWindow(unittest.TestCase):
@@ -57,10 +59,10 @@ class RecentAverageIsBoundedByTheWindow(unittest.TestCase):
 
 
 class PlanLoggedButNotYetRun(unittest.TestCase):
-    """runs_effective and the open regime both start the day after the newest reading."""
+    """The open regime starts the day after the newest reading."""
 
     def setUp(self):
-        data, cfg = analyze.build(STEP_DOWN, _config(REGIMES, "2026-09-26"))
+        data, cfg = analyze.build(STEP_DOWN, _config(REGIMES))
         self.water, self.text = data["water"], cfg["advice"]["water"]
 
     def test_litres_come_from_the_regime_that_ran(self):
@@ -75,7 +77,7 @@ class PlanLoggedButNotYetRun(unittest.TestCase):
 
 class ShiftClauseFollowsTheSign(unittest.TestCase):
     def _text(self, readings):
-        return analyze.build(readings, _config(REGIMES[:2], "2026-09-21"))[1]["advice"]["water"]
+        return analyze.build(readings, _config(REGIMES[:2]))[1]["advice"]["water"]
 
     def test_lower_recent_mean_reads_down(self):
         self.assertIn("down from a 87.5 L lifetime average", self._text(STEP_DOWN))

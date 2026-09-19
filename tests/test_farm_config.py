@@ -156,5 +156,17 @@ class Rejections(unittest.TestCase):
         self.assertIn("bed.liters_per_inch_of_water", _errors(lambda c: c.pop("bed")))
 
 
+class TrackedConfig(unittest.TestCase):
+    """The garden's own file loads. Its values move with the garden, so only
+    the identities are pinned, not the numbers."""
+
+    def test_loads_and_the_derived_keys_agree_with_the_regimes(self):
+        cfg = farm_config.load(os.path.join(ROOT, "config.json"))
+        plan = cfg["plan"]
+        self.assertEqual(plan["runs"], plan["regimes"][-1]["runs"])
+        self.assertEqual(plan["runs_effective"], plan["regimes"][-1]["start"])
+        self.assertLessEqual(plan["runs_time_effective"], plan["runs_effective"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -53,19 +53,27 @@ wf_sentences() {
   grep -q '^SCRIPT_ERRORS=0' "$out"
 }
 
-# config.json is hand-edited and 700+ lines: prove it still parses, and print
-# the values a change must not move by accident.
+# config.json is hand-edited and 700+ lines: prove it still parses AND passes
+# farm_config.validate(), and print the values a change must not move by
+# accident. The plan line is derived from plan.regimes (#15).
 wf_config() {
-  "$(_wf_py)" - "$(_wf_root)/config.json" <<'PY'
-import json, sys
-c = json.load(open(sys.argv[1], encoding="utf-8"))
+  "$(_wf_py)" - "$(_wf_root)" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1] + "/lib")
+import farm_config
+try:
+    c = farm_config.load(sys.argv[1] + "/config.json")
+except farm_config.ConfigError as exc:
+    sys.exit(f"config.json is not usable:\n{exc}")
 for name, p in ((k, v) for k, v in c["probes"].items() if isinstance(v, dict) and "bands" in v):
     b = p["bands"]
     print(f"{name:7} ceiling {b['drainage_ceiling']}  floor {b['stress_floor']}  "
           f"working_lo {b['working_lo']}  verified {b.get('verified', True)}")
 pl = c["plan"]
 print("runs   ", [(r["time"], r["seconds"]) for r in pl.get("runs", [])],
-      "effective", pl.get("runs_effective"))
+      "effective", pl["runs_effective"], "times since", pl["runs_time_effective"])
+print("projects", pl["metered_daily"], "L/day ", pl["metered_weekly"], "L/wk ",
+      pl["expected_in_per_week"], "in/wk")
 rg = pl.get("regimes") or []
 print("regimes", len(rg), "open:", [r["label"] for r in rg if not r.get("end")])
 PY

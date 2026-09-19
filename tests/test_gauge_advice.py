@@ -5,7 +5,6 @@ repo root:
     .venv/bin/python -m unittest discover tests
 """
 
-import json
 import os
 import sys
 import unittest
@@ -14,6 +13,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
 
 import analyze  # noqa: E402
+import farm_config  # noqa: E402
 
 BANDS = {"drainage_ceiling": 75, "stress_floor": 50, "working_lo": 58,
          "refill_target": 70, "verified": True}
@@ -87,8 +87,7 @@ class EmptyChannelStillBuilds(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-        with open(os.path.join(root, "config.json"), encoding="utf-8") as f:
-            cls.config = json.load(f)
+        cls.config = farm_config.load(os.path.join(root, "config.json"))
 
     def test_probe_offline_for_the_whole_window_reads_no_reading(self):
         t0 = datetime(2026, 9, 10)

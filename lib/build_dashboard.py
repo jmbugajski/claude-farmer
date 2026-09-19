@@ -31,7 +31,6 @@ shareable link that refreshes whenever the repo is pushed.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 
@@ -81,6 +80,7 @@ def _dependency_help(exc: ModuleNotFoundError) -> str:
 
 try:
     import analyze          # noqa: E402
+    import farm_config      # noqa: E402
     import parse_ecowitt    # noqa: E402
     import render           # noqa: E402
     import weather          # noqa: E402
@@ -99,8 +99,13 @@ def main() -> int:
                     help="skip writing the stable published copy")
     args = ap.parse_args()
 
-    with open(args.config, encoding="utf-8") as f:
-        config = json.load(f)
+    # Before the inputs are parsed: a config that stores a second copy of the
+    # plan, or whose regimes overlap, fails here with every problem listed (#15).
+    try:
+        config = farm_config.load(args.config)
+    except farm_config.ConfigError as exc:
+        print(f"{args.config} is not usable:\n{exc}", file=sys.stderr)
+        return 1
 
     print(f"Reading EcoWitt exports from {args.inputs} ...")
     readings = parse_ecowitt.load_readings(args.inputs, config)
