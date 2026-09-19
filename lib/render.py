@@ -12,15 +12,28 @@ The template carries three placeholders:
 
 from __future__ import annotations
 
+import html as html_mod
 import json
 import os
+import re
 
 TEMPLATE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard_template.html")
 
 
+def _script_json(obj) -> str:
+    r"""JSON for a <script> block. The HTML parser ends the block at the first
+    `</script` and changes mode at `<!--`, whatever JS string they sit in, and
+    schedule_log is free text; `\u003c` is the same character to JSON and JS."""
+    return json.dumps(obj, ensure_ascii=False).replace("<", "\\u003c")
+
+
 def render(data: dict, cfg: dict) -> str:
-    html = open(TEMPLATE, encoding="utf-8").read()
-    html = html.replace("__DATA__", json.dumps(data, ensure_ascii=False))
-    html = html.replace("__CFG__", json.dumps(cfg, ensure_ascii=False))
-    html = html.replace("__FOOTER_META__", cfg.get("footer_meta", ""))
-    return html
+    with open(TEMPLATE, encoding="utf-8") as fh:
+        html = fh.read()
+    fill = {
+        "DATA": _script_json(data),
+        "CFG": _script_json(cfg),
+        "FOOTER_META": html_mod.escape(cfg.get("footer_meta", "")),
+    }
+    # One pass: a placeholder name inside a filled-in value is left as text.
+    return re.sub(r"__(DATA|CFG|FOOTER_META)__", lambda m: fill[m.group(1)], html)
