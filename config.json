@@ -700,7 +700,7 @@
     "label": "5 x 80 s pulsed",
     "start": "2026-09-11",
     "end": "2026-09-14",
-    "note": "heat-wave refill; 3-hourly across the demand window 05:05-17:05; ~87.5 L/day projected. NOTE: the 3 x 80 s regime's final day (2026-09-10) carries 69.8 L of diagnostic-test water on top of its 54.9 L of scheduled water, so that regime's liters/day average is inflated by its last day -- water_budget() and regime_summary() have no manual-event exclusion."
+    "note": "heat-wave refill; 3-hourly across the demand window 05:05-17:05; ~87.5 L/day projected. NOTE: the 3 x 80 s regime's final day (2026-09-10) carries 69.8 L of diagnostic-test water on top of its 54.9 L of scheduled water, so that regime's liters/day average is inflated by its last day -- water_budget() and regime_summary() have no manual-event exclusion. AMENDED 2026-09-19 (#9): regime_summary() now skips `metered: true` manual days; on exports 2026-06-29 -> 2026-09-19 the 3 x 80 s liters/day reads 55.9, was 61.6."
    },
    {
     "label": "2 x 90 s pulsed (end-of-season taper)",
@@ -721,7 +721,7 @@
     ],
     "metered": true,
     "why_logged_here": "This block is documented for HAND applications, where the rationale is that the WFC01 is blind to the water. This entry inverts that -- the meter saw every litre. It is filed here anyway because tag_manual() is the only hook that (a) keeps an off-schedule event out of onset_check(), where it would score as a timer violation, and (b) drops the day from retention(), where 69.8 L of unscheduled water in the denominator would wreck the efficiency figure. Read `metered: true` as a warning that the usual manual-event reasoning does NOT apply, not as an oversight.",
-    "not_covered": "retention() and onset_check() are handled by the above. water_budget() and regime_summary() take water_daily directly and have no manual-event exclusion, so BOTH still count the 69.8 L: the week of 2026-09-10 reads ~0.61 in high, and the 3 x 80 s regime's liters/day is inflated by its final day. Treat both as asterisked until a test-event exclusion exists."
+    "not_covered": "retention() and onset_check() are handled by the above. water_budget() and regime_summary() take water_daily directly and have no manual-event exclusion, so BOTH still count the 69.8 L: the week of 2026-09-10 reads ~0.61 in high, and the 3 x 80 s regime's liters/day is inflated by its final day. Treat both as asterisked until a test-event exclusion exists. AMENDED 2026-09-19 (#9): regime_summary() now reads `metered` through events.metered_manual_days() and leaves this day out of liters/day (3 x 80 s: 61.6 -> 55.9). water_budget() still counts the 69.8 L ON PURPOSE: it asks what reached the bed, and this water did. The 2026-09-10 week's 5.11 in is what was applied, not what the schedule delivers."
    },
    {
     "date": "2026-08-29",
