@@ -1105,8 +1105,6 @@ def build(readings, config, wx_hourly=None):
         "lat": loc["lat"], "lon": loc["lon"],
         "window_label": window_label,
         "interval_label": f" @ {interval_hr_disp} h",
-        "wx_start": t0.strftime("%Y-%m-%d"),
-        "wx_end": t1.strftime("%Y-%m-%d"),
         # Derived thresholds, replacing the retired `setpoints` key. See
         # probes._bands_provenance in config.json and lib/derive_bands.py.
         "bands": {"tom": tom_cfg["bands"], "pep": pep_cfg["bands"]},

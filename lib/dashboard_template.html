@@ -118,7 +118,7 @@ footer a{color:var(--mut)}
   <div class="meta">
     <div>Window<b id="m-window">&mdash;</b></div>
     <div>Samples<b id="m-n">&mdash;</b></div>
-    <div>Weather<span class="pill live" id="wx-pill"><span class="dot loading"></span>loading&hellip;</span></div>
+    <div>Weather<span class="pill live" id="wx-pill"></span></div>
   </div>
 </header>
 
@@ -239,7 +239,7 @@ footer a{color:var(--mut)}
 
 <footer>
   Moisture data: Ecowitt GW1200 export, __FOOTER_META__. &nbsp;|&nbsp;
-  Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Forecast API (past_days), fetched live in your browser &mdash; CC BY 4.0. &nbsp;|&nbsp;
+  Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Historical Weather API, cached into this build by <code>pull_weather_data.sh</code> &mdash; CC BY 4.0. &nbsp;|&nbsp;
   Onboard hub temp/humidity/dew point are indoor readings and are not used for correlation. &nbsp;|&nbsp;
   Drainage ceiling and stress floor are DERIVED from this dataset by <code>lib/derive_bands.py</code> &mdash; night-time loss (zero evaporative demand) locates field capacity, daytime loss per mm ET&#8320; locates the uptake falloff. They are properties of this soil, this probe depth and this factory calibration; re-derive if a probe moves. The hand-set Ecowitt alert thresholds they replaced are retired. <b>As of 2026-09-19 both probes' bands are flagged unverified</b> &mdash; the derivation counts only downward steps between readings, so the integer probe's &plusmn;1 dither accumulates into one-directional loss, and the thresholds are being re-derived. Figures scored against them are withheld rather than shown with a caveat.
 </footer>
@@ -251,7 +251,6 @@ const CFG = __CFG__;
 if(CFG.bands&&(CFG.bands.tom.verified===false||CFG.bands.pep.verified===false)){
   var _bn=document.getElementById('bands-notice'); if(_bn) _bn.style.display='block';
 }
-const LAT=CFG.lat, LON=CFG.lon;
 const COL={tom:'#D9533B',pep:'#E0A43C',wx:'#6FA8A0',ink:'#E8E6DA',mut:'#9AA08C',line:'#2E3322',trend:'#B98BD9',leaf:'#6FA53F'};
 
 /* ---------- header ---------- */
@@ -754,57 +753,17 @@ const NAT=DATA.native||{};
     `There <b>is</b> a volume target now that bed geometry is recorded${BED?` — <b>${BED.area_ft2} sq ft</b>, so <b>1 in of water = ${BED.liters_per_inch_of_water} L</b> and the estimated August ETc of ${BED.target.august_etc_in_per_week[0]}–${BED.target.august_etc_in_per_week[1]} in/wk works out to <b>${Math.round(BED.target.august_etc_in_per_week[0]*BED.liters_per_inch_of_water)}–${Math.round(BED.target.august_etc_in_per_week[1]*BED.liters_per_inch_of_water)} L/wk</b>`:''}. The dashed line is the <b>new plan's ~${PLAN.metered_weekly} L/wk</b>; earlier bars sit far above it because the bed was being flood-dosed. Every week from Jul 16 to Aug 3 ran a single long morning timer (14 min, then 10, then 12) metering ~118–129 L/day — about <b>8 in/week</b>, roughly <b>6× the 1–1.5 in/wk target</b> and more than the whole 10-in profile's plant-available capacity in one shot, which is why the probe spiked past 90% and shed ~15 points within 45 min. <b>From ${effD||'Aug 4'} the bed runs ${(PLAN.runs||[]).length} × ${PLAN.run_seconds||90} s</b>, so expect the bars to drop to ~<b>${PLAN.metered_weekly} L</b> — that step down is the schedule change, not a leak or clog. The WFC01 is cumulative and batches: a 0 L day followed by a double is the meter catching up, not a skipped watering. Peppers water on a separate, unmetered line and never appear here.`;
 })();
 
-/* ---------- weather fetch (client-side, Open-Meteo) ---------- */
-let WX=null;
-const pill=document.getElementById('wx-pill');
-function alignWeather(times,vals){
-  const idx={}; times.forEach((t,i)=>idx[t.slice(0,13)]=vals[i]);
-  return labels.map(l=>{const k=l.slice(0,13);return (k in idx)?idx[k]:null;});
-}
-async function loadWeather(){
-  const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}`
-    +`&hourly=temperature_2m,relative_humidity_2m,et0_fao_evapotranspiration,precipitation,shortwave_radiation`
-    +`&temperature_unit=fahrenheit&timezone=America%2FLos_Angeles&start_date=${CFG.wx_start}&end_date=${CFG.wx_end}`;
-  try{
-    const r=await fetch(url); if(!r.ok)throw new Error('HTTP '+r.status);
-    const j=await r.json(); const H=j.hourly;
-    WX={time:H.time,temp:H.temperature_2m,rh:H.relative_humidity_2m,
-        et0:H.et0_fao_evapotranspiration,rad:H.shortwave_radiation,precip:H.precipitation};
-    pill.innerHTML='<span class="dot"></span>live · Open-Meteo';
-    writeFindings();
-  }catch(e){
-    pill.classList.remove('live'); pill.style.color='#C98A6B';
-    pill.innerHTML='weather unavailable';
-    writeFindings(true);
-  }
-}
-/* Chart overlay toggles removed with panel 8. loadWeather() stays: WX still
-   drives the correlation block and the ET0 line in the findings box. */
-
-/* ---------- correlation (client-side) ---------- */
-function pearson(x,y){const n=x.length;const mx=x.reduce((a,b)=>a+b)/n,my=y.reduce((a,b)=>a+b)/n;
-  let num=0,dx=0,dy=0;for(let i=0;i<n;i++){const a=x[i]-mx,b=y[i]-my;num+=a*b;dx+=a*a;dy+=b*b;}
-  return num/Math.sqrt(dx*dy);}
-function dailyWx(){
-  const by={};
-  WX.time.forEach((t,i)=>{const d=t.slice(0,10);(by[d]=by[d]||{temp:[],et0:[],rad:[]});
-    by[d].temp.push(WX.temp[i]);by[d].et0.push(WX.et0[i]);by[d].rad.push(WX.rad[i]);});
-  const days=DATA.daily.map(r=>r.date).filter(d=>by[d]);
-  return {days,
-    tmax:days.map(d=>Math.max(...by[d].temp)),
-    et0sum:days.map(d=>by[d].et0.reduce((a,b)=>a+b,0)),
-    tomMean:days.map(d=>DATA.daily.find(r=>r.date===d).tom_mean),
-    pepMean:days.map(d=>DATA.daily.find(r=>r.date===d).pep_mean),
-    tomDraw:days.map(d=>{const r=DATA.daily.find(x=>x.date===d);return r.tom_max-r.tom_min;}),
-    pepDraw:days.map(d=>{const r=DATA.daily.find(x=>x.date===d);return r.pep_max-r.pep_min;}),
-  };
-}
-function rcard(lab,r){
-  const mag=Math.abs(r), s=mag>=.6?'strong':mag>=.35?'moderate':mag>=.15?'weak':'negligible';
-  const dir=r<0?'inverse':'direct';
-  return `<div class="cc"><div class="lab">${lab}</div><div class="r" style="color:${r<0?COL.wx:COL.pep}">${r>=0?'+':''}${r.toFixed(2)}</div><div class="rd">${s} ${dir}</div></div>`;
-}
-let CORR=null;
+/* ---------- weather (cached at build time) ---------- */
+// The browser-side Open-Meteo fetch was removed 2026-09-19 (#3). Nothing read
+// its result after computeCorrelation() went -- every weather-derived figure is
+// baked in from inputs/weather.csv -- and it used the forecast endpoint from the
+// first reading's date, which stops answering ~92 days out. It would have put
+// "weather unavailable" on a build whose weather was present and complete.
+(function(){
+  const pill=document.getElementById('wx-pill'), W=DATA.weather;
+  if(W){pill.innerHTML=`<span class="dot"></span>cached · Open-Meteo · ${W.span[0].slice(5)} → ${W.span[1].slice(5)}`;}
+  else{pill.classList.remove('live'); pill.style.color='#C98A6B'; pill.innerHTML='no cached weather';}
+})();
 // computeCorrelation() removed 2026-08-19. It rendered a three-card panel whose
 // headline result was r = -0.001 between ET0 and tomato dry-down -- a real and
 // well-established null (irrigation sets the daily swing, not the weather).
@@ -813,7 +772,7 @@ let CORR=null;
 // water budget in panel 4.
 
 /* ---------- findings ---------- */
-function writeFindings(noWx){
+function writeFindings(){
   // Written from the control variable (pre-irrigation floor / daily minimum),
   // not from the window mean. The mean averages the irrigation spike together
   // with the dry-down and so moves late and small; the floor is what every
@@ -859,14 +818,12 @@ function writeFindings(noWx){
   const PT=(DATA.partition||{}).tom;
   document.getElementById('f-wx').innerHTML= PT
     ? `Since <b>${PT.since}</b> (${PT.days} day${PT.days===1?'':'s'} ${PT.scoped_to_regime?`on the <b>${PT.regime||'current'}</b> schedule`:`<b style="color:var(--tom)">spanning a plan change</b> — no regime is recorded for this window, so the split below averages across schedules and should not be read as describing any one of them`}), the tomato bed lost <b>${PT.day_pts} points</b> under daytime evaporative demand and <b>${PT.night_pts} points</b> overnight at zero demand. Night loss cannot be transpiration, so that split reads as <b>${PT.pct_uptake}% through the plants, ${PT.pct_drainage}% drained</b>${PT.above_ceiling_pts?`, of which ${PT.above_ceiling_pts.toFixed(0)} points drained from above the ceiling — unambiguously wasted`:''}. This is the same ET₀ series the bands were derived from, run forward; it is also why weather is cached rather than merely charted.`
-    : (noWx
-      ? `Live weather didn&rsquo;t load, so the drainage-vs-uptake split cannot be computed — it is keyed entirely on hourly ET₀. Run <code>./pull_weather_data.sh</code> to cache it into the build.`
-      : `No cached ET₀ in this build. Run <code>./pull_weather_data.sh</code>, then rebuild — without it the dashboard can show moisture leaving the soil but not whether a plant got it.`);
+    : `No cached ET₀ in this build. Run <code>./pull_weather_data.sh</code>, then rebuild — without it the dashboard can show moisture leaving the soil but not whether a plant got it.`;
   document.getElementById('f-act').innerHTML=
     `<b>Tomatoes:</b> ${CFG.advice.tom} <b>Peppers:</b> ${CFG.advice.pep} <b>Water:</b> ${CFG.advice.water}`;
 }
 
-loadWeather();
+writeFindings();
 </script>
 </body>
 </html>
