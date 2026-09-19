@@ -302,11 +302,7 @@ document.getElementById('gauges').innerHTML =
   gauge('tom',CFG.gauge.tom.name,CFG.gauge.tom.loc,CFG.gauge.tom,CFG.gauge.tom.verdict,CFG.gauge.tom.vclass,CFG.gauge.tom.note) +
   gauge('pep',CFG.gauge.pep.name,CFG.gauge.pep.loc,CFG.gauge.pep,CFG.gauge.pep.verdict,CFG.gauge.pep.vclass,CFG.gauge.pep.note);
 
-/* `labels` is still needed by the client-side weather alignment below, which
-   feeds the ET0 figures in the findings box. The chart it used to draw is gone
-   with panel 8; the hourly series survives only as a time axis. */
 const series=DATA.series;
-const labels=series.map(p=>p.t);
 
 const NAT=DATA.native||{};
 
@@ -325,13 +321,21 @@ const NAT=DATA.native||{};
   const prev=comp.length>7?comp[comp.length-8]:null;
   const isPartial=Eall[Eall.length-1].partial;
   const TB=CFG.bands.tom, ceil=TB.drainage_ceiling, floor=TB.stress_floor;
+  // What drives the swing is measured, not asserted: analyze._weather_analysis()
+  // correlates it with ET0 inside each irrigation regime and names the driver.
+  // The pooled r is not printed -- schedule and season moved together (#13).
+  const WXA=DATA.weather, rW=WXA?WXA.corr.tom_draw_vs_et0_within:null;
+  const swingNote=!WXA||!WXA.swing_driver?''
+    : WXA.swing_driver==='pulse'
+      ? ` &mdash; set by the pulse, not the weather (r=${rW} vs ET&#8320; within a schedule)`
+      : ` &mdash; follows ET&#8320; within a schedule (r=${rW}), so weather moves it as well as the pulse`;
   const d=(a,b)=>b==null?'':` <span style="color:var(--mut)">(${a-b>0?'+':''}${(a-b).toFixed(1)} vs 7 d ago)</span>`;
   document.getElementById('cv-cards').innerHTML=[
     ['Pre-irrigation floor',last.pre_irrigation,'what the bed held before today&rsquo;s first run',
       prev?prev.pre_irrigation:null,'var(--tom)'],
     ['Daily minimum',last.day_min,`lowest point &middot; ${last.day_min_t}${TB.verified===false?'':` &middot; floor ${floor}%`}`,
       prev?prev.day_min:null,'var(--leaf)'],
-    ['Daily swing',last.swing,'max &minus; min &mdash; set by the pulse, not the weather',
+    ['Daily swing',last.swing,'max &minus; min'+swingNote,
       prev?prev.swing:null,'var(--mut)'],
   ].map(c=>`<div class="cc"><div class="lab">${c[2]}</div>
       <div class="r" style="color:${c[4]}">${c[1]==null?'&mdash;':c[1]}<span style="font-size:14px;color:var(--mut)">%</span></div>
@@ -773,12 +777,8 @@ const NAT=DATA.native||{};
   if(W){pill.innerHTML=`<span class="dot"></span>cached · Open-Meteo · ${W.span[0].slice(5)} → ${W.span[1].slice(5)}`;}
   else{pill.classList.remove('live'); pill.style.color='#C98A6B'; pill.innerHTML='no cached weather';}
 })();
-// computeCorrelation() removed 2026-08-19. It rendered a three-card panel whose
-// headline result was r = -0.001 between ET0 and tomato dry-down -- a real and
-// well-established null (irrigation sets the daily swing, not the weather).
-// Re-reporting a stable null as a panel every week is noise; it now appears as
-// one sentence in the findings, and ET0 is retained where it does work: the
-// water budget in panel 4.
+// computeCorrelation() removed 2026-08-19: a three-card panel for one r. The
+// figure now lives in the panel-2 "Daily swing" card, from DATA.weather.
 
 /* ---------- findings ---------- */
 function writeFindings(){
@@ -817,9 +817,6 @@ function writeFindings(){
         const r=es.reduce((a,e)=>a+e.retained,0)/es.length, sh=es.reduce((a,e)=>a+e.shed,0)/es.length;
         const eff=Math.round(r/(r+sh)*100);
         return `Across the last ${es.length} runs the bags gained <b>+${r.toFixed(1)} points</b> and shed <b>${sh.toFixed(1)}</b>, keeping <b>${eff}%</b> of each run's excursion. ${eff<45?`That is the washout signature: the media reaches container capacity part-way through the run and passes the remainder straight through, carrying dissolved nutrients out the base.`:``} Bags cycle ${Math.min(...es.map(e=>e.pre_floor))}–${Math.max(...es.map(e=>e.peak))}%${CFG.bands.pep.verified===false?`. The drainage ceiling and stress floor those would be read against are being re-derived and are not shown this build.`:` against a <b>${CFG.bands.pep.drainage_ceiling}% drainage ceiling</b> and a <b>${CFG.bands.pep.stress_floor}% stress floor</b>.`}`;})();
-  // Prefer the server-side analysis baked in from inputs/weather.csv: it is
-  // computed from cached data, so it survives being opened offline, and it
-  // reports what the numbers actually say instead of asserting a direction.
   // Weather card repurposed 2026-08-22. It used to report an ET0-vs-dry-down
   // correlation of r ~ 0 and explain at length why that null was expected --
   // true, but it answered a question nobody was asking. ET0's real job is as the

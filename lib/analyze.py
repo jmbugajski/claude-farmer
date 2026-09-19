@@ -954,16 +954,48 @@ def _pearson(xs, ys):
     return round(num / math.sqrt(dx * dy), 3)
 
 
-def _weather_analysis(daily_soil, wx_daily):
-    """
-    Join daily soil stats to daily weather and answer the question the raw trend
-    cannot: was the bed drying because it was HOT, or because it was UNDERWATERED?
+# Under this |r| the daily swing is read as not following ET0. 0.35 is the old
+# narrative's weak/moderate boundary; MIN_PAIRED is where a Pearson r on noisy
+# daily data stops swinging past that boundary on its own.
+SWING_R_MAX = 0.35
+MIN_PAIRED = 10
 
-    The headline number is normalised dry-down -- points of moisture lost per mm
-    of ET0. Raw dry-down conflates weather with irrigation, so a cool week and a
-    heavily-watered week look identical in the trend line. Dividing by
-    evaporative demand removes the weather term, and what is left moves only when
-    irrigation or soil condition changes.
+
+def _within_regime_r(rows, regimes, xkey, ykey):
+    """Pearson r of xkey vs ykey with each plan.regimes window demeaned first.
+
+    The pooled r answers a different question. Swing is set mostly by litres
+    per run, and the long single runs happened in July when ET0 was highest, so
+    schedule and season move together: on 82 days to 2026-09-19 the pooled
+    ET0-vs-swing r was 0.55 while this figure was 0.036 (#13). Days outside
+    every regime, and regimes with under 3 paired days, carry no within-group
+    information and are left out. Returns (r, n).
+    """
+    xs, ys = [], []
+    for g in regimes or []:
+        lo, hi = g["start"], g.get("end") or "9999-12-31"
+        blk = [(r[xkey], r[ykey]) for r in rows
+               if lo <= r["date"] <= hi and r[xkey] is not None and r[ykey] is not None]
+        if len(blk) < 3:
+            continue
+        mx = statistics.fmean(b[0] for b in blk)
+        my = statistics.fmean(b[1] for b in blk)
+        xs += [b[0] - mx for b in blk]
+        ys += [b[1] - my for b in blk]
+    return _pearson(xs, ys), len(xs)
+
+
+def _weather_analysis(daily_soil, wx_daily, regimes=None):
+    """
+    Join daily soil stats to daily weather and say whether the tomato bed's
+    daily swing (max - min) follows evaporative demand.
+
+    `swing_driver` is what panel 2 prints a conclusion from: "pulse" when the
+    within-regime r is under SWING_R_MAX, "weather" when it is not, None when
+    there are too few paired days to say. The sentence used to be fixed text in
+    the template, and a narrative built here asserted "a flat correlation is a
+    real result" beside whatever r it interpolated -- r=0.604 at the time (#13).
+    Only keys the template reads, plus `corr`, are returned.
     """
     if not wx_daily:
         return None
@@ -973,122 +1005,38 @@ def _weather_analysis(daily_soil, wx_daily):
         w = wx_by.get(r["date"])
         if not w:
             continue
-        draw = (round(r["tom_max"] - r["tom_min"], 1)
-                if r["tom_max"] is not None and r["tom_min"] is not None else None)
-        pdraw = (round(r["pep_max"] - r["pep_min"], 1)
-                 if r["pep_max"] is not None and r["pep_min"] is not None else None)
-        et0 = w["et0_mm"]
         rows.append({
-            "date": r["date"],
-            "tmax_f": w["tmax_f"], "vpd_mean": w["vpd_mean"],
-            "et0_mm": et0, "precip_mm": w["precip_mm"],
+            "date": r["date"], "et0_mm": w["et0_mm"], "tmax_f": w["tmax_f"],
             "tom_mean": r["tom_mean"], "pep_mean": r["pep_mean"],
-            "tom_draw": draw, "pep_draw": pdraw,
-            # points of moisture per mm of evaporative demand
-            "tom_draw_per_et0": (round(draw / et0, 2)
-                                 if draw is not None and et0 else None),
-            "pep_draw_per_et0": (round(pdraw / et0, 2)
-                                 if pdraw is not None and et0 else None),
+            "tom_draw": (round(r["tom_max"] - r["tom_min"], 1)
+                         if r["tom_max"] is not None and r["tom_min"] is not None else None),
+            "pep_draw": (round(r["pep_max"] - r["pep_min"], 1)
+                         if r["pep_max"] is not None and r["pep_min"] is not None else None),
         })
     if len(rows) < 3:
         return None
 
     et0s = [r["et0_mm"] for r in rows]
+    r_within, n_within = _within_regime_r(rows, regimes, "et0_mm", "tom_draw")
     corr = {
         "tom_draw_vs_et0": _pearson(et0s, [r["tom_draw"] for r in rows]),
+        "tom_draw_vs_et0_within": r_within,
+        "n_within": n_within,
         "pep_draw_vs_et0": _pearson(et0s, [r["pep_draw"] for r in rows]),
         "tom_mean_vs_tmax": _pearson([r["tmax_f"] for r in rows],
                                      [r["tom_mean"] for r in rows]),
         "pep_mean_vs_tmax": _pearson([r["tmax_f"] for r in rows],
                                      [r["pep_mean"] for r in rows]),
     }
-
-    # Weekly normalised dry-down, most recent last. This is the series to watch:
-    # a rise means the bed is losing more per unit of demand, i.e. genuinely
-    # drying out rather than merely enduring a hot spell.
-    weeks = []
-    chunk = [r for r in rows if r["tom_draw_per_et0"] is not None]
-    for i in range(0, len(chunk), 7):
-        blk = chunk[i:i + 7]
-        if len(blk) < 3:
-            continue
-        weeks.append({
-            "start": blk[0]["date"], "end": blk[-1]["date"], "n": len(blk),
-            "et0_mean": round(statistics.fmean([b["et0_mm"] for b in blk]), 2),
-            "tmax_mean": round(statistics.fmean([b["tmax_f"] for b in blk]), 1),
-            "draw_mean": round(statistics.fmean([b["tom_draw"] for b in blk]), 1),
-            "norm_draw": round(statistics.fmean(
-                [b["tom_draw_per_et0"] for b in blk]), 2),
-        })
+    driver = None
+    if r_within is not None and n_within >= MIN_PAIRED:
+        driver = "pulse" if abs(r_within) < SWING_R_MAX else "weather"
 
     sources = {w["et0_source"] for w in wx_daily}
-
-    # Narrative, generated from the numbers rather than asserted. The template
-    # previously hardcoded "ET0 and peak temperature track the pepper dry-down
-    # in the expected direction" -- which happens not to be true for this data.
-    et0_vals = [r["et0_mm"] for r in rows if r["et0_mm"] is not None]
-    et0_spread = (max(et0_vals) - min(et0_vals)) if et0_vals else 0
-    et0_mean = statistics.fmean(et0_vals) if et0_vals else 0
-    r_tom = corr["tom_draw_vs_et0"]
-
-    def _mag(r):
-        if r is None:
-            return "unmeasurable"
-        a = abs(r)
-        return ("strong" if a >= .6 else "moderate" if a >= .35
-                else "weak" if a >= .15 else "negligible")
-
-    # Two different spreads, two different conclusions -- keep them apart.
-    # DAILY ET0 varies plenty, so a near-zero daily correlation is a real
-    # finding (irrigation dominates the swing), not a range-restriction artefact.
-    # WEEKLY mean ET0 is nearly flat, which is what licenses week-over-week
-    # comparison without worrying that a hot spell explains the difference.
-    wk_et0 = [w["et0_mean"] for w in weeks] if weeks else []
-    bits = [
-        f"Over {len(rows)} days, daily evaporative demand varied substantially "
-        f"(ET₀ {min(et0_vals):.1f}–{max(et0_vals):.1f} mm/day, mean {et0_mean:.1f}), "
-        f"yet ET₀ vs tomato daily dry-down is {_mag(r_tom)} (r={r_tom}). With that "
-        f"much variation in the predictor, a flat correlation is a real result: "
-        f"the daily swing is set by the irrigation pulse, not by the weather."
-    ]
-    if wk_et0:
-        bits.append(
-            f"Weekly mean demand, by contrast, barely moved "
-            f"({min(wk_et0):.1f}–{max(wk_et0):.1f} mm/day), so week-over-week "
-            f"changes below are not a hot-spell artefact."
-        )
-    if len(weeks) >= 3:
-        peak = max(weeks, key=lambda w: w["norm_draw"])
-        first, last = weeks[0], weeks[-1]
-        prev = weeks[-2]
-        arrow = "falling" if last["norm_draw"] < prev["norm_draw"] else "rising"
-        bits.append(
-            f"Normalised dry-down — points of moisture lost per mm of ET₀, which "
-            f"strips the weather term out — ran {first['norm_draw']} at the start, "
-            f"peaked at {peak['norm_draw']} ({peak['start']}), and is now "
-            f"{last['norm_draw']} and {arrow}."
-        )
-        bits.append(
-            "<em>Caveat:</em> daily dry-down is max−min, so it also shrinks when "
-            "less water is applied per event — a smaller pulse makes a smaller "
-            "peak. Treat it as directional and lean on the overnight minimum for "
-            "a clean read on retention."
-        )
-    if sources == {"hargreaves"}:
-        bits.append(
-            "ET₀ here is the cruder Hargreaves estimate — inputs/weather.csv "
-            "predates the FAO-56 column. Re-run ./pull_weather_data.sh --force "
-            "for the better figure."
-        )
-
     return {
-        "narrative": " ".join(bits),
-        "et0_spread": round(et0_spread, 2),
-        "daily": rows,
+        "swing_driver": driver,
         "corr": corr,
-        "weekly_norm": weeks,
         "et0_source": "fao56" if sources == {"fao56"} else sorted(sources)[0],
-        "n_days": len(rows),
         "span": [rows[0]["date"], rows[-1]["date"]],
     }
 
@@ -1175,7 +1123,7 @@ def build(readings, config, wx_hourly=None):
         "regime_bands": plan_cfg.get("regimes") or [],
     }
     wx_daily = weather_mod.daily(wx_hourly, config["location"]["lat"]) if wx_hourly else []
-    wx = _weather_analysis(daily, wx_daily)
+    wx = _weather_analysis(daily, wx_daily, plan_cfg.get("regimes"))
 
     t0, t1 = series[0]["dt"], series[-1]["dt"]
     interval_hr = round(interval / 60, 2)
@@ -1198,8 +1146,7 @@ def build(readings, config, wx_hourly=None):
         "water": water,
         "native": native,
         "health": health,
-        # None when inputs/weather.csv is absent -- the template falls back to
-        # its client-side Open-Meteo fetch in that case.
+        # None when inputs/weather.csv is absent.
         "weather": wx,
         "stats": {
             "range_start": t0.strftime("%Y-%m-%d %H:%M"),
