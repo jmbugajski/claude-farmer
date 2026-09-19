@@ -1,0 +1,46 @@
+"""
+A trailing partial day -- an export pulled before the day's last run -- stays out
+of every per-day litres and daily-minimum aggregate (#9). Run from the repo root:
+
+    .venv/bin/python -m unittest discover tests
+"""
+
+import os
+import sys
+import unittest
+from datetime import datetime, timedelta
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
+
+import analyze  # noqa: E402
+import events  # noqa: E402
+
+
+def _day(dom, cum_end, hours=24, tom=60.0):
+    """Hourly readings for 2026-09-<dom>; `hours` < 20 makes the day partial."""
+    return [{"dt": datetime(2026, 9, dom) + timedelta(hours=h), "tom": tom, "pep": 40.0,
+             "water": float(cum_end)} for h in range(hours)]
+
+
+# 40 L/day for three days, then an export pulled at 12:00 with one 20 L run logged.
+TAIL = _day(1, 100) + _day(2, 140) + _day(3, 180) + _day(4, 200, hours=13, tom=70.0)
+
+
+class PartialTailIsMarked(unittest.TestCase):
+    def setUp(self):
+        self.w = analyze._water(TAIL)
+
+    def test_only_the_partial_row_is_flagged(self):
+        self.assertEqual([r["date"] for r in self.w["daily"] if r.get("partial")],
+                         ["2026-09-04"])
+
+    def test_per_day_draw_skips_it(self):
+        self.assertEqual(events.per_day_draw(self.w["daily"]),
+                         {"2026-09-02": 40.0, "2026-09-03": 40.0})
+
+    def test_total_still_counts_it(self):
+        self.assertEqual(self.w["total_L"], 100.0)
+
+
+if __name__ == "__main__":
+    unittest.main()

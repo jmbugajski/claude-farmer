@@ -479,6 +479,11 @@ def _water(readings, since=None):
         return (se[1] - se[0]).total_seconds() / 60 >= 20 * 60
 
     partial_tail = display_days[-1] if display_days and not _complete(display_days[-1]) else None
+    # Said on the row, not only used here: every other per-day litres figure
+    # reads the rows through events.per_day_draw(), and until #9 the regime
+    # table quoted 35.8 L/day beside this function's 39.7 for the same schedule.
+    if partial_tail:
+        daily_out[-1]["partial"] = True
     usable = [d for d in display_days if d != partial_tail]
     if since:
         recent_days = [d for d in usable if d >= since and draws[d] > 0]

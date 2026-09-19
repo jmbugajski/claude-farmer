@@ -364,9 +364,14 @@ def per_day_draw(water_daily):
     and a reset day's litres are unknown. 2026-09-04 carried two days of water
     and its points-per-100 L read 5.5 between neighbours at 16.3 and 9.0 (#8).
     Withheld rather than estimated.
+
+    A trailing `partial` day (export pulled before the day's last run) is
+    skipped for the same reason: its draw is measured, but it is not a day's
+    water. 2026-09-19 12:45 read 20.3 L on a ~40 L/day schedule (#9).
     """
     return {r["date"]: r["draw"] for r in (water_daily or [])
-            if r.get("span_days", 1) == 1 and not r.get("reset")}
+            if r.get("span_days", 1) == 1 and not r.get("reset")
+            and not r.get("partial")}
 
 
 def retention(events, water_daily):
