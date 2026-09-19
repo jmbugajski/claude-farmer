@@ -56,5 +56,25 @@ class Ascents(unittest.TestCase):
         self.assertEqual([(e["onset"], e["retained"]) for e in evs], [("02:05", 7.0)])
 
 
+class Neighbours(unittest.TestCase):
+    RAMP = {60 + 22 * j - (60 + 22 * j) % 5: 1 for j in range(6)}   # +6, 01:00 -> 02:50
+
+    def test_rise_just_after_a_long_ramp_joins_it(self):
+        top = max(self.RAMP)
+        # a dip ends the ramp's ascent, so the next rise is grouped, not walked
+        evs = events.detect_events(
+            _trace(8, {**self.RAMP, top + 5: -1, top + 10: 5}), "tom")
+        self.assertEqual([(e["onset"], e["peak"]) for e in evs], [("01:00", 50.0)])
+        self.assertEqual(evs[0]["retained"], 10.0)
+
+    def test_next_event_is_not_read_as_this_ones_peak_or_settled(self):
+        # One-step rise at 01:00: its peak window runs to 02:00 and the next
+        # run lands at 01:55, 50 minutes after the top.
+        evs = events.detect_events(_trace(6, {60: 8, 65: -3, 115: 9}), "tom")
+        self.assertEqual([e["onset"] for e in evs], ["01:00", "01:55"])
+        self.assertEqual((evs[0]["peak"], evs[0]["settled"], evs[0]["retained"], evs[0]["shed"]),
+                         (48.0, 45.0, 5.0, 3.0))
+
+
 if __name__ == "__main__":
     unittest.main()

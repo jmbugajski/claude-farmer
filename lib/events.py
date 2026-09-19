@@ -238,15 +238,18 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
         return []
 
     # --- group rises that belong to one event
+    # Measured from the previous rise's TOP, not its onset (#17): after a
+    # 110-minute ramp a new rise 5 minutes later is 115 minutes from that onset,
+    # and became a second event whose climb the first one's settled read sat in.
     groups = [[rises[0]]]
     for pair in rises[1:]:
-        if (pair[0]["dt"] - groups[-1][-1][1]["dt"]).total_seconds() / 60 <= group_min:
+        if (pair[0]["dt"] - groups[-1][-1][2]["dt"]).total_seconds() / 60 <= group_min:
             groups[-1].append(pair)
         else:
             groups.append([pair])
 
     out = []
-    for g in groups:
+    for gi, g in enumerate(groups):
         onset_prev, onset_row, _, floor_known = g[0]
         onset = onset_row["dt"]
         pre_floor = onset_prev[key]
@@ -256,9 +259,18 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
         # pre-2026-09-10 detector; only ramps that outlast settle_min move.
         top_dt = max(r[2]["dt"] for r in g)
 
+        # The peak window stops at the next event's trough: past it the trace
+        # is the next run's water. A fast rise's window runs to onset + 60 and
+        # grouping only reaches top + 45. The settled read needs no clip: it is
+        # due by top + 50 and the next trough is past top + 45, so on 5-minute
+        # samples it is that trough at the latest.
+        nxt = groups[gi + 1][0][0]["dt"] if gi + 1 < len(groups) else None
+
         # window covering the event plus its settling tail
         w_end = max(onset + timedelta(minutes=settle_min + 10),
                     top_dt + timedelta(minutes=SETTLE_TAIL_MIN + 10))
+        if nxt:
+            w_end = min(w_end, nxt)
         win = [r for r in vals if onset - timedelta(minutes=5) <= r["dt"] <= w_end]
         if not win:
             continue
