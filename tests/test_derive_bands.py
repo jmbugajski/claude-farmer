@@ -78,6 +78,32 @@ class Et0Hour(unittest.TestCase):
         self.assertAlmostEqual(sum(d for d, _ in day[70]), 1.0)
 
 
+class PostEventExclusion(unittest.TestCase):
+    def _run(self):
+        # Flat at 60, a 12-point run at 01:00 (one step), then one tick down
+        # every 10 minutes for 3 hours. All hours ET0 = 0.
+        start = datetime(2026, 8, 1, 0)
+        rows, et = _flat_with_ticks(start, 60, [0.0] * 4, set(range(14, 48, 2)))
+        for r in rows[12:]:
+            r["tom"] += 12
+        return rows, et, start + timedelta(hours=1)
+
+    def test_span_runs_from_onset_to_peak_plus_minutes(self):
+        rows, _, onset = self._run()
+        self.assertEqual(db.settle_windows(rows, "tom", 30),
+                         [(onset, onset + timedelta(minutes=30))])
+
+    def test_interval_inside_span_reaches_no_bin(self):
+        rows, et, onset = self._run()
+        night, _, _ = db.curves(rows, et, "tom", 5)
+        kept, day, skipped = db.curves(rows, et, "tom", 5, exclude_spans=db.settle_windows(rows, "tom", 30))
+        n = lambda c: sum(len(v) for v in c.values())
+        # 01:00 .. 01:30 inclusive = 7 interval starts, none of them a rise.
+        self.assertEqual(n(night) - n(kept), 7)
+        self.assertEqual((n(day), skipped), (0, 0))
+        self.assertEqual(n(db.curves(rows, et, "tom", 5, exclude_spans=())[0]), n(night))
+
+
 class OffNominalDays(unittest.TestCase):
     HEALTH = {"nominal_volts": 1.5, "volt_tolerance": 0.15}
 

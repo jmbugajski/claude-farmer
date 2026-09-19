@@ -45,16 +45,19 @@ observations down there. n is printed for exactly this reason -- read it.
 from __future__ import annotations
 
 import argparse
+import bisect
 import collections
 import json
 import os
 import statistics
 import sys
+from datetime import datetime, timedelta
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 
+import events  # noqa: E402
 import parse_ecowitt  # noqa: E402
 import weather  # noqa: E402
 
@@ -72,6 +75,12 @@ MAX_GAP_HR = 0.35
 # ET0 below this is "night" for our purposes; above the second, unambiguous day.
 NIGHT_ET0 = 0.01
 DAY_ET0 = 0.02
+# Minutes after an irrigation event's peak during which a falling reading is the
+# wetting front moving past a 3-inch probe, not drainage or uptake AT that level.
+# No width is "correct" -- report() prints the ceiling at each of SETTLE_SWEEP so
+# a threshold that only exists at one width shows itself as one.
+POST_EVENT_MIN = 60
+SETTLE_SWEEP = (None, 30, 60, 120)
 
 
 def load_et0(path: str) -> dict:
@@ -119,7 +128,25 @@ def _day_rate(intervals):
     return sum(d for d, _ in intervals) / demand
 
 
-def curves(readings, et, key, step, exclude_days=frozenset()):
+def settle_windows(readings, key, minutes):
+    """Merged (start, end) spans from each detected event's onset to its peak +
+    `minutes`, sorted. Levels at the wet end are only ever visited right after a
+    run, so binning by level alone makes the top bins a measure of time since
+    irrigation (#5); curves() drops intervals that start inside a span."""
+    spans = []
+    for ev in events.detect_events(readings, key):
+        onset = datetime.strptime(f"{ev['date']} {ev['onset']}", "%Y-%m-%d %H:%M")
+        spans.append((onset, onset + timedelta(minutes=ev["min_to_peak"] + minutes)))
+    merged = []
+    for start, end in sorted(spans):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def curves(readings, et, key, step, exclude_days=frozenset(), exclude_spans=()):
     """Bin night loss (%AD/hr) and day (drop, mm ET0) pairs by moisture level.
 
     Returns (night, day, skipped). `skipped` counts loss intervals whose hour
@@ -131,8 +158,10 @@ def curves(readings, et, key, step, exclude_days=frozenset()):
     pepper ceiling from 48 to 45 (#2).
 
     Intervals starting on a date in `exclude_days` (see off_nominal_days) are
-    dropped before anything else and are not counted in `skipped`.
+    dropped before anything else and are not counted in `skipped`; so are
+    intervals starting inside one of `exclude_spans` (see settle_windows).
     """
+    starts = [sp[0] for sp in exclude_spans]
     night = collections.defaultdict(list)
     day = collections.defaultdict(list)
     skipped = 0
@@ -141,6 +170,9 @@ def curves(readings, et, key, step, exclude_days=frozenset()):
         if not 0 < hrs <= MAX_GAP_HR:
             continue
         if a["dt"].date() in exclude_days:
+            continue
+        i = bisect.bisect_right(starts, a["dt"]) - 1
+        if i >= 0 and a["dt"] <= exclude_spans[i][1]:
             continue
         if a[key] is None or b[key] is None:
             continue
@@ -196,19 +228,21 @@ def find_floor(day, step, drop_to=0.65):
     return None, plateau
 
 
-def report(label, night, day, step, skipped=0, excluded=(), full=None):
-    """`full` is the (night, day) pair binned WITHOUT exclusions; when days were
-    excluded each n prints as kept/all, so a bin that was mostly untrusted data
-    stays visible as one."""
+def report(label, night, day, step, skipped=0, excluded=(), full=None, sweep=(), n_spans=0):
+    """`full` is the (night, day) pair binned WITHOUT exclusions; when given, each
+    n prints as kept/all, so a bin that was mostly untrusted data stays visible
+    as one. `sweep` is [(minutes | None, night)] for the width-sensitivity line."""
     print(f"\n=== {label} ===")
     if excluded:
         print(f"  {len(excluded)} days excluded -- supply voltage off nominal, %-scale shifted "
               f"({min(excluded)} -> {max(excluded)})")
+    if n_spans:
+        print(f"  {n_spans} irrigation spans excluded -- onset -> peak + {POST_EVENT_MIN} min")
     if skipped:
         used = sum(len(v) for v in night.values()) + sum(len(v) for v in day.values())
         print(f"  {skipped} loss intervals skipped -- no ET0 row for their hour "
               f"({skipped / (skipped + used):.0%} of {skipped + used})")
-    nw = 11 if excluded else 6
+    nw = 11 if full else 6
     print(f"{'level':>11} {'n':>{nw}} {'night %AD/hr':>13} {'n':>{nw}} {'day %AD/mm ET0':>15}")
     for lv in sorted(set(night) | set(day)):
         nv, dv = night.get(lv, []), day.get(lv, [])
@@ -217,7 +251,7 @@ def report(label, night, day, step, skipped=0, excluded=(), full=None):
         ns = f"{statistics.mean(nv):+.3f}" if len(nv) >= MIN_N else "--"
         ds = f"{_day_rate(dv):.2f}" if len(dv) >= MIN_N else "--"
         nn, dn = str(len(nv)), str(len(dv))
-        if excluded:
+        if full:
             nn += f"/{len(full[0].get(lv, []))}"
             dn += f"/{len(full[1].get(lv, []))}"
         print(f"{lv:>7}-{lv + step - 1:<3} {nn:>{nw}} {ns:>13} {dn:>{nw}} {ds:>15}")
@@ -230,6 +264,14 @@ def report(label, night, day, step, skipped=0, excluded=(), full=None):
         print(f"  drainage_ceiling : {ceiling}%  ({ratio:.0f}x step, n={n_above} night intervals above)")
     else:
         print("  drainage_ceiling : NOT FOUND — no clear night-loss discontinuity")
+    if sweep:
+        cells = []
+        for minutes, nt in sweep:
+            c, r = find_ceiling(nt, step)
+            cells.append(f"{'none' if minutes is None else minutes}: "
+                         + (f"{c} ({r:.0f}x)" if c is not None else "--"))
+        print(f"    by post-event exclusion, min : {'   '.join(cells)}"
+              f"   <- trust a ceiling only if it holds across widths")
     if floor is not None:
         n_at = sum(len(day[lv]) for lv in day if lv < floor)
         conf = "LOW — too little time spent this dry" if n_at < 200 else "usable"
@@ -263,9 +305,14 @@ def main() -> int:
         step = args.step or default_step
         gauge = cfg["probes"][pname]["gauge"]
         excluded = off_nominal_days(readings, vkey, cfg.get("health", {}))
-        night, day, skipped = curves(readings, et, key, step, excluded)
-        full = curves(readings, et, key, step)[:2] if excluded else None
-        report(f"{gauge['name']} — {gauge['loc']}", night, day, step, skipped, excluded, full)
+        full = curves(readings, et, key, step)[:2]
+        sweep = [(m, curves(readings, et, key, step, excluded,
+                            settle_windows(readings, key, m) if m is not None else ())[0])
+                 for m in SETTLE_SWEEP]
+        spans = settle_windows(readings, key, POST_EVENT_MIN)
+        night, day, skipped = curves(readings, et, key, step, excluded, spans)
+        report(f"{gauge['name']} — {gauge['loc']}", night, day, step, skipped, excluded, full, sweep,
+               len(spans))
         any_skipped = any_skipped or bool(skipped)
     if any_skipped:
         print(f"\nWARNING: weather.csv covers {min(et)[:10]} → {max(et)[:10]} but readings cover "
