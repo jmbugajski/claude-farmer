@@ -715,24 +715,16 @@ const NAT=DATA.native||{};
         ${rows}</div>`;
   }
 
-  // weekly actual from metered daily draws (7-day bins from first metered day)
-  const days=(DATA.water?DATA.water.daily:[]).filter(d=>d.cum>0);
-  const bins=[];
-  if(days.length){
-    const d0=new Date(days[0].date+'T00:00');
-    days.forEach(d=>{
-      const wi=Math.floor((new Date(d.date+'T00:00')-d0)/(7*86400000));
-      (bins[wi]=bins[wi]||{sum:0,from:d.date,to:d.date}).sum+=d.draw;
-      bins[wi].to=d.date;
-    });
-  }
+  // Weekly actual: the SAME weeks as panel 4, from events.water_budget(). This
+  // used to re-bin water.daily here and drew the trailing 1-6-day block as a
+  // week, coloured against a weekly figure (#9). Complete weeks only.
   const fmt=s=>new Date(s+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-  const B=bins.filter(Boolean).map(b=>({label:fmt(b.from)+'–'+fmt(b.to).replace(/^\w+ /,''),sum:+b.sum.toFixed(1)}));
+  const B=(NAT.budget||[]).map(b=>({label:fmt(b.start)+'–'+fmt(b.end).replace(/^\w+ /,''),sum:b.liters}));
   const latest=B[B.length-1];
   document.getElementById('tva-cards').innerHTML=
     `<div class="cc"><div class="lab">Schedule (tomato bed)</div><div class="r" style="color:var(--leaf)">${(PLAN.runs||[]).length||1}<span style="font-size:14px;color:var(--mut)"> × ${PLAN.run_seconds||90}s</span></div><div class="rd">${(PLAN.runs||[]).map(r=>r.time).join(' · ')||PLAN.time}${effD?' · from '+effD:''}</div></div>
      <div class="cc"><div class="lab">Planned rate</div><div class="r" style="color:var(--wx)">~${PLAN.metered_daily}<span style="font-size:14px;color:var(--mut)"> L/day</span></div><div class="rd">~${PLAN.metered_weekly} L/wk${PLAN.expected_in_per_week?' · '+PLAN.expected_in_per_week+' in/wk':''}</div></div>
-     <div class="cc"><div class="lab">Latest metered week</div><div class="r" style="color:var(--tom)">${latest?latest.sum:'—'}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">${latest?latest.label:'awaiting data'}${latest&&BED?' · '+(latest.sum/BED.liters_per_inch_of_water).toFixed(2)+' in':''}</div></div>`;
+     <div class="cc"><div class="lab">Latest complete metered week</div><div class="r" style="color:var(--tom)">${latest?latest.sum:'—'}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">${latest?latest.label:'awaiting data'}${latest&&BED?' · '+(latest.sum/BED.liters_per_inch_of_water).toFixed(2)+' in':''}</div></div>`;
 
   const targetLine={id:'tgt',afterDatasetsDraw(c){const{ctx,chartArea:{left,right},scales:{y}}=c;
     const yy=y.getPixelForValue(PLAN.metered_weekly);ctx.save();ctx.strokeStyle=COL.wx;ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
@@ -755,7 +747,7 @@ const NAT=DATA.native||{};
     // A missing export or a meter reset (#8). Only rendered when one exists:
     // the odometer cannot say which of the covered days the water fell on.
     +(WG.length?` <b>No export exists for ${WG.map(g=>g.missing.join(', ')).join(', ')}.</b> The meter is an odometer, so the day after a gap reads the whole gap's water; that draw (${WG.map(g=>g.liters+' L on '+g.booked_to).join('; ')}) is spread evenly over the days it covers. Weekly totals are measured; those days are left out of the points-per-100 L and regime L/day figures.`:'')
-    +(WR.length?` <b>The meter's running total went backwards on ${WR.map(r=>r.date).join(', ')}</b> (a reset); that day's water is unknown and shows as 0 L.`:'');
+    +(WR.length?` <b>The meter's running total went backwards on ${WR.map(r=>r.date).join(', ')}</b> (a reset); that day's water is unknown, so its week is not drawn.`:'');
 })();
 
 /* ---------- weather (cached at build time) ---------- */
