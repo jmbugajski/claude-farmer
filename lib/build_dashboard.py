@@ -123,8 +123,12 @@ def main() -> int:
     for key, label in (("tom", "tomato"), ("pep", "pepper")):
         st, sp = s[key], data["split"][key]
         pt = data["partition"][key]
-        line = (f"  {label}: last {st['last']}%  band {st['floor']}–{st['ceiling']}%  "
-                f"working {sp['pct_working']}%  draining {sp['pct_draining']}%")
+        if sp.get("withheld") == "bands_unverified":
+            line = (f"  {label}: last {st['last']}%  "
+                    f"band/working/draining WITHHELD (bands unverified)")
+        else:
+            line = (f"  {label}: last {st['last']}%  band {st['floor']}–{st['ceiling']}%  "
+                    f"working {sp['pct_working']}%  draining {sp['pct_draining']}%")
         if pt:
             line += f"  |  since {pt['since']}: {pt['pct_uptake']}% uptake / {pt['pct_drainage']}% drainage"
         print(line)

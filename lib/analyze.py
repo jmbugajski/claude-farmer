@@ -91,6 +91,13 @@ def _regime_split(series, key, bands):
     vals = [p[key] for p in series if p[key] is not None]
     if not vals:
         return {"pct_draining": None, "pct_working": None, "pct_dry": None, "n": 0}
+    # Every share below is a share RELATIVE TO the ceiling and floor. If those
+    # thresholds are not currently defensible the percentages inherit that, so
+    # they are withheld rather than published with a caveat -- see
+    # bands.verified in config.json.
+    if not bands.get("verified", True):
+        return {"pct_draining": None, "pct_working": None, "pct_dry": None,
+                "n": len(vals), "withheld": "bands_unverified"}
     ceiling, floor = bands["drainage_ceiling"], bands["stress_floor"]
     n = len(vals)
     drain = sum(1 for v in vals if v >= ceiling)
@@ -189,6 +196,25 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
     """
     if not wx_hourly or not readings:
         return None
+
+    # WITHHELD 2026-09-19. This split is not currently publishable, for a reason
+    # the method cannot correct for: it sums only the DROPS between consecutive
+    # 5-minute readings and discards the rises. The probe reports integers and
+    # dithers +/-1 around a boundary, so symmetric sensor noise accumulates into
+    # one-directional "drainage". Measured over 2026-09-15..19 the nights hold
+    # 27 points of drops against 23 points of rises -- a net of -4 -- and the
+    # panel reported "32.9% drainage" off the 27. Real overnight loss is ~0.2
+    # pts/day. The inflation is not a constant factor either: it scales with how
+    # much the signal happens to flicker, which is why the same bed read 17.1%
+    # in the week before at a steadier 68-70 and 32.9% at 65-66. That makes the
+    # figure unusable for the week-over-week comparison it exists to support.
+    #
+    # Fixing it needs an estimator that is neither drops-only (dither-inflated)
+    # nor signed-net (the 05:05 run lands in ET0=0 hours, so irrigation cancels
+    # the loss and everything reads 0% drainage). Excluding post-irrigation
+    # intervals then taking net works for 2-run schedules but starves under
+    # 5-run ones. Unresolved; do not re-enable without one.
+    return None
     # weather.load() yields {"dt": datetime, "et0": mm, ...}. et0 is optional --
     # an older weather.csv predating the et0 column loads fine but cannot support
     # this calculation, hence the explicit None below rather than a silent zero.
@@ -391,10 +417,30 @@ def _water(readings, since=None):
     # must quote the current-regime figure. Anchoring on the plan's effective
     # date rather than a rolling 7 days matters: a fixed window straddles the
     # change and silently mixes both regimes.
+    # Drop a trailing PARTIAL day before averaging. An export pulled midday has
+    # logged that morning's runs but not the evening's, so its draw is a
+    # fraction of a real day and pulls the mean down as if delivery had fallen.
+    # On 2026-09-19 (export at 12:45, 05:05 run logged, 17:05 not yet) this
+    # reported 35.8 L/day against an actual 39.7 -- a 10% understatement, on the
+    # exact figure used to judge whether a plan change landed. Same 20-hour rule
+    # events.py uses to flag a partial day, so the two agree by construction.
+    span_by_day: dict[str, float] = {}
+    for dt_, _cum in wr:
+        d = dt_.strftime("%Y-%m-%d")
+        lo, hi = span_by_day.get(d, (None, None)) if d in span_by_day else (None, None)
+        span_by_day[d] = (min(lo, dt_) if lo else dt_, max(hi, dt_) if hi else dt_)
+    def _complete(d):
+        se = span_by_day.get(d)
+        if not se or not se[0]:
+            return True
+        return (se[1] - se[0]).total_seconds() / 60 >= 20 * 60
+
+    partial_tail = display_days[-1] if display_days and not _complete(display_days[-1]) else None
+    usable = [d for d in display_days if d != partial_tail]
     if since:
-        recent_days = [d for d in display_days if d >= since and draws[d] > 0]
+        recent_days = [d for d in usable if d >= since and draws[d] > 0]
     else:
-        recent_days = [d for d in display_days[-7:] if draws[d] > 0]
+        recent_days = [d for d in usable[-7:] if draws[d] > 0]
     recent_avg = (round(sum(draws[d] for d in recent_days) / len(recent_days), 1)
                   if recent_days else None)
 
@@ -433,6 +479,23 @@ def _advice(data, config):
         ceiling, floor, work_lo = b["drainage_ceiling"], b["stress_floor"], b["working_lo"]
         if last is None:
             return "no recent probe reading — check the sensor before reading anything else."
+
+        # Each branch below is an instruction derived from the ceiling/floor
+        # ("shorten the run", "add water now"). Unverified thresholds would make
+        # this advise an action on a number we cannot defend, so state what was
+        # observed and stop there.
+        if not b.get("verified", True):
+            rows = [r for r in data["daily"]][-7:]
+            pk = [r[f"{key}_max"] for r in rows if r.get(f"{key}_max") is not None]
+            tr = [r[f"{key}_min"] for r in rows if r.get(f"{key}_min") is not None]
+            obs = ""
+            if pk and tr:
+                obs = (f" Over the last {len(rows)} days it cycled "
+                       f"{round(statistics.median(tr))}–{round(statistics.median(pk))}%.")
+            return (f"~{last}% (24 h avg).{obs} No recommendation this build: the drainage "
+                    f"ceiling and stress floor are being re-derived, and the advice here is a "
+                    f"function of both. Watch the daily trough in the trend chart — that is a "
+                    f"direct reading and does not depend on the bands.")
 
         part = (data.get("partition") or {}).get(key)
         # Scope peaks/troughs to the current regime, for the same reason the
@@ -544,6 +607,25 @@ def _gauge_for(pkey, pcfg, stats, split=None, partition=None):
         g["verdict"] = "NO READING"
         g["vclass"] = "v-trend"
         g["note"] = "No recent probe reading — nothing below this is trustworthy."
+        return g
+
+    # Verdict states are distances from the ceiling and floor. Unverified
+    # thresholds make the STATE wrong, not just imprecise -- at a 50% floor the
+    # current tomato trough reads WORKING, at the 60% the same data now derives
+    # it reads STRESS RISK. Report the observation and say the thresholds are
+    # under review rather than pick one.
+    if not b.get("verified", True):
+        g["verdict"] = f"{last}% · BANDS UNDER REVIEW"
+        g["vclass"] = "v-trend"
+        g["note"] = (
+            f"Latest {last}% (24 h avg), range {stats['min']}–{stats['max']}%. "
+            f"The drainage ceiling and stress floor this gauge scores against are being "
+            f"re-derived, so no band percentages, verdict or distance-from-threshold is "
+            f"shown. The readings themselves are unaffected — the trend, the daily "
+            f"peak/trough and the metered water below are all measured, not inferred."
+        )
+        g["bands"] = None
+        g["verified"] = False
         return g
 
     if last >= ceiling:

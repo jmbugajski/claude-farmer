@@ -122,6 +122,15 @@ footer a{color:var(--mut)}
   </div>
 </header>
 
+<div id="bands-notice" style="display:none;margin:0 0 18px;padding:11px 14px;border:1px solid #C4703A;border-left-width:4px;border-radius:3px;background:rgba(196,112,58,.07);font-size:13px;line-height:1.5">
+  <b>Bands under review — some figures withheld.</b>
+  The drainage ceiling and stress floor are being re-derived, so the band zones, the
+  time-draining and loss-to-plants shares, and the per-probe recommendations are not shown
+  in this build. Measured values are unaffected: moisture readings, daily peak/trough,
+  metered water and weather are all direct observations.
+  <span style="color:var(--mut)">Figures quoted inside the change log below were written earlier against the previous bands and are kept as a historical record, not as current readings.</span>
+</div>
+
 <section class="gauges" id="gauges"></section>
 
 <!-- 1. INSTRUMENT TRUST FIRST. Moved to the top on 2026-08-19: every number below
@@ -232,13 +241,16 @@ footer a{color:var(--mut)}
   Moisture data: Ecowitt GW1200 export, __FOOTER_META__. &nbsp;|&nbsp;
   Weather: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> Forecast API (past_days), fetched live in your browser &mdash; CC BY 4.0. &nbsp;|&nbsp;
   Onboard hub temp/humidity/dew point are indoor readings and are not used for correlation. &nbsp;|&nbsp;
-  Drainage ceiling and stress floor are DERIVED from this dataset by <code>lib/derive_bands.py</code> &mdash; night-time loss (zero evaporative demand) locates field capacity, daytime loss per mm ET&#8320; locates the uptake falloff. They are properties of this soil, this probe depth and this factory calibration; re-derive if a probe moves. The hand-set Ecowitt alert thresholds they replaced are retired.
+  Drainage ceiling and stress floor are DERIVED from this dataset by <code>lib/derive_bands.py</code> &mdash; night-time loss (zero evaporative demand) locates field capacity, daytime loss per mm ET&#8320; locates the uptake falloff. They are properties of this soil, this probe depth and this factory calibration; re-derive if a probe moves. The hand-set Ecowitt alert thresholds they replaced are retired. <b>As of 2026-09-19 both probes' bands are flagged unverified</b> &mdash; the derivation counts only downward steps between readings, so the integer probe's &plusmn;1 dither accumulates into one-directional loss, and the thresholds are being re-derived. Figures scored against them are withheld rather than shown with a caveat.
 </footer>
 </div>
 
 <script>
 const DATA = __DATA__;
 const CFG = __CFG__;
+if(CFG.bands&&(CFG.bands.tom.verified===false||CFG.bands.pep.verified===false)){
+  var _bn=document.getElementById('bands-notice'); if(_bn) _bn.style.display='block';
+}
 const LAT=CFG.lat, LON=CFG.lon;
 const COL={tom:'#D9533B',pep:'#E0A43C',wx:'#6FA8A0',ink:'#E8E6DA',mut:'#9AA08C',line:'#2E3322',trend:'#B98BD9',leaf:'#6FA53F'};
 
@@ -270,12 +282,13 @@ function gauge(key,name,loc,g,verdict,vclass,note){
       <span class="verdict ${vclass}">${verdict}</span></div>
     <div class="bandwrap">
       <div class="bar">
+        ${g.verified===false?``:`
         <div class="ideal" style="left:${pos(g.floor)}%;width:${pos(g.ceiling)-pos(g.floor)}%"></div>
         <div class="zone drain" style="left:${pos(g.ceiling)}%;width:${100-pos(g.ceiling)}%" title="above ${g.ceiling}% — drains away"></div>
-        <div class="zone dry" style="left:0%;width:${pos(g.floor)}%" title="below ${g.floor}% — uptake falls off"></div>
+        <div class="zone dry" style="left:0%;width:${pos(g.floor)}%" title="below ${g.floor}% — uptake falls off"></div>`}
         <div class="needle" style="left:${pos(s.last)}%;background:${col}"></div>
       </div>
-      <div class="scale"><span>${lo}%</span><span><b>${g.floor}% floor</b> &nbsp;·&nbsp; plant-fed &nbsp;·&nbsp; <b>${g.ceiling}% ceiling</b></span><span>${hi}%</span></div>
+      <div class="scale"><span>${lo}%</span><span>${g.verified===false?`<span style="color:var(--mut)">bands under review &mdash; zones not shown</span>`:`<b>${g.floor}% floor</b> &nbsp;·&nbsp; plant-fed &nbsp;·&nbsp; <b>${g.ceiling}% ceiling</b>`}</span><span>${hi}%</span></div>
     </div>
     <div class="stats">
       <div class="stat"><div class="k">daily peak</div><div class="v">${peak!=null?peak+'%':'—'}</div></div>
@@ -317,7 +330,7 @@ const NAT=DATA.native||{};
   document.getElementById('cv-cards').innerHTML=[
     ['Pre-irrigation floor',last.pre_irrigation,'what the bed held before today&rsquo;s first run',
       prev?prev.pre_irrigation:null,'var(--tom)'],
-    ['Daily minimum',last.day_min,`lowest point &middot; ${last.day_min_t} &middot; floor ${floor}%`,
+    ['Daily minimum',last.day_min,`lowest point &middot; ${last.day_min_t}${TB.verified===false?'':` &middot; floor ${floor}%`}`,
       prev?prev.day_min:null,'var(--leaf)'],
     ['Daily swing',last.swing,'max &minus; min &mdash; set by the pulse, not the weather',
       prev?prev.swing:null,'var(--mut)'],
@@ -356,6 +369,11 @@ const NAT=DATA.native||{};
       // things: cross the top and water is wasted, cross the bottom and the
       // plant is. The area above the ceiling is tinted so an over-application
       // week is visible at a glance without reading the axis.
+      // Withheld while the bands are unverified: a dashed line across the chart
+      // and a tinted "wasted" region are the strongest claims on this page, and
+      // drawing them from thresholds under review asserts exactly the thing that
+      // is in doubt. The moisture trace itself is unaffected.
+      if(CFG.bands.tom.verified===false){ctx.restore();return;}
       const yC=c.scales.y.getPixelForValue(CFG.bands.tom.drainage_ceiling);
       const yF=c.scales.y.getPixelForValue(CFG.bands.tom.stress_floor);
       ctx.fillStyle='rgba(196,112,58,.10)';
@@ -805,7 +823,13 @@ function writeFindings(noWx){
   const lx=EX.length?EX[EX.length-1]:null, px=EX.length>7?EX[EX.length-8]:null;
   document.getElementById('f-tom').innerHTML= lx
     ? (()=>{const TB=CFG.bands.tom, P=(DATA.partition||{}).tom;
-        const where = lx.day_max!=null&&lx.day_max>TB.drainage_ceiling
+        // Each `where` clause interprets the day against the ceiling/floor and
+        // names a consequence ("being lost", "uptake measurably slows"). With the
+        // bands under review the observation stands but the interpretation does
+        // not, so state the swing and stop.
+        const where = TB.verified===false
+          ? `the drainage ceiling and stress floor are being re-derived, so this build does not say which side of them that sits on`
+          : lx.day_max!=null&&lx.day_max>TB.drainage_ceiling
           ? `the daily <b>peak</b> of ${lx.day_max}% is above the <b>${TB.drainage_ceiling}% drainage ceiling</b>, so the top of each cycle is being lost`
           : lx.day_min<TB.stress_floor
           ? `the daily minimum is below the <b>${TB.stress_floor}% stress floor</b>, where uptake measurably slows`
@@ -824,7 +848,7 @@ function writeFindings(noWx){
         if(!es.length) return `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%).`;
         const r=es.reduce((a,e)=>a+e.retained,0)/es.length, sh=es.reduce((a,e)=>a+e.shed,0)/es.length;
         const eff=Math.round(r/(r+sh)*100);
-        return `Across the last ${es.length} runs the bags gained <b>+${r.toFixed(1)} points</b> and shed <b>${sh.toFixed(1)}</b>, keeping <b>${eff}%</b> of each run's excursion. ${eff<45?`That is the washout signature: the media reaches container capacity part-way through the run and passes the remainder straight through, carrying dissolved nutrients out the base.`:``} Bags cycle ${Math.min(...es.map(e=>e.pre_floor))}–${Math.max(...es.map(e=>e.peak))}% against a <b>${CFG.bands.pep.drainage_ceiling}% drainage ceiling</b> and a <b>${CFG.bands.pep.stress_floor}% stress floor</b>.`;})();
+        return `Across the last ${es.length} runs the bags gained <b>+${r.toFixed(1)} points</b> and shed <b>${sh.toFixed(1)}</b>, keeping <b>${eff}%</b> of each run's excursion. ${eff<45?`That is the washout signature: the media reaches container capacity part-way through the run and passes the remainder straight through, carrying dissolved nutrients out the base.`:``} Bags cycle ${Math.min(...es.map(e=>e.pre_floor))}–${Math.max(...es.map(e=>e.peak))}%${CFG.bands.pep.verified===false?`. The drainage ceiling and stress floor those would be read against are being re-derived and are not shown this build.`:` against a <b>${CFG.bands.pep.drainage_ceiling}% drainage ceiling</b> and a <b>${CFG.bands.pep.stress_floor}% stress floor</b>.`}`;})();
   // Prefer the server-side analysis baked in from inputs/weather.csv: it is
   // computed from cached data, so it survives being opened offline, and it
   // reports what the numbers actually say instead of asserting a direction.
