@@ -79,6 +79,10 @@ GROUP_MIN = 45
 SETTLE_MIN = 50
 # Maximum gap between consecutive samples that still counts as continuous data.
 MAX_GAP_MIN = 10
+# How long after a scheduled start onset_check() keeps looking for the run. The
+# widest pepper displacement on record is +55 min (2026-08-20); a slot is only
+# called `missed` when the probe sampled this whole window without a gap.
+SLOT_COVER_MIN = 120
 
 
 def _by_day(readings):
@@ -421,80 +425,178 @@ def retention(events, water_daily):
     return out
 
 
-def onset_check(events, scheduled, tol_min=15, since=None, fault_frac=0.6):
+def _covered(times, w0, w1):
+    """True if the sorted sample `times` span [w0, w1] with no gap > MAX_GAP_MIN."""
+    pts = [w0] + [t for t in times if w0 <= t <= w1] + [w1]
+    return all((b - a).total_seconds() / 60 <= MAX_GAP_MIN for a, b in zip(pts, pts[1:]))
+
+
+def _run_up(values):
+    """Largest gain from any sample to a later one: the rise the raw trace shows."""
+    best, lo = 0, None
+    for v in values:
+        lo = v if lo is None else min(lo, v)
+        best = max(best, v - lo)
+    return best
+
+
+def onset_check(events, scheduled, readings, key, tol_min=15, since=None,
+                fault_frac=0.6, cover_min=SLOT_COVER_MIN, min_rise=MIN_RISE,
+                ad_floor=None):
     """
-    Did each run fire when the schedule says it should?
+    Did each SCHEDULED run fire, when it should, at full size?
 
     Cheap, and the only run-log that exists for the pepper line, which sits on
     the house multi-zone controller with no metering and no logging of its own.
-    A run that fires late but FULL SIZE is a displacement (something upstream in
-    the zone sequence ran long), not a valve failure.
 
-    That distinction used to live only in this docstring and in a sentence under
-    the table, leaving the reader to eyeball Delta against Retained. It is now
-    computed, as `kind`:
+    The grid is the schedule, not the detections (#10, 2026-09-19). Until then
+    this iterated detected events and matched each to a scheduled time, so a run
+    that never fired produced no row: six of 43 pepper days since 2026-08-08
+    were simply absent, and the panel still printed "No short runs". Every
+    (date x scheduled time) slot from `since` to the last reading now gets a
+    row, and events are left-joined onto it as `kind`:
 
-        on_time    -- within tol_min
+        on_time    -- within tol_min, normal retained gain
         displaced  -- late, but retained a normal amount: an upstream zone
                       overran. The pepper valve is fine; the zone AHEAD of it is
                       the one being over-watered.
-        fault      -- late AND retained materially less than normal: the run
-                      itself was short or partial, i.e. the problem is at this
-                      valve.
+        short      -- retained materially less than normal, AT ANY LATENESS: the
+                      run itself was short or partial, i.e. the problem is at
+                      this valve -- or at the probe. Was `fault` and required
+                      lateness, so a valve that opened on time and delivered a
+                      third of normal read "on time".
+        missed     -- the probe sampled continuously across the slot and the RAW
+                      trace never gained min_rise. Judged on the trace, not on
+                      detect_events(): all three unmatched, covered pepper slots
+                      on record had water arrive (2026-08-15 spiked 49 -> 57
+                      behind a sample gap the detector rejects; 09-10 and 09-11
+                      crept +2 over 90 min), so "no event" alone would have
+                      published three valve failures that did not happen.
+        undetected -- no event, but the raw trace gained `rise` >= min_rise in
+                      the window. Water arrived; its size is not scored.
+        no_data    -- the slot cannot be scored: an export gap or probe dropout
+                      covers it, a hand application landed inside it, or the
+                      trace is flat while the trailing-24 h AD range is under `ad_floor`
+                      (a dead probe is flat whether or not the valve opened --
+                      the pepper channel sat at 4-6 counts 2026-07-22 -> 08-05).
+        extra      -- a second event at a slot that already has a closer one, or
+                      an event further than cover_min from every slot.
+
+    A slot whose window runs past the last reading gets no row at all -- the
+    export was pulled before the run could be seen, which is not a miss.
 
     Justin confirmed on 2026-08-22 that the surviving pepper displacements are
-    exactly this -- other house zones running serially ahead of the peppers -- and
-    are not a concern. Encoding it keeps the panel honest without crying wolf: a
+    other house zones running serially ahead of the peppers, and are not a
+    concern. Encoding it keeps the panel honest without crying wolf: a
     warning that fires on expected behaviour is one the reader learns to skip,
     which is the same failure as the permanent-warning health panel fixed on
     2026-08-19. `displaced` stays in the table because this is the only run-log
     the house system has, but it is not styled as an alarm.
 
-    The `retained` reference is the median of on-time runs in the same scoped
+    The `retained` reference is the median of matched runs in the same scoped
     window, so it tracks the current schedule rather than a historical constant;
-    `fault_frac` is how far below that a run must land to count as a fault.
+    `fault_frac` is how far below that a run must land to count as short.
     """
-    sched = []
-    for s in (scheduled or []):
-        hh, mm = s.split(":")
-        sched.append(int(hh) * 60 + int(mm))
-    if not sched:
+    samples = sorted(((r["dt"], r[key]) for r in (readings or [])
+                      if r.get(key) is not None), key=lambda x: x[0])
+    times = [t for t, _ in samples]
+    if not scheduled or not times:
         return []
-    out = []
+    ad = [(r["dt"], r[f"{key}_ad"]) for r in readings if r.get(f"{key}_ad") is not None]
     # `since` matters more than it looks. Scoring the WHOLE history against the
     # CURRENT schedule flags every run made under a previous plan as "late" --
     # the pepper line ran every 12 h until 2026-07-24, so an unscoped check
     # reported 30 of 53 runs off-schedule and buried the 3 that are real.
     # Callers pass the date the current schedule took effect.
+    first = datetime.strptime(since, "%Y-%m-%d") if since else \
+        times[0].replace(hour=0, minute=0, second=0, microsecond=0)
+    # Slots are datetimes, so an event just before midnight joins the next
+    # day's 00:05 slot instead of scoring 23 h 50 min late against its own.
+    slots = []
+    d = first
+    while d <= times[-1]:
+        for s in scheduled:
+            hh, mm = s.split(":")
+            slots.append(d.replace(hour=int(hh), minute=int(mm)))
+        d += timedelta(days=1)
+    slots.sort()
+    if not slots:
+        return []
+
+    def _when(e):
+        return datetime.strptime(f"{e['date']} {e['onset']}", "%Y-%m-%d %H:%M")
+
+    def _row(slot, kind, e=None):
+        delta = round((_when(e) - slot).total_seconds() / 60) if e else None
+        return {
+            "date": e["date"] if e else slot.strftime("%Y-%m-%d"),
+            "onset": e["onset"] if e else None,
+            "scheduled": slot.strftime("%H:%M"),
+            "delta_min": delta,
+            "late": delta is not None and abs(delta) > tol_min,
+            "retained": e["retained"] if e else None,
+            "kind": kind,
+            "_slot": slot,
+        }
+
+    near, masked = {}, set()
+    out = []
     for e in events:
         if since and e["date"] < since:
             continue
-        if e.get("manual"):     # hand-applied: not a schedule violation
+        slot = min(slots, key=lambda s: abs(s - _when(e)))
+        if abs((_when(e) - slot).total_seconds()) / 60 > cover_min:
+            if not e.get("manual"):
+                out.append(_row(slot, "extra", e))
+        elif e.get("manual"):   # hand-applied: not a schedule violation, but it
+            masked.add(slot)    # hides whatever the timer did in this window
+        else:
+            near.setdefault(slot, []).append(e)
+
+    matched = []
+    for slot in slots:
+        evs = sorted(near.get(slot, []), key=lambda e: abs(_when(e) - slot))
+        if evs:
+            matched.append(_row(slot, None, evs[0]))
+            out.extend(_row(slot, "extra", e) for e in evs[1:])
             continue
-        nearest = min(sched, key=lambda s: abs(s - e["onset_min"]))
-        delta = e["onset_min"] - nearest
-        out.append({
-            "date": e["date"], "onset": e["onset"],
-            "scheduled": f"{nearest // 60:02d}:{nearest % 60:02d}",
-            "delta_min": delta,
-            "late": abs(delta) > tol_min,
-            "retained": e["retained"],
-        })
+        w0, w1 = slot - timedelta(minutes=tol_min), slot + timedelta(minutes=cover_min)
+        if w1 > times[-1]:
+            continue
+        if slot in masked or not _covered(times, w0, w1):
+            out.append(_row(slot, "no_data"))
+            continue
+        rise = _run_up([v for t, v in samples if w0 <= t <= w1])
+        # AD range over the 24 h ENDING with this window, not the calendar day:
+        # on 2026-08-06 the pepper probe came back to life hours after a slot it
+        # was still dead for, and the day's range (15) cleared the floor.
+        ads = [v for t, v in ad if w1 - timedelta(hours=24) <= t <= w1]
+        if rise >= min_rise:
+            out.append(dict(_row(slot, "undetected"), rise=round(rise, 1)))
+        elif ad_floor and ads and max(ads) - min(ads) < ad_floor:
+            out.append(_row(slot, "no_data"))
+        else:
+            out.append(_row(slot, "missed"))
 
     # Second pass: classify. Needs the whole set first, because "normal
-    # retained" is defined by the on-time runs in this same window.
-    ref = [r["retained"] for r in out if not r["late"] and r["retained"] is not None]
+    # retained" is defined by the matched runs in this same window.
+    ref = [r["retained"] for r in matched if r["retained"] is not None]
     ref_med = statistics.median(ref) if ref else None
-    for r in out:
-        if not r["late"]:
+    for r in matched:
+        usable = ref_med is not None and ref_med > 0 and r["retained"] is not None
+        if usable and r["retained"] < fault_frac * ref_med:
+            r["kind"] = "short"
+        elif not r["late"]:
             r["kind"] = "on_time"
-        elif ref_med is None or r["retained"] is None or ref_med <= 0:
-            # No usable baseline -- say so rather than guessing a category.
-            r["kind"] = "late_unclassified"
-        elif r["retained"] >= fault_frac * ref_med:
+        elif usable:
             r["kind"] = "displaced"
         else:
-            r["kind"] = "fault"
+            # No usable baseline -- say so rather than guessing a category.
+            r["kind"] = "late_unclassified"
+    out.extend(matched)
+    out.sort(key=lambda r: (r["_slot"], r["onset"] or ""))
+    for r in out:
+        del r["_slot"]
     return out
 
 

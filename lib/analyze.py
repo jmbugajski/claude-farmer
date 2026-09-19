@@ -1094,6 +1094,9 @@ def build(readings, config, wx_hourly=None):
     daily = _daily(series, {"tom": ext_tom, "pep": ext_pep})
     sched_tom = [r["time"] for r in plan_cfg.get("runs", [])]
     sched_pep = [plan_cfg["pepper_time"]] if plan_cfg.get("pepper_time") else []
+    # Same absolute floor _sensor_health grades `bad` on: under it a flat trace
+    # says nothing about whether a scheduled run fired.
+    ad_floor = config.get("health", {}).get("ad_range_floor", 12)
     native = {
         "events": {"tom": ev_tom, "pep": ev_pep},
         "extremes": {"tom": ext_tom, "pep": ext_pep},
@@ -1111,11 +1114,11 @@ def build(readings, config, wx_hourly=None):
         # history; only a time change does.
         "onset": {
             "tom": events_mod.onset_check(
-                ev_tom, sched_tom,
+                ev_tom, sched_tom, readings, "tom", ad_floor=ad_floor,
                 since=_scope(plan_cfg.get("runs_time_effective")
                              or plan_cfg.get("runs_effective"), readings)),
             "pep": events_mod.onset_check(
-                ev_pep, sched_pep,
+                ev_pep, sched_pep, readings, "pep", ad_floor=ad_floor,
                 since=_scope(max([d for d in (plan_cfg.get("pepper_time_effective")
                                               or plan_cfg.get("pepper_effective"),
                                               _trust_from(config, "pep")) if d] or [None]),
