@@ -77,7 +77,7 @@
   "liters_per_inch_of_water": 113.3,
   "gallons_per_inch_of_water": 29.9,
   "target": {
-   "_comment": "target_in_per_week is Justin's stated goal. NOTE it is a classic in-ground, moderate-weather rule of thumb; a 10-inch-deep raised bed in a Santa Clara August loses considerably more. august_etc_in_per_week is the estimated real crop demand (reference ET0 ~0.25-0.35 in/day x tomato mid-season Kc ~1.15). Water to the ETc figure in a heat event and drift back toward target_in_per_week in Sept/Oct.",
+   "_comment": "target_in_per_week is Justin's stated goal. NOTE it is a classic in-ground, moderate-weather rule of thumb; a 10-inch-deep raised bed in a Santa Clara August loses considerably more. august_etc_in_per_week is the estimated real crop demand (reference ET0 ~0.25-0.35 in/day x tomato mid-season Kc ~1.15). Water to the ETc figure in a heat event and drift back toward target_in_per_week in Sept/Oct. AMENDED 2026-09-19 (#22): august_etc_in_per_week is NO LONGER what panel 4 scores weeks against. It was one August figure drawn across the whole June-September span, and cached FAO-56 ET0 puts real weekly demand at 1.14-1.91 in/wk over 2026-06-29 -> 2026-09-19, below this constant in every week and below its lower edge from mid-August. Panel 4 now derives the band per week as that week's mean ET0 x kc_mid_season. The constant is kept because it is still a true August estimate and the dark CFG.bed template branches (#16) quote it.",
    "in_per_week": [
     1.0,
     1.5
@@ -85,6 +85,11 @@
    "liters_per_week": [
     113,
     170
+   ],
+   "_kc_comment": "FAO-56 crop coefficient for the tomato bed, recorded 2026-09-19 (#22). Panel 4's weekly demand band is that week's mean cached ET0 (mm/day) x 7 / 25.4 x this range. Mid-season only: there is deliberately no growth-stage curve, because FAO-56 tomato Kc_end ~0.7-0.9 was measured against this span and moved NO verdict -- applied depth was above every candidate band's top in all 11 complete weeks. Revisit when applied water gets close enough to demand for the late-season step-down to bind.",
+   "kc_mid_season": [
+    1.05,
+    1.15
    ],
    "august_etc_in_per_week": [
     1.75,

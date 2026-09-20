@@ -162,6 +162,18 @@ class Rejections(unittest.TestCase):
     def test_missing_litres_per_inch(self):
         self.assertIn("bed.liters_per_inch_of_water", _errors(lambda c: c.pop("bed")))
 
+    def test_absent_kc_is_allowed(self):
+        # Panel 4 withholds the band rather than failing the build (#22).
+        self.assertEqual("", _errors(
+            lambda c: c["bed"].update(target={"in_per_week": [1.0, 1.5]})))
+
+    def test_malformed_kc_is_rejected(self):
+        for bad in ([1.15], [1.15, 1.05], [0, 1.15], 1.15, ["a", "b"]):
+            with self.subTest(kc=bad):
+                self.assertIn("kc_mid_season", _errors(
+                    lambda c, v=bad: c.setdefault("bed", {}).setdefault(
+                        "target", {}).update(kc_mid_season=v)))
+
 
 class TrackedConfig(unittest.TestCase):
     """The garden's own file loads. Its values move with the garden, so only

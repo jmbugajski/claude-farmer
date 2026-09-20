@@ -145,6 +145,14 @@ def validate(config) -> list[str]:
                       "must be a positive number")
     if not _positive((config.get("bed") or {}).get("liters_per_inch_of_water")):
         errors.append("bed.liters_per_inch_of_water: must be a positive number")
+    # kc_mid_season is optional: absent, panel 4 shows bars and withholds the
+    # demand band, which is visible. A malformed one is not -- it would draw a
+    # band of negative width or scale the whole season by a typo.
+    kc = (((config.get("bed") or {}).get("target")) or {}).get("kc_mid_season")
+    if kc is not None and not (isinstance(kc, list) and len(kc) == 2
+                               and all(_positive(v) for v in kc) and kc[0] <= kc[1]):
+        errors.append("bed.target.kc_mid_season: must be [lo, hi], positive and ascending, "
+                      f"got {kc!r}")
     for name, probe in (config.get("probes") or {}).items():
         if isinstance(probe, dict) and "bands" in probe:
             _check_probe(name, probe, errors)
