@@ -506,9 +506,21 @@ def _run_up(values):
     return best
 
 
+def _trailing_median(by_date, upto, window=3):
+    """
+    Median of the `window` most recent values at or before `upto`; None if there
+    are none. The 3-day median, and not the day's own value, is what makes this
+    readable on a partial export day: 2026-09-19 ended mid-climb at 12:45 and
+    scored 2 counts of excursion on a channel whose 3-day median was 4. Scored
+    on its own day, every partial day looks like a dead probe.
+    """
+    vals = [v for d, v in sorted(by_date.items()) if d <= upto and v is not None][-window:]
+    return statistics.median(vals) if vals else None
+
+
 def onset_check(events, scheduled, readings, key, tol_min=15, since=None,
                 fault_frac=0.6, cover_min=SLOT_COVER_MIN, min_rise=MIN_RISE,
-                ad_floor=None):
+                ad_floor=None, ad_exc_floor=None):
     """
     Did each SCHEDULED run fire, when it should, at full size?
 
@@ -542,9 +554,23 @@ def onset_check(events, scheduled, readings, key, tol_min=15, since=None,
                       the window. Water arrived; its size is not scored.
         no_data    -- the slot cannot be scored: an export gap or probe dropout
                       covers it, a hand application landed inside it, or the
-                      trace is flat while the trailing-24 h AD range is under `ad_floor`
-                      (a dead probe is flat whether or not the valve opened --
-                      the pepper channel sat at 4-6 counts 2026-07-22 -> 08-05).
+                      trace is flat while the probe shows no sign of resolving.
+                      That last test needs BOTH limbs (#23): trailing-24 h AD
+                      range under `ad_floor` AND trailing-3-day-median daily
+                      excursion under `ad_exc_floor`. A dead probe is flat
+                      whether or not the valve opened -- the pepper channel sat
+                      at 4-6 counts 2026-07-22 -> 08-05 -- but so is a dry bag
+                      on a short pulsed schedule, and range alone cannot tell
+                      them apart. That is the conflation #19 removed from
+                      _sensor_health()'s `bad` grade, inherited here because
+                      this gate was built against the range floor by name.
+                      Measured on 82 exports: had the 06:45 pepper run been
+                      missed on any day 2026-09-12 -> 09-18, the range limb
+                      alone (6-9 counts, under the 12 floor) would have
+                      published `no_data` on a channel carrying 6-8 counts of
+                      excursion phase-locked to that run -- a valve failure
+                      rendered as an instrument gap, on the only run-log the
+                      pepper line has.
         extra      -- a second event at a slot that already has a closer one, or
                       an event further than cover_min from every slot.
 
@@ -569,6 +595,7 @@ def onset_check(events, scheduled, readings, key, tol_min=15, since=None,
     if not scheduled or not times:
         return []
     ad = [(r["dt"], r[f"{key}_ad"]) for r in readings if r.get(f"{key}_ad") is not None]
+    exc = ad_excursion(readings, key)
     # `since` matters more than it looks. Scoring the WHOLE history against the
     # CURRENT schedule flags every run made under a previous plan as "late" --
     # the pepper line ran every 12 h until 2026-07-24, so an unscoped check
@@ -633,13 +660,27 @@ def onset_check(events, scheduled, readings, key, tol_min=15, since=None,
             out.append(_row(slot, "no_data"))
             continue
         rise = _run_up([v for t, v in samples if w0 <= t <= w1])
-        # AD range over the 24 h ENDING with this window, not the calendar day:
-        # on 2026-08-06 the pepper probe came back to life hours after a slot it
-        # was still dead for, and the day's range (15) cleared the floor.
+        # The two limbs run on DIFFERENT windows, deliberately. Range takes the
+        # 24 h ENDING with this window, not the calendar day: on 2026-08-06 the
+        # pepper probe came back to life hours after a slot it was still dead
+        # for, and the day's range (15) cleared the floor. Excursion takes the
+        # calendar day, because on any window ending just after the run it
+        # scores ~0 even on a healthy channel -- see ad_excursion().
         ads = [v for t, v in ad if w1 - timedelta(hours=24) <= t <= w1]
+        exc_med = _trailing_median(exc, slot.strftime("%Y-%m-%d"))
+        # Both floors or no gate: a caller passing `ad_floor` alone gets no
+        # flatness gate at all rather than the pre-#23 one, because the range
+        # limb by itself IS the defect and leaving it reachable as a default is
+        # how this question came to have two answers. And no excursion to read
+        # leaves the probe's structure unknown, which falls to `no_data` -- an
+        # instrument we cannot vouch for does not get to publish a valve
+        # failure, the direction this gate already errs in.
+        dead = (ad_floor and ad_exc_floor and ads
+                and max(ads) - min(ads) < ad_floor
+                and (exc_med is None or exc_med < ad_exc_floor))
         if rise >= min_rise:
             out.append(dict(_row(slot, "undetected"), rise=round(rise, 1)))
-        elif ad_floor and ads and max(ads) - min(ads) < ad_floor:
+        elif dead:
             out.append(_row(slot, "no_data"))
         else:
             out.append(_row(slot, "missed"))

@@ -1215,9 +1215,14 @@ def build(readings, config, wx_hourly=None):
     daily = _daily(series, {"tom": ext_tom, "pep": ext_pep})
     sched_tom = [r["time"] for r in plan_cfg.get("runs", [])]
     sched_pep = [plan_cfg["pepper_time"]] if plan_cfg.get("pepper_time") else []
-    # Same absolute floor _sensor_health grades `bad` on: under it a flat trace
-    # says nothing about whether a scheduled run fired.
-    ad_floor = config.get("health", {}).get("ad_range_floor", 12)
+    # Both limbs of the same conjunction _sensor_health grades `bad` on: under
+    # BOTH, a flat trace says nothing about whether a scheduled run fired.
+    # Passing only the range floor was #23 -- a dry bag on a pulsed schedule
+    # sits under it and is resolving perfectly, so a missed run in that regime
+    # published as an instrument gap.
+    hcfg = config.get("health", {})
+    ad_floor = hcfg.get("ad_range_floor", 12)
+    ad_exc_floor = hcfg.get("ad_excursion_floor", 3)
     health = _sensor_health(readings, config)
     # Daily weather is needed here, not just by _weather_analysis below: panel
     # 4's demand band is now per week and reads this ET0 series (#22).
@@ -1252,9 +1257,11 @@ def build(readings, config, wx_hourly=None):
         "onset": {
             "tom": events_mod.onset_check(
                 ev_tom, sched_tom, readings, "tom", ad_floor=ad_floor,
+                ad_exc_floor=ad_exc_floor,
                 since=_scope(plan_cfg.get("runs_time_effective"), readings)),
             "pep": events_mod.onset_check(
                 ev_pep, sched_pep, readings, "pep", ad_floor=ad_floor,
+                ad_exc_floor=ad_exc_floor,
                 since=_scope(max([d for d in (plan_cfg.get("pepper_time_effective")
                                               or plan_cfg.get("pepper_effective"),
                                               (health.get("pep") or {}).get("trust_from"))

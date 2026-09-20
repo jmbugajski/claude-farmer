@@ -17,11 +17,20 @@ import events  # noqa: E402
 D0 = datetime(2026, 9, 1)
 
 
-def _trace(days, bumps=(), skip=(), ad_swing=40):
+def _trace(days, bumps=(), skip=(), ad_swing=40, ad_drift=0):
     """
     5-minute pepper readings at 40 % for `days` days from 2026-09-01. `bumps` maps
     a datetime to the step the trace takes there and holds; `skip` is a list of
-    (start, end) spans with no samples. `ad_swing` is the daily AD range.
+    (start, end) spans with no samples.
+
+    The AD channel carries the two shapes the `no_data` gate has to tell apart
+    (#23), and it takes both parameters to do it. `ad_swing` is a midday
+    rise-and-return: a probe RESOLVING a cycle, however small, which is what a
+    dry bag on a short pulsed schedule looks like. `ad_drift` is counts lost per
+    day with no cycle at all: a probe that has STOPPED resolving, which is what
+    the labelled 2026-07-22 -> 08-06 pepper failure looked like (250 -> 203 over
+    15 days). Daily range sees the same small number for both; only the
+    excursion above the day's own endpoints separates them.
     """
     out, level = [], 40.0
     bumps = dict(bumps)
@@ -30,7 +39,8 @@ def _trace(days, bumps=(), skip=(), ad_swing=40):
         level += bumps.get(dt, 0)
         if any(a <= dt < b for a, b in skip):
             continue
-        out.append({"dt": dt, "pep": level, "pep_ad": 200 + (ad_swing if dt.hour == 12 else 0)})
+        ad = 200 + (ad_swing if dt.hour == 12 else 0) - ad_drift * (i / 288)
+        out.append({"dt": dt, "pep": level, "pep_ad": round(ad, 1)})
     return out
 
 
@@ -70,8 +80,38 @@ class EverySlotGetsARow(unittest.TestCase):
         self.assertEqual((rows[1]["kind"], rows[1]["rise"]), ("undetected", 2.0))
 
     def test_flat_trace_on_a_dead_probe_is_no_data(self):
-        rows = events.onset_check([], ["06:45"], _trace(3, ad_swing=5), "pep", ad_floor=12)
+        rd = _trace(3, ad_swing=0, ad_drift=3)      # decays, never cycles
+        rows = events.onset_check([], ["06:45"], rd, "pep", ad_floor=12, ad_exc_floor=3)
         self.assertEqual({r["kind"] for r in rows}, {"no_data"})
+
+    def test_flat_trace_on_a_dry_but_resolving_probe_is_missed(self):
+        # Same under-floor AD range as the dead probe above (5 counts against a
+        # floor of 12), and the opposite verdict, because the channel is still
+        # resolving a cycle. This is the live pepper channel from 2026-09-12:
+        # range 6-9, excursion 6-8, phase-locked to the 06:45 run. Judged on
+        # range alone it reads dead, and a missed run publishes as an instrument
+        # gap instead of the valve failure it is (#23).
+        rd = _trace(3, ad_swing=5)
+        rows = events.onset_check([], ["06:45"], rd, "pep", ad_floor=12, ad_exc_floor=3)
+        self.assertEqual({r["kind"] for r in rows}, {"missed"})
+
+    def test_partial_last_day_is_judged_on_the_three_day_median(self):
+        # A day whose export stops before its cycle has run scores almost no
+        # excursion of its own -- 2026-09-19 ended mid-climb at 12:45 and read 2
+        # counts against a 3-day median of 4. Scored on its own day every
+        # partial export day reads dead, which would put the pre-#23 `no_data`
+        # back on the newest slot in the table, the one most likely to be read.
+        rd = [r for r in _trace(3, ad_swing=5) if r["dt"] <= _at(3, 8, 45)]
+        rows = events.onset_check([], ["06:45"], rd, "pep", ad_floor=12, ad_exc_floor=3)
+        self.assertEqual(_kinds(rows)[-1], ("03", "missed"))
+
+    def test_range_floor_without_an_excursion_floor_does_not_gate(self):
+        # Both floors or no gate: the range limb alone is the #23 defect, so a
+        # caller that passes it by itself gets no flatness gate at all rather
+        # than the pre-#23 behaviour.
+        rd = _trace(3, ad_swing=0, ad_drift=3)
+        rows = events.onset_check([], ["06:45"], rd, "pep", ad_floor=12)
+        self.assertEqual({r["kind"] for r in rows}, {"missed"})
 
     def test_hand_application_inside_the_window_masks_the_slot(self):
         evs = [_ev(_at(1, 6, 45)), _ev(_at(2, 7, 0), manual=True)]
