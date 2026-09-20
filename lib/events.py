@@ -402,6 +402,42 @@ def daily_extremes(readings, key, events=None):
     return out
 
 
+def ad_excursion(readings, key):
+    """
+    Per-calendar-day AD excursion for one channel, as {date: counts}.
+
+    The day's maximum less the HIGHER of its first and last sample: how far the
+    trace rose above the line its own endpoints draw. Drift-blind in both
+    directions -- a day that decays 12 counts and a day that gains 12 both score
+    0, and only a genuine rise-and-return scores. That is what separates a probe
+    that has stopped resolving from a dry bag on a short pulsed schedule, which
+    the daily RANGE cannot: both are flat, and only one is broken.
+
+    It lives here, and not in its first caller, because it has two (#23):
+    _sensor_health()'s `bad` grade and onset_check()'s `no_data` gate both ask
+    "is this probe resolving?", and until #23 they asked it from two
+    implementations. #19 fixed one of them and left the other reading range
+    alone, which is the whole of #23. The floor it is scored against lives in
+    config.json `health.ad_excursion_floor`, derived in `_excursion_comment`.
+
+    The window is a CALENDAR DAY and not the caller's own, which matters more
+    than it looks. Measured over the pepper onset panel, the same statistic
+    taken over the trailing 24 h ending at the 06:45 slot reads 0-2 counts every
+    day from 2026-09-12 to 09-18 -- on a channel resolving a 6-8 count cycle
+    phase-locked to that very run. A window ending just after the morning run
+    also STARTS just after the previous morning's run, so both endpoints sit on
+    a peak and the drift-blind statistic correctly reports no rise above them.
+    Scored on an arbitrary window this test says nothing; scored on the day it
+    is the only thing that separates the two low-range regimes.
+    """
+    out = {}
+    for d, rows in _by_day(readings).items():
+        ads = [r[f"{key}_ad"] for r in rows if r.get(f"{key}_ad") is not None]
+        if len(ads) > 1:
+            out[d] = round(max(ads) - max(ads[0], ads[-1]), 1)
+    return out
+
+
 def per_day_draw(water_daily):
     """
     {date: litres} for the days whose draw is that ONE day's measured water.

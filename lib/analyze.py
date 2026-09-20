@@ -890,7 +890,8 @@ def _sensor_health(readings, config):
 
     So each day carries `ad_exc` — the day's maximum less the HIGHER of its
     first and last sample, i.e. how far the trace rose above the line its own
-    endpoints draw — and the `bad` grade needs both limbs: range under
+    endpoints draw, computed by events.ad_excursion(), which onset_check()'s
+    `no_data` gate reads too (#23) — and the `bad` grade needs both limbs: range under
     `ad_range_floor` AND excursion under `ad_excursion_floor`. On the 06-29 ->
     09-19 record that conjunction selects exactly the 15 known-dead days out of
     164 channel-days. Neither limb does so alone: the range floor also caught
@@ -921,14 +922,14 @@ def _sensor_health(readings, config):
     for r in readings:
         d = r["dt"].date()
         by_day.setdefault(d, []).append(r)
-    # `ad_exc` reads the day's FIRST and LAST sample, so the order within a day
-    # is load-bearing here in a way the mean and the range never were.
-    for rows in by_day.values():
-        rows.sort(key=lambda r: r["dt"])
-
     out = {}
     for key, label, vkey, adkey in (("tom", "Tomato", "v_tom", "tom_ad"),
                                     ("pep", "Pepper", "v_pep", "pep_ad")):
+        # One owner for the excursion statistic, shared with onset_check()'s
+        # `no_data` gate (#23). It reads the day's first and last sample, so it
+        # needs the day sorted -- events._by_day() does that, and nothing left
+        # here does (mean and range do not care about order).
+        exc = events_mod.ad_excursion(readings, key)
         days = []
         for d in sorted(by_day):
             vs = [x[vkey] for x in by_day[d] if x.get(vkey) is not None]
@@ -939,11 +940,7 @@ def _sensor_health(readings, config):
                 "date": d.isoformat(),
                 "v": round(statistics.mean(vs), 3) if vs else None,
                 "ad_range": round(max(ads) - min(ads), 1) if len(ads) > 1 else None,
-                # Excursion above the line the day's own endpoints draw. Taking
-                # the HIGHER endpoint is what makes this drift-blind in both
-                # directions: a day that decays 12 counts and a day that gains
-                # 12 both score 0, and only a genuine rise-and-return scores.
-                "ad_exc": round(max(ads) - max(ads[0], ads[-1]), 1) if len(ads) > 1 else None,
+                "ad_exc": exc.get(d.isoformat()),
             })
         if not days:
             continue
