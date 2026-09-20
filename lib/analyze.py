@@ -841,7 +841,7 @@ def _scope(since, readings):
     return since if since <= last else None
 
 
-def _sensor_health(readings, config, event_days):
+def _sensor_health(readings, config):
     """
     Per-channel instrument trust check. Two failure modes matter for remote
     diagnosis, and neither shows up in the moisture % series itself:
@@ -850,25 +850,49 @@ def _sensor_health(readings, config, event_days):
          raw AD count that scales with excitation voltage, and the factory
          calibration assumes ~1.5 V alkaline. Swapping to lithium (~1.7 V)
          shifts the derived % with no physical change in the soil.
-      2. Collapsing daily AD range. A healthy probe resolves a clear diurnal
-         wet/dry cycle. If the daily range falls to a small fraction of its
-         trailing norm, the probe is degrading or has lost contact with the
-         medium (air gap) — the reading may still look plausible but is no
-         longer responsive.
+      2. A probe that has stopped resolving. A healthy probe answers the day
+         with a diurnal wet/dry cycle: it rises after the run and returns to
+         roughly the level it started from. A degraded one, or one that has
+         lost contact with the medium (air gap), stops doing that — the reading
+         may still look plausible but no longer tracks the soil.
 
-    `event_days` is {channel: set of ISO dates with a detected irrigation
-    event}. It exists for `trust_from`, the date from which the channel's
-    readings can be scored: the later of the last voltage step and the day
-    after the last DEAD RUN. A dead run is 3+ consecutive days under
-    `ad_range_floor` with no detected event. The floor alone cannot say this
-    (#11, #19): pepper sat at 4-9 counts on 2026-07-22 -> 08-05 with zero
-    events, and at 7-9 counts on 09-11 -> 09-18 with an event every scored
-    day. Only the first is a probe that could not register an onset.
+    The DAILY RANGE ALONE CANNOT SEE (2) (#19). Range conflates two different
+    things: an excursion above a stable baseline, which is signal, and a day's
+    net drift, which is not. Across the one labelled failure (pepper 2026-07-22
+    -> 08-06) the range was 4-9 counts made entirely of drift — the trace
+    decayed 250 -> 203 without one diurnal cycle, and its excursion above the
+    day's own endpoint was 1-3 counts every day. Across 2026-09-11 -> 09-18 the
+    range was 7-9 counts made almost entirely of excursion: 4-8 counts,
+    phase-locked to the morning run, against a drift of 0 and a floor pinned at
+    184-185. A dry bag on a short pulsed schedule swings very little and is
+    working; a dead probe swings very little and is not.
+
+    So each day carries `ad_exc` — the day's maximum less the HIGHER of its
+    first and last sample, i.e. how far the trace rose above the line its own
+    endpoints draw — and the `bad` grade needs both limbs: range under
+    `ad_range_floor` AND excursion under `ad_excursion_floor`. On the 06-29 ->
+    09-19 record that conjunction selects exactly the 15 known-dead days out of
+    164 channel-days. Neither limb does so alone: the range floor also caught
+    the tomato channel on 09-12 -> 09-14 (3-day medians 10, 10, 11) and the
+    peppers from 09-12, and excursion alone catches any day that simply ends
+    high (tomato 07-12 and 07-14 sat at 0 counts of excursion on ranges of 42
+    and 48).
+
+    `trust_from` is the date from which the channel's readings can be scored:
+    the later of the last voltage step and the day after the last DEAD RUN,
+    where a dead run is 3+ consecutive days failing both limbs. Until #19 the
+    second condition was "and no detected irrigation event", which is circular
+    — it makes the trust boundary depend on the event detector's tuning
+    (MIN_RISE moved 3 -> 2 on 09-10 and #17 added two more pepper events), and
+    it treats a detection as proof of life on exactly the channel whose ability
+    to register an onset is in question. The excursion reads the AD channel
+    directly and needs neither.
     """
     hc = config.get("health", {})
     v_tol = hc.get("volt_tolerance", 0.08)
     range_frac = hc.get("range_collapse_frac", 0.25)
     range_floor = hc.get("ad_range_floor", 12)
+    exc_floor = hc.get("ad_excursion_floor", 3)
     nominal = hc.get("nominal_volts", 1.5)
     step_days = hc.get("step_recent_days", 14)
 
@@ -876,6 +900,10 @@ def _sensor_health(readings, config, event_days):
     for r in readings:
         d = r["dt"].date()
         by_day.setdefault(d, []).append(r)
+    # `ad_exc` reads the day's FIRST and LAST sample, so the order within a day
+    # is load-bearing here in a way the mean and the range never were.
+    for rows in by_day.values():
+        rows.sort(key=lambda r: r["dt"])
 
     out = {}
     for key, label, vkey, adkey in (("tom", "Tomato", "v_tom", "tom_ad"),
@@ -890,6 +918,11 @@ def _sensor_health(readings, config, event_days):
                 "date": d.isoformat(),
                 "v": round(statistics.mean(vs), 3) if vs else None,
                 "ad_range": round(max(ads) - min(ads), 1) if len(ads) > 1 else None,
+                # Excursion above the line the day's own endpoints draw. Taking
+                # the HIGHER endpoint is what makes this drift-blind in both
+                # directions: a day that decays 12 counts and a day that gains
+                # 12 both score 0, and only a genuine rise-and-return scores.
+                "ad_exc": round(max(ads) - max(ads[0], ads[-1]), 1) if len(ads) > 1 else None,
             })
         if not days:
             continue
@@ -951,19 +984,28 @@ def _sensor_health(readings, config, event_days):
         # channel worth a second look — the net for a failure mode that does not
         # look like the one incident these numbers are fit to — without
         # asserting the instrument is broken.
-        rngs = [d["ad_range"] for d in days if d["ad_range"] is not None]
+        scored = [(d["ad_range"], d["ad_exc"]) for d in days
+                  if d["ad_range"] is not None]
+        rngs = [r for r, _ in scored]
         if len(rngs) >= 8:
             base = statistics.median(rngs[:-3][-14:]) if len(rngs) > 6 else None
             recent = statistics.median(rngs[-3:])
-            if recent < range_floor:
+            # Both medians run over the SAME trailing 3 days, and the median is
+            # what makes the pair readable on a partial day: 2026-09-19 ended
+            # mid-climb at 12:45, so its own excursion is 2 counts on a range of
+            # 13 and the day alone reads dead. The 3-day median puts it at 4.
+            recent_exc = statistics.median([e for _, e in scored[-3:]])
+            if recent < range_floor and recent_exc < exc_floor:
                 flags.append({
                     "level": "bad",
-                    "msg": (f"daily AD range is ~{recent:.0f} counts, below the "
-                            f"{range_floor}-count floor — the probe is not resolving "
-                            f"a diurnal cycle at all. This floor is absolute, so it "
-                            f"is not an artefact of the irrigation schedule. Suspect "
-                            f"a failing sensor or lost soil contact; verify with an "
-                            f"air-vs-water span test."),
+                    "msg": (f"daily AD range is ~{recent:.0f} counts and only "
+                            f"~{recent_exc:.0f} of that is a rise the trace came back "
+                            f"down from — below the {range_floor}-count floor with less "
+                            f"than {exc_floor} counts of excursion, the probe is not "
+                            f"resolving a diurnal cycle at all. Both limbs are absolute, "
+                            f"so this is not an artefact of the irrigation schedule. "
+                            f"Suspect a failing sensor or lost soil contact; verify with "
+                            f"an air-vs-water span test."),
                 })
             elif base and base > 0 and recent < base * range_frac:
                 flags.append({
@@ -978,15 +1020,14 @@ def _sensor_health(readings, config, event_days):
 
         # Trust boundary (see docstring). ISO dates, so max() is chronological.
         # A run needs 3 days, the same window the `bad` grade's median uses:
-        # pepper 2026-09-11 was one under-floor day with no detected event,
-        # yet the raw trace still moved +2 on the 06:45 run.
-        seen = event_days.get(key) or set()
+        # pepper 2026-09-11 was one under-floor day, yet it carried 7 counts of
+        # excursion and the raw trace moved +2 on the 06:45 run.
         trust = step_dates[-1:]
         run = 0
         dead_end = None
         for d in days:
             is_dead = (d["ad_range"] is not None and d["ad_range"] < range_floor
-                       and d["date"] not in seen)
+                       and d["ad_exc"] is not None and d["ad_exc"] < exc_floor)
             run = run + 1 if is_dead else 0
             if run >= 3:
                 dead_end = d["date"]
@@ -1159,9 +1200,7 @@ def build(readings, config, wx_hourly=None):
     # Same absolute floor _sensor_health grades `bad` on: under it a flat trace
     # says nothing about whether a scheduled run fired.
     ad_floor = config.get("health", {}).get("ad_range_floor", 12)
-    health = _sensor_health(readings, config,
-                            {"tom": {e["date"] for e in ev_tom},
-                             "pep": {e["date"] for e in ev_pep}})
+    health = _sensor_health(readings, config)
     etc_band = (bed_cfg.get("target") or {}).get("august_etc_in_per_week")
     native = {
         "events": {"tom": ev_tom, "pep": ev_pep},
