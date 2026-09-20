@@ -146,6 +146,36 @@ class VoltageChannels(_Exports):
         self.assertEqual(readings[0]["v_pep"], 1.55)
 
 
+class DuplicateTimestamps(_Exports):
+    """Overlapping exports merge per field, not per row (#18)."""
+
+    def test_a_dash_in_a_later_file_does_not_erase_a_good_value(self):
+        _write(self.dir, "a.xlsx", GROUPS, SUBS,
+               [["2026-09-19 00:00", 60, 500, 40, 400, 1.7, 1.7, 100.0]])
+        _write(self.dir, "b.xlsx", GROUPS, SUBS,
+               [["2026-09-19 00:00", "-", "-", 41, 410, 1.7, 1.7, 101.0]])
+        readings, rep = self.load()
+        self.assertEqual(len(readings), 1)
+        self.assertEqual(readings[0]["tom"], 60.0)
+        self.assertEqual(readings[0]["tom_ad"], 500.0)
+        # Where both files have a value the later one wins: the WFC01 is an
+        # odometer, so the larger total is the more recent truth.
+        self.assertEqual(readings[0]["pep"], 41.0)
+        self.assertEqual(readings[0]["water"], 101.0)
+        self.assertEqual(rep["rows"], 2)
+        self.assertEqual(rep["readings"], 1)
+
+    def test_an_unresolved_channel_does_not_erase_the_other_file(self):
+        renamed = ["Time", "Tomatoes", None, "Pepper Probe", None, "Battery", None,
+                   "[WFC01] Water Flow"]
+        _write(self.dir, "a.xlsx", renamed, SUBS,
+               [["2026-09-19 00:00", 60, 500, 40, 400, 1.7, 1.7, 100.0]])
+        _write(self.dir, "b.xlsx", GROUPS, SUBS,
+               [["2026-09-19 00:00", 62, 520, 41, 410, 1.7, 1.7, 101.0]])
+        readings, _ = self.load()
+        self.assertEqual(readings[0]["tom"], 62.0)
+
+
 class GroupMatching(_Exports):
     """Exact group names beat look-alikes; renames are matched but reported."""
 

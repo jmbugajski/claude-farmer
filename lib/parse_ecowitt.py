@@ -192,7 +192,7 @@ def load_readings(inputs_dir: str, config: dict) -> tuple[list[dict], dict]:
     report is what the load itself found, for the build log to print:
       files      workbooks that contributed rows
       rows       data rows with a parseable timestamp
-      readings   distinct timestamps kept
+      readings   distinct timestamps kept (duplicates merged field-wise)
       skipped    [(filename, why)] -- a workbook that contributed nothing
       unresolved {channel: [filename, ...]} -- header did not carry it
       notes      [(filename, channel, what the match settled for)]
@@ -234,9 +234,15 @@ def load_readings(inputs_dir: str, config: dict) -> tuple[list[dict], dict]:
             if dt is None:
                 continue
             kept += 1
-            by_dt[dt] = {"dt": dt,
-                         **{ch: (_num(r[idx[ch]]) if idx[ch] is not None else None)
-                            for ch in CHANNELS}}
+            rec = by_dt.setdefault(dt, {"dt": dt, **{ch: None for ch in CHANNELS}})
+            # Merge FIELD-WISE. `by_dt[dt] = {...}` replaced the whole record
+            # with whichever file sorted last, so a re-downloaded partial day
+            # carrying "-" for a channel dropped a good value from the file
+            # before it (#18). Later wins only where it has something to say.
+            for ch in CHANNELS:
+                v = _num(r[idx[ch]]) if idx[ch] is not None else None
+                if v is not None:
+                    rec[ch] = v
         if kept:
             report["files"] += 1
             report["rows"] += kept
