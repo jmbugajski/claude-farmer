@@ -328,8 +328,23 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
     }
 
 
-def _probe_stats(series, key, bands):
+def _probe_stats(series, readings, key, bands):
+    """All-time stats for one probe.
+
+    min/max come from the RAW readings, not `series`, for the reason #6 moved
+    the daily peak: `resample()` keeps the sample nearest each bucket boundary,
+    so an hourly series is a set of point samples and a 90 s pulse that decays
+    inside the hour is invisible to it. The trough is slow enough that an hourly
+    point lands on it -- both channels' minima were already right -- but the
+    peak was not: on 82 exports (to 2026-09-19) the pepper maximum read 51 %
+    against a native 65 %, tomato 92 % against 94 % (#21).
+
+    mean/std/median stay on `series`, which samples the day evenly; the raw
+    stream does not (export intervals vary, and 2026-09-03 is missing). The
+    measured gap is <=0.3 points on every one of them.
+    """
     vals = [p[key] for p in series if p[key] is not None]
+    raw = [r[key] for r in readings if r.get(key) is not None]
     # "current" reading = trailing 24-hour mean, not the single last sample.
     # With sub-hourly data a lone last reading often lands on a post-irrigation
     # spike; a trailing-day average is a truer picture of where the bed sits.
@@ -347,8 +362,8 @@ def _probe_stats(series, key, bands):
     # NO READING. min()/median() of nothing used to take the build down (#14).
     return {
         "mean": _mean(vals),
-        "min": round(min(vals), 1) if vals else None,
-        "max": round(max(vals), 1) if vals else None,
+        "min": round(min(raw), 1) if raw else None,
+        "max": round(max(raw), 1) if raw else None,
         "std": _std(vals),
         "median": round(statistics.median(vals), 1) if vals else None,
         "ceiling": bands["drainage_ceiling"],
@@ -1173,8 +1188,8 @@ def build(readings, config, wx_hourly=None):
     tom_cfg = config["probes"]["tomato"]
     pep_cfg = config["probes"]["pepper"]
 
-    tom_stats = _probe_stats(series, "tom", tom_cfg["bands"])
-    pep_stats = _probe_stats(series, "pep", pep_cfg["bands"])
+    tom_stats = _probe_stats(series, readings, "tom", tom_cfg["bands"])
+    pep_stats = _probe_stats(series, readings, "pep", pep_cfg["bands"])
 
     # Regime split and drainage/uptake partition -- the two figures that replace
     # the setpoint. Partition is computed on RAW readings, not `series`: it needs

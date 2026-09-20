@@ -42,6 +42,37 @@ class DailyExtremesAreNative(unittest.TestCase):
         self.assertEqual(self.daily[0]["tom_mean"], 60.0)
 
 
+class AllTimeRangeIsNative(unittest.TestCase):
+    """#21: the all-time min/max on the gauge note and the three narrative
+    sentences read the raw stream, for the reason #6 moved the daily peak."""
+
+    BANDS = {"drainage_ceiling": 75, "stress_floor": 50,
+             "working_lo": 58, "refill_target": 62}
+
+    def setUp(self):
+        self.readings = _day_with_pulse(datetime(2026, 9, 1), 60, 78)
+        self.series = analyze.resample(self.readings, 60)
+        self.assertEqual(max(p["tom"] for p in self.series), 60.0)   # the premise
+        self.stats = analyze._probe_stats(self.series, self.readings, "tom", self.BANDS)
+
+    def test_peak_between_the_hours_reaches_the_all_time_max(self):
+        self.assertEqual(self.stats["max"], 78.0)
+
+    def test_trough_is_unchanged_by_the_move(self):
+        self.assertEqual(self.stats["min"], 60.0)
+
+    def test_mean_and_median_stay_on_the_hourly_series(self):
+        self.assertEqual(self.stats["mean"], 60.0)
+        self.assertEqual(self.stats["median"], 60.0)
+
+    def test_channel_with_no_readings_still_reports_none(self):
+        # #14: min() of nothing took the build down. The guard now reads the
+        # raw stream, so it has to be pinned against the raw stream.
+        blank = [dict(r, pep=None) for r in self.readings]
+        stats = analyze._probe_stats(analyze.resample(blank, 60), blank, "pep", self.BANDS)
+        self.assertEqual((stats["min"], stats["max"], stats["median"]), (None, None, None))
+
+
 class CycleIsOneMedian(unittest.TestCase):
     def _rows(self, peaks):
         return [{"date": f"2026-09-{i + 1:02d}", "tom_max": float(v), "tom_min": 50.0}
