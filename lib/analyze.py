@@ -1222,7 +1222,21 @@ def build(readings, config, wx_hourly=None):
     # says nothing about whether a scheduled run fired.
     ad_floor = config.get("health", {}).get("ad_range_floor", 12)
     health = _sensor_health(readings, config)
-    etc_band = (bed_cfg.get("target") or {}).get("august_etc_in_per_week")
+    # Daily weather is needed here, not just by _weather_analysis below: panel
+    # 4's demand band is now per week and reads this ET0 series (#22).
+    wx_daily = weather_mod.daily(wx_hourly, config["location"]["lat"]) if wx_hourly else []
+    et0_by_date = {w["date"]: w["et0_mm"] for w in wx_daily if w["et0_mm"] is not None}
+    kc = (bed_cfg.get("target") or {}).get("kc_mid_season")
+    budget = events_mod.water_budget(
+        water.get("daily") if water else None,
+        bed_cfg.get("liters_per_inch_of_water"), et0_by_date, kc)
+    # The plan projection is a forward-looking weekly depth, so it is scored
+    # against the most recent COMPLETE week's band -- the closest measured
+    # estimate of what the bed is losing now. Before #22 it was scored against
+    # the August constant, which read 2.43 in/wk as `in band` while every
+    # ET0-derived band for September put it over.
+    proj_band = ([budget[-1]["etc_lo"], budget[-1]["etc_hi"]]
+                 if budget and budget[-1]["etc_lo"] else None)
     native = {
         "events": {"tom": ev_tom, "pep": ev_pep},
         "extremes": {"tom": ext_tom, "pep": ext_pep},
@@ -1253,18 +1267,19 @@ def build(readings, config, wx_hourly=None):
         "regimes": events_mod.regime_summary(
             plan_cfg.get("regimes"), ext_tom, water.get("daily") if water else None,
             skip_days=events_mod.metered_manual_days(manual)),
-        "budget": events_mod.water_budget(
-            water.get("daily") if water else None,
-            bed_cfg.get("liters_per_inch_of_water"), etc_band),
+        "budget": budget,
         # The live plan's weekly depth, scored by the same rule as the weeks.
+        # Carries its own band: with a per-week band the template can no longer
+        # borrow the weeks' one to word "above the band by N in".
         "projection": {
             "inches": plan_cfg.get("expected_in_per_week"),
+            "etc_lo": (proj_band or [None, None])[0],
+            "etc_hi": (proj_band or [None, None])[1],
             "verdict": events_mod.band_verdict(
-                plan_cfg.get("expected_in_per_week"), etc_band)},
+                plan_cfg.get("expected_in_per_week"), proj_band)},
         "regime_bands": [_pick(r, PAGE_REGIME_KEYS) for r in plan_cfg.get("regimes") or []],
     }
     cycle = {k: _cycle(daily, k, regime_since, regime_until) for k in ("tom", "pep")}
-    wx_daily = weather_mod.daily(wx_hourly, config["location"]["lat"]) if wx_hourly else []
     wx = _weather_analysis(daily, wx_daily, plan_cfg.get("regimes"))
 
     t0, t1 = series[0]["dt"], series[-1]["dt"]

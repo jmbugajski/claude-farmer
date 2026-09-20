@@ -682,7 +682,33 @@ def band_verdict(inches, etc_band):
     return "under" if inches < lo else ("over" if inches > hi else "in band")
 
 
-def water_budget(water_daily, liters_per_inch, etc_band):
+MM_PER_INCH = 25.4
+
+
+def week_band(dates, et0_mm_by_date, kc):
+    """
+    One week's ETc band, [lo, hi] inches, as that week's own summed FAO-56 ET0
+    times the mid-season crop coefficient -- or None.
+
+    None whenever the week is not fully covered by cached ET0. A missing day
+    must not read as ET0 = 0: that drags the band down and manufactures an
+    `over`. Nor may it fall back to a season-wide constant, which is exactly
+    what this replaced -- `bed.target.august_etc_in_per_week` was one August
+    figure scored against every week from June to the September taper, and it
+    sat above real weekly demand in all 11 complete weeks of 2026-06-29 ->
+    2026-09-19 (#22). A withheld band is visible; a wrong one is not.
+    """
+    lo, hi = (kc or [None, None])[:2]
+    if not lo or not hi:
+        return None
+    mm = [et0_mm_by_date.get(d) for d in dates] if et0_mm_by_date else []
+    if not mm or any(v is None for v in mm):
+        return None
+    depth = sum(mm) / MM_PER_INCH
+    return [round(depth * lo, 2), round(depth * hi, 2)]
+
+
+def water_budget(water_daily, liters_per_inch, et0_mm_by_date, kc):
     """
     Weekly applied depth against estimated crop demand -- the over-watering
     question in one line, and the only place litres become agronomically
@@ -695,6 +721,10 @@ def water_budget(water_daily, liters_per_inch, etc_band):
     scored against it unscaled, which can only ever read low (#9). Blocks run
     from the first metered day, so the short one is always the trailing one.
     Metered test water stays in: it reached the bed.
+
+    Each week carries its OWN band, from week_band() above -- demand is not a
+    season constant, and the week a taper first lands near demand is the only
+    week where the band's value decides anything.
     """
     if not water_daily or not liters_per_inch:
         return []
@@ -710,17 +740,18 @@ def water_budget(water_daily, liters_per_inch, etc_band):
         w = weeks.setdefault(wi, {"L": 0.0, "dates": []})
         w["L"] += r["draw"]
         w["dates"].append(r["date"])
-    lo, hi = (etc_band or [None, None])[:2]
     out = []
     for wi in sorted(weeks):
         w = weeks[wi]
         if len(w["dates"]) < 7:
             continue
         inches = w["L"] / liters_per_inch
+        band = week_band(sorted(w["dates"]), et0_mm_by_date, kc)
+        lo, hi = (band or [None, None])[:2]
         out.append({
             "start": min(w["dates"]), "end": max(w["dates"]), "days": len(w["dates"]),
             "liters": round(w["L"], 1), "inches": round(inches, 2),
-            "etc_lo": lo, "etc_hi": hi, "verdict": band_verdict(inches, etc_band),
+            "etc_lo": lo, "etc_hi": hi, "verdict": band_verdict(inches, band),
             "x_etc": round(inches / hi, 1) if hi else None,
         })
     return out

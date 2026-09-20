@@ -77,7 +77,10 @@ class BudgetWeeksAreComplete(unittest.TestCase):
 
     def _weeks(self, rows):
         return [(w["start"], w["days"], w["liters"])
-                for w in events.water_budget(rows, 100.0, [1.75, 2.45])]
+                # No ET0 and no Kc: these tests are about which days form a
+                # week, not about the band, and a withheld band does not
+                # change the blocking.
+                for w in events.water_budget(rows, 100.0, {}, None)]
 
     def test_a_six_day_block_is_not_a_week(self):
         self.assertEqual(self._weeks(self._rows(13)), [("2026-09-01", 7, 280.0)])
