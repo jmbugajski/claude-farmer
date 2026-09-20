@@ -447,37 +447,54 @@ const NAT=DATA.native||{};
 /* ---------- 4 · water budget ---------- */
 (function(){
   const B=NAT.budget||[]; if(!B.length) return;
-  const lo=B[0].etc_lo, hi=B[0].etc_hi;
+  // Each week carries its OWN band (#22). A week whose ET0 cache is incomplete
+  // has etc_lo/etc_hi null: it is drawn muted with no band segment, NOT as the
+  // green 'in band' the old three-way colour gave every non-over/under week.
+  const FILL={over:'#C4643Ccc','in band':'#7FA650cc',under:'#8A7BB8cc'};
+  const EDGE={over:'#C4643C', 'in band':'#7FA650', under:'#8A7BB8'};
   new Chart(document.getElementById('budgetChart'),{type:'bar',
     data:{labels:B.map(b=>b.start.slice(5)),datasets:[
       {label:'Applied in/week',data:B.map(b=>b.inches),
-       backgroundColor:B.map(b=>b.verdict==='over'?'#C4643Ccc':(b.verdict==='under'?'#8A7BB8cc':'#7FA650cc')),
-       borderColor:B.map(b=>b.verdict==='over'?'#C4643C':(b.verdict==='under'?'#8A7BB8':'#7FA650')),borderWidth:1},
+       backgroundColor:B.map(b=>FILL[b.verdict]||'#6B705Caa'),
+       borderColor:B.map(b=>EDGE[b.verdict]||COL.mut),borderWidth:1},
     ]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       title:{display:true,text:'inches of water over the bed per week',color:COL.mut,font:{family:'IBM Plex Sans',size:12}}},
       scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{display:false}},
         y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(46,51,34,.5)'}}}},
+    // One shaded step per week, spanning that week's bar slot, rather than one
+    // rectangle across the whole chart: the band now tracks weekly ET0 and a
+    // single rectangle would misstate every week but the one it came from.
     plugins:[{id:'etcBand',beforeDatasetsDraw(c){
-      const{ctx,chartArea:{left,right},scales:{y}}=c;ctx.save();
+      const{ctx,chartArea:{left},scales:{x,y}}=c;ctx.save();
       ctx.fillStyle='rgba(127,166,80,.18)';
-      ctx.fillRect(left,y.getPixelForValue(hi),right-left,y.getPixelForValue(lo)-y.getPixelForValue(hi));
+      const meta=c.getDatasetMeta(0);
+      B.forEach((b,i)=>{
+        if(b.etc_lo==null||b.etc_hi==null) return;
+        const bar=meta.data[i]; if(!bar) return;
+        const w=bar.width||(x.width/B.length), x0=bar.x-w/2;
+        const yTop=y.getPixelForValue(b.etc_hi);
+        ctx.fillRect(x0,yTop,w,y.getPixelForValue(b.etc_lo)-yTop);});
+      const kc=(CFG.kc_mid_season||[]);
       ctx.fillStyle=COL.mut;ctx.font='9px "IBM Plex Mono"';
-      ctx.fillText('est. August ETc '+lo+'–'+hi+' in/wk',left+4,y.getPixelForValue(hi)-3);ctx.restore();}}]});
+      ctx.fillText(kc.length===2?`weekly ET₀ × Kc ${kc[0]}–${kc[1]}`:'weekly ET₀ × Kc',
+                   left+4,c.chartArea.top+10);ctx.restore();}}]});
   const lastB=B[B.length-1];
   const over=B.filter(b=>b.verdict==='over').length;
+  const scored=B.filter(b=>b.verdict!=null).length;
+  const noBand=B.length-scored;
   document.getElementById('budget-caveat').innerHTML=
-    `<b>${over} of ${B.length}</b> complete weeks came in above estimated crop demand. The most recent full week applied
-     <b>${lastB.inches} in</b> (${lastB.liters} L) = <b>${lastB.x_etc}&times;</b> the top of the ET<sub>c</sub> band.
+    `<b>${over} of ${scored}</b> scored weeks came in above estimated crop demand${noBand?`; <b>${noBand}</b> could not be scored for want of cached ET<sub>0</sub>`:''}. The most recent full week applied
+     <b>${lastB.inches} in</b> (${lastB.liters} L)${lastB.x_etc!=null?` = <b>${lastB.x_etc}&times;</b> the top of that week's ET<sub>c</sub> band`:` — that week has no ET<sub>c</sub> band`}.
      ${(()=>{const n=(CFG.plan.runs||[]).length, P=NAT.projection||{};
         if(P.verdict==null) return '';
         const word=['zero','one','two','three','four','five','six'][n]||n;
-        const verdict = P.verdict==='over' ? `<b>above</b> the band by ${(P.inches-hi).toFixed(2)} in`
-                      : P.verdict==='under' ? `<b>below</b> the band by ${(lo-P.inches).toFixed(2)} in`
+        const verdict = P.verdict==='over' ? `<b>above</b> the band by ${(P.inches-P.etc_hi).toFixed(2)} in`
+                      : P.verdict==='under' ? `<b>below</b> the band by ${(P.etc_lo-P.inches).toFixed(2)} in`
                       : `which would put the week <b>in band</b>`;
-        return `The current ${word}-run plan projects to <b>${P.inches} in/week</b>, ${verdict}.`;})()}
-     The band is one figure, the <b>August</b> estimate, drawn across every week; early- and late-season demand differs and is not modelled here.
-     <span style="color:var(--mut)">ET<sub>c</sub> here is an estimate (ET₀ × a mid-season tomato crop coefficient), not a measurement — treat the band as a sanity check, not a target to hit precisely.</span>`;
+        return `The current ${word}-run plan projects to <b>${P.inches} in/week</b>, ${verdict} — scored against the most recent complete week's demand (<b>${P.etc_lo}–${P.etc_hi} in/wk</b>), the closest measured estimate of what the bed is losing now.`;})()}
+     Each week is scored against <b>its own</b> band, that week's cached FAO-56 ET<sub>0</sub> × the crop coefficient; the band was one August figure drawn across every week until 2026-09-19, which sat above real demand in every week, and from mid-August sat entirely above the band's upper edge.
+     <span style="color:var(--mut)">Still not modelled: the crop coefficient is flat mid-season, with no growth-stage step-down, so late-season demand is if anything overstated. ET<sub>c</sub> remains an estimate, not a measurement — treat the band as a sanity check, not a target to hit precisely.</span>`;
 })();
 
 /* ---------- 5 · per-run efficiency ---------- */

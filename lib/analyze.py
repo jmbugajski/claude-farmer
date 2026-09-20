@@ -1336,6 +1336,10 @@ def build(readings, config, wx_hourly=None):
             "tom": _gauge_for("tom", tom_cfg, tom_stats, cycle["tom"], split["tom"], partition["tom"]),
             "pep": _gauge_for("pep", pep_cfg, pep_stats, cycle["pep"], split["pep"], partition["pep"]),
         },
+        # The Kc the per-week band was derived from, so panel 4's chart can
+        # label the band it draws (#22). The scalar only -- config.bed also
+        # holds _comment keys and must not be passed whole (#16).
+        "kc_mid_season": kc,
         "footer_meta": footer_meta,
         "location_desc": loc["name"],
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M %Z").strip(),
