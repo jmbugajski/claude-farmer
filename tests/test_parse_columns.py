@@ -46,7 +46,9 @@ def _write(dirpath, name, groups, subs, rows):
     wb.save(os.path.join(dirpath, name))
 
 
-class ColumnResolution(unittest.TestCase):
+class _Exports(unittest.TestCase):
+    """A temp dir of synthetic exports, and the loader pointed at it."""
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -55,6 +57,8 @@ class ColumnResolution(unittest.TestCase):
     def load(self):
         return parse_ecowitt.load_readings(self.dir, CONFIG)
 
+
+class ColumnResolution(_Exports):
     def test_every_channel_resolves_in_a_current_export(self):
         _write(self.dir, "a.xlsx", GROUPS, SUBS, [ROW])
         readings, rep = self.load()
@@ -106,6 +110,67 @@ class ColumnResolution(unittest.TestCase):
         self.assertEqual([n for n, _ in rep["skipped"]], ["a.xlsx", "b.xlsx"])
         self.assertIn("skipped b.xlsx: 1 data row(s), none timestamped",
                       parse_ecowitt.summary_lines(rep))
+
+
+class GroupMatching(_Exports):
+    """Exact group names beat look-alikes; renames are matched but reported."""
+
+    def test_a_look_alike_group_never_captures_the_column(self):
+        for order in ("second", "first"):
+            with self.subTest(look_alike=order):
+                self.setUp()
+                groups = ["Time", "Tomato Probe", None, "Tomato Probe 2", None,
+                          "Pepper Probe", None, "[WFC01] Water Flow"]
+                subs = [None, "Soil Moisture(%)", "AD", "Soil Moisture(%)", "AD",
+                        "Soil Moisture(%)", "AD", "Water Total(L)"]
+                row = ["2026-09-19 00:00", 60, 500, 99, 999, 40, 400, 100.0]
+                if order == "first":
+                    # The look-alike sorts ahead of the real group in the export.
+                    groups[1], groups[3] = groups[3], groups[1]
+                    row[1], row[3] = row[3], row[1]
+                _write(self.dir, "a.xlsx", groups, subs, [row])
+                readings, rep = self.load()
+                self.assertEqual(readings[0]["tom"], 60.0)
+                self.assertEqual(rep["notes"], [])
+
+    def test_a_renamed_probe_group_is_matched_and_reported(self):
+        groups = ["Time", "[CH1] Tomato Probe", None, "Pepper Probe", None,
+                  "Battery", None, "[WFC01] Water Flow"]
+        _write(self.dir, "a.xlsx", groups, SUBS, [ROW])
+        readings, rep = self.load()
+        self.assertEqual(readings[0]["tom"], 60.0)
+        # The rename moves the probe's AD column with it.
+        self.assertEqual(rep["notes"],
+                         [("a.xlsx", ch, "no exact 'Tomato Probe'; "
+                                         "matched '[CH1] Tomato Probe'")
+                          for ch in ("tom", "tom_ad")])
+        self.assertIn("tomato moisture: no exact 'Tomato Probe'; "
+                      "matched '[CH1] Tomato Probe' -- a.xlsx",
+                      parse_ecowitt.summary_lines(rep))
+
+    def test_the_water_group_prefix_is_matched_without_a_note(self):
+        # water.group_prefix is 'WFC01'; no export header ever equals it, and
+        # both firmware spellings are in inputs/.
+        for header in ("WFC01-00003D29", "[WFC01] Water Flow"):
+            with self.subTest(header=header):
+                self.setUp()
+                groups = list(GROUPS)
+                groups[7] = header
+                _write(self.dir, "a.xlsx", groups, SUBS, [ROW])
+                readings, rep = self.load()
+                self.assertEqual(readings[0]["water"], 100.0)
+                self.assertEqual(rep["notes"], [])
+
+    def test_two_identical_group_names_are_reported_as_ambiguous(self):
+        groups = ["Time", "Tomato Probe", None, "Tomato Probe", None,
+                  "Pepper Probe", None, "[WFC01] Water Flow"]
+        subs = [None, "Soil Moisture(%)", "AD", "Soil Moisture(%)", "AD",
+                "Soil Moisture(%)", "AD", "Water Total(L)"]
+        _write(self.dir, "a.xlsx", groups, subs,
+               [["2026-09-19 00:00", 60, 500, 99, 999, 40, 400, 100.0]])
+        _, rep = self.load()
+        self.assertIn("2 columns are 'Tomato Probe'/'Soil Moisture(%)'",
+                      rep["notes"][0][2])
 
 
 if __name__ == "__main__":

@@ -85,12 +85,25 @@ def _parse_time(v) -> Optional[datetime]:
     return None
 
 
-def _find_column(group_row, sub_row, group_name, sub_name) -> Optional[int]:
+def _find_column(group_row, sub_row, group_name, sub_name,
+                 by_prefix: bool = False) -> tuple[Optional[int], Optional[str]]:
     """
-    Return the column index whose group header == group_name (prefix match ok)
-    and sub header == sub_name. Group headers are merged cells, so the group
-    label only appears on the first column of the group and the following
+    Return (column index, note) for the column whose sub header == sub_name and
+    whose group header names group_name. Group headers are merged cells, so the
+    group label only appears on the first column of the group and the following
     columns carry None — we forward-fill it.
+
+    An EXACT group name wins outright. Only when no column matches exactly do we
+    fall back to prefix / normalized-substring, which tolerates EcoWitt header
+    renames ('WFC01-00003D29' -> '[WFC01] Water Flow') but would otherwise let a
+    look-alike group ('Tomato Probe 2') capture the column on export order
+    alone (#18).
+
+    by_prefix says the configured name is a PREFIX by design (water.group_prefix
+    is 'WFC01', which no header ever equals), so a fuzzy hit there is the
+    contract and is not worth a note; a probe's `group` is a full name, so a
+    fuzzy hit there means the console was renamed and the load report says so.
+    Either way an ambiguous match is noted, since the loser is arbitrary.
     """
     filled_group = []
     last = None
@@ -99,17 +112,25 @@ def _find_column(group_row, sub_row, group_name, sub_name) -> Optional[int]:
             last = str(g).strip()
         filled_group.append(last)
 
+    pairs = [(i, str(g).strip(), str(sub).strip())
+             for i, (g, sub) in enumerate(zip(filled_group, sub_row))
+             if g is not None and sub is not None]
+    subs = [(i, g) for i, g, sub in pairs if sub == sub_name]
+
+    exact = [(i, g) for i, g in subs if g == group_name]
+    if exact:
+        return exact[0][0], (None if len(exact) == 1 else
+                             f"{len(exact)} columns are {group_name!r}/{sub_name!r}; took column {exact[0][0]}")
+
     gn = _norm(group_name)
-    for i, (g, s) in enumerate(zip(filled_group, sub_row)):
-        if g is None or s is None:
-            continue
-        g, s = str(g).strip(), str(s).strip()
-        # Group match tolerates EcoWitt header renames (e.g. 'WFC01-00003D29'
-        # -> '[WFC01] Water Flow'): exact, prefix, or normalized-substring.
-        group_ok = g == group_name or g.startswith(group_name) or gn in _norm(g)
-        if s == sub_name and group_ok:
-            return i
-    return None
+    fuzzy = [(i, g) for i, g in subs if g.startswith(group_name) or gn in _norm(g)]
+    if fuzzy:
+        note = None if by_prefix else f"no exact {group_name!r}; matched {fuzzy[0][1]!r}"
+        if len(fuzzy) > 1:
+            note = ((note or f"matched {fuzzy[0][1]!r}")
+                    + f" over {len(fuzzy) - 1} other candidate(s)")
+        return fuzzy[0][0], note
+    return None, None
 
 
 def _find_voltage(group_row, sub_row, ch: str) -> Optional[int]:
@@ -127,27 +148,31 @@ def _find_voltage(group_row, sub_row, ch: str) -> Optional[int]:
     return None
 
 
-def _resolve_columns(group_row, sub_row, config: dict) -> dict[str, Optional[int]]:
-    """Column index per channel for one file's header pair, None where the
-    header does not carry that channel."""
+def _resolve_columns(group_row, sub_row, config: dict) -> tuple[dict, dict]:
+    """(column index per channel, notes) for one file's header pair. An index is
+    None where the header does not carry that channel; `notes` holds one line
+    per channel that needed anything but an unambiguous exact match."""
     cols = config["columns"]
     tom_group = config["probes"]["tomato"]["group"]
     pep_group = config["probes"]["pepper"]["group"]
     sm_sub = cols["soil_moisture_sub"]
-    return {
+    found = {
         "tom": _find_column(group_row, sub_row, tom_group, sm_sub),
         "pep": _find_column(group_row, sub_row, pep_group, sm_sub),
         "water": _find_column(group_row, sub_row, config["water"]["group_prefix"],
-                              cols["water_total_sub"]),
+                              cols["water_total_sub"], by_prefix=True),
         # Diagnostic channels: raw AD count per probe + per-channel sensor
         # voltage. Used for sensor-health checks (a battery swap or chemistry
         # change shifts the derived %, and a failing/uncoupled probe shows a
         # collapsing daily AD range) — see analyze._sensor_health.
         "tom_ad": _find_column(group_row, sub_row, tom_group, "AD"),
         "pep_ad": _find_column(group_row, sub_row, pep_group, "AD"),
-        "v_tom": _find_voltage(group_row, sub_row, "CH1"),
-        "v_pep": _find_voltage(group_row, sub_row, "CH2"),
+        "v_tom": (_find_voltage(group_row, sub_row, "CH1"), None),
+        "v_pep": (_find_voltage(group_row, sub_row, "CH2"), None),
     }
+    idx = {ch: found[ch][0] for ch in CHANNELS}
+    notes = {ch: found[ch][1] for ch in CHANNELS if found[ch][1]}
+    return idx, notes
 
 
 def load_readings(inputs_dir: str, config: dict) -> tuple[list[dict], dict]:
@@ -163,6 +188,7 @@ def load_readings(inputs_dir: str, config: dict) -> tuple[list[dict], dict]:
       readings   distinct timestamps kept
       skipped    [(filename, why)] -- a workbook that contributed nothing
       unresolved {channel: [filename, ...]} -- header did not carry it
+      notes      [(filename, channel, what the match settled for)]
       missing    {channel: pct} -- kept readings whose value is None
 
     Raises ParseError when a REQUIRED channel is unresolved in the NEWEST file:
@@ -176,7 +202,7 @@ def load_readings(inputs_dir: str, config: dict) -> tuple[list[dict], dict]:
 
     by_dt: dict[datetime, dict] = {}
     report: dict = {"files": 0, "rows": 0, "readings": 0,
-                    "skipped": [], "unresolved": {}, "missing": {}}
+                    "skipped": [], "unresolved": {}, "notes": [], "missing": {}}
 
     for path in files:
         name = os.path.basename(path)
@@ -188,7 +214,9 @@ def load_readings(inputs_dir: str, config: dict) -> tuple[list[dict], dict]:
             report["skipped"].append((name, f"{len(rows)} row(s), no data"))
             continue
 
-        idx = _resolve_columns(rows[0], rows[1], config)
+        idx, notes = _resolve_columns(rows[0], rows[1], config)
+        for ch, note in notes.items():
+            report["notes"].append((name, ch, note))
         for ch in CHANNELS:
             if idx[ch] is None:
                 report["unresolved"].setdefault(ch, []).append(name)
@@ -235,6 +263,12 @@ def summary_lines(report: dict) -> list[str]:
         where = names[0] if len(names) == 1 else f"{len(names)} files, first {names[0]}"
         out.append(f"{LABEL[ch]}: no column in {where}"
                    + ("" if ch in REQUIRED else " (diagnostic)"))
+    seen: dict = {}
+    for name, ch, note in report["notes"]:
+        seen.setdefault((ch, note), []).append(name)
+    for (ch, note), names in seen.items():
+        where = names[0] if len(names) == 1 else f"{len(names)} files, first {names[0]}"
+        out.append(f"{LABEL[ch]}: {note} -- {where}")
     if report["missing"]:
         out.append("missing values: "
                    + ", ".join(f"{LABEL[ch]} {p}%" for ch, p in report["missing"].items()))
