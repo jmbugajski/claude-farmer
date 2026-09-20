@@ -303,7 +303,7 @@ def main() -> int:
     args = ap.parse_args()
 
     cfg = json.load(open(os.path.join(ROOT, "config.json")))
-    readings = parse_ecowitt.load_readings(args.inputs, cfg)
+    readings, _ = parse_ecowitt.load_readings(args.inputs, cfg)
     if not readings:
         print("No readings found — add EcoWitt .xlsx exports to inputs/.", file=sys.stderr)
         return 1
