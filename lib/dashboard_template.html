@@ -856,9 +856,24 @@ function writeFindings(){
   // correlation of r ~ 0 and explain at length why that null was expected --
   // true, but it answered a question nobody was asking. ET0's real job is as the
   // clock that separates drainage from uptake, so the card now reports THAT.
+  // analyze._partition's withheld codes, worded. An unknown code falls through
+  // to the code itself rather than to silence.
+  const WXWHY={
+    estimator_unreliable: `the method sums only the downward steps between readings, so the probe's ±1 dither accumulates into one-directional "drainage" — over 2026-09-15..19 the nights held 27 points of drops against 23 of rises, a net of −4. An estimator that is neither drops-only nor signed-net is being worked out. ET₀ itself is cached and still drives the bands; re-pulling it would change nothing here.`,
+    no_et0_column: `the cached <code>weather.csv</code> predates the ET₀ column, so there is no demand series to separate day from night. Run <code>./pull_weather_data.sh</code> to refresh it, then rebuild.`,
+    window_too_short: `the cached ET₀ series ends before the current schedule has run for two days, and a split computed past the end of the series reports a confident "100% drainage" that is an artefact of the gap. Run <code>./pull_weather_data.sh</code> to bring the series up to date, then rebuild.`,
+  };
   const PT=(DATA.partition||{}).tom;
-  document.getElementById('f-wx').innerHTML= PT
+  // Gate on the figure, not the dict: a withheld partition is truthy (#20).
+  document.getElementById('f-wx').innerHTML= PT&&PT.pct_uptake!=null
     ? `Since <b>${PT.since}</b> (${PT.days} day${PT.days===1?'':'s'} ${PT.scoped_to_regime?`on the <b>${PT.regime||'current'}</b> schedule`:`<b style="color:var(--tom)">spanning a plan change</b> — no regime is recorded for this window, so the split below averages across schedules and should not be read as describing any one of them`}), the tomato bed lost <b>${PT.day_pts} points</b> under daytime evaporative demand and <b>${PT.night_pts} points</b> overnight at zero demand. Night loss cannot be transpiration, so that split reads as <b>${PT.pct_uptake}% through the plants, ${PT.pct_drainage}% drained</b>${PT.above_ceiling_pts?`, of which ${PT.above_ceiling_pts.toFixed(0)} points drained from above the ceiling — unambiguously wasted`:''}. This is the same ET₀ series the bands were derived from, run forward; it is also why weather is cached rather than merely charted.`
+    : PT&&PT.withheld
+    // Three states, not two. A null partition used to mean either of these and
+    // the card printed the second, so with a complete cache on disk it told the
+    // reader to run a pull that could not change anything (#20). analyze names
+    // which state it is; the wording lives here, as it does for
+    // split.withheld === 'bands_unverified'.
+    ? `<b>The drainage-vs-uptake split is withheld this build</b> — ${WXWHY[PT.withheld]||`the cached series could not be split (<code>${PT.withheld}</code>).`} A silently wrong split is worse than a missing one, so the card states the gap rather than filling it.`
     : `No cached ET₀ in this build. Run <code>./pull_weather_data.sh</code>, then rebuild — without it the dashboard can show moisture leaving the soil but not whether a plant got it.`;
   document.getElementById('f-act').innerHTML=
     `<b>Tomatoes:</b> ${CFG.advice.tom} <b>Peppers:</b> ${CFG.advice.pep} <b>Water:</b> ${CFG.advice.water}`;
