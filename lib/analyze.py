@@ -223,9 +223,15 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
     schedule the figure describes -- an unscoped 14-day number straddles plan
     changes and must be labelled as such rather than shown bare.
 
-    Returns None when there is no weather series -- the whole calculation is
-    keyed on ET0, and a partition computed without it would be a guess wearing a
-    number's clothes.
+    Returns None ONLY when there is no weather series at all -- the whole
+    calculation is keyed on ET0, and a partition computed without it would be a
+    guess wearing a number's clothes. Every other non-result is a series that IS
+    cached but cannot be split, and returns {"withheld": <code>} instead, the
+    same shape _regime_split uses for bands_unverified. A bare None for those
+    cases is indistinguishable from an absent cache, and the weather card read
+    it as one: with a complete 06-29 -> 09-19 cache it printed "No cached ET0 --
+    run ./pull_weather_data.sh", an instruction that could not fix it (#20).
+    Callers test pct_uptake, never truthiness.
     """
     if not wx_hourly or not readings:
         return None
@@ -247,13 +253,13 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
     # the loss and everything reads 0% drainage). Excluding post-irrigation
     # intervals then taking net works for 2-run schedules but starves under
     # 5-run ones. Unresolved; do not re-enable without one.
-    return None
+    return {"withheld": "estimator_unreliable"}
     # weather.load() yields {"dt": datetime, "et0": mm, ...}. et0 is optional --
     # an older weather.csv predating the et0 column loads fine but cannot support
     # this calculation, hence the explicit None below rather than a silent zero.
     et = weather_mod.et0_by_hour(wx_hourly)
     if not et:
-        return None
+        return {"withheld": "no_et0_column"}
 
     t_end = readings[-1]["dt"]
     cutoff = since or (t_end - timedelta(days=14))
@@ -269,7 +275,7 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
     # confident "100% drainage / 0% uptake". That is exactly what happened on
     # 2026-09-19, when the 2 x 90 s regime started 2026-09-15 and the cached
     # weather ended 2026-09-14. Clamp the window to the weather we actually
-    # have, and return None rather than publish a split computed off the end of
+    # have, and withhold rather than publish a split computed off the end of
     # the series -- a silently wrong figure is worse than a missing one, the
     # same rule manual_events applies to retention().
     et_end = max(
@@ -278,7 +284,7 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
     if et_end < t_end:
         t_end = et_end
     if (t_end - cutoff) < timedelta(days=2):
-        return None
+        return {"withheld": "window_too_short"}
 
     ceiling = bands["drainage_ceiling"]
     night_loss = day_loss = 0.0

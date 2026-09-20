@@ -146,8 +146,12 @@ def main() -> int:
         else:
             line = (f"  {label}: last {st['last']}%  band {st['floor']}–{st['ceiling']}%  "
                     f"working {sp['pct_working']}%  draining {sp['pct_draining']}%")
-        if pt:
+        # pt is {"withheld": <code>} when the series is cached but not
+        # splittable, so test the figure, not the dict (#20).
+        if pt and pt.get("pct_uptake") is not None:
             line += f"  |  since {pt['since']}: {pt['pct_uptake']}% uptake / {pt['pct_drainage']}% drainage"
+        elif pt and pt.get("withheld"):
+            line += f"  |  uptake/drainage WITHHELD ({pt['withheld'].replace('_', ' ')})"
         print(line)
     if data["water"]:
         w = data["water"]
