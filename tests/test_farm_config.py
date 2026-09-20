@@ -25,7 +25,8 @@ def _runs(*pairs):
 GOOD = {
     "probes": {
         "_note": "string keys under probes are prose, not probes",
-        "tomato": {"bands": {"stress_floor": 50, "working_lo": 58, "drainage_ceiling": 75},
+        "tomato": {"voltage_channel": "CH1",
+                   "bands": {"stress_floor": 50, "working_lo": 58, "drainage_ceiling": 75},
                    "gauge": {"lo": 45, "hi": 85}},
     },
     "bed": {"liters_per_inch_of_water": 100.0},
@@ -98,6 +99,12 @@ class Rejections(unittest.TestCase):
     def test_stored_copy_of_a_gauge_threshold(self):
         self.assertIn("gauge.floor: derived",
                       _errors(lambda c: c["probes"]["tomato"]["gauge"].update(floor=50)))
+
+    def test_voltage_channel_must_be_a_console_channel(self):
+        for bad in (None, "", "CH", "1", "Tomato"):
+            self.assertIn("probes.tomato.voltage_channel:",
+                          _errors(lambda c: c["probes"]["tomato"].update(voltage_channel=bad)),
+                          msg=repr(bad))
 
     def test_no_regimes(self):
         self.assertIn("at least one row", _errors(lambda c: c["plan"].update(regimes=[])))

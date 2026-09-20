@@ -23,8 +23,8 @@ import parse_ecowitt  # noqa: E402
 CONFIG = {
     "columns": {"time_header": "Time", "soil_moisture_sub": "Soil Moisture(%)",
                 "water_total_sub": "Water Total(L)"},
-    "probes": {"tomato": {"group": "Tomato Probe"},
-               "pepper": {"group": "Pepper Probe"}},
+    "probes": {"tomato": {"group": "Tomato Probe", "voltage_channel": "CH1"},
+               "pepper": {"group": "Pepper Probe", "voltage_channel": "CH2"}},
     "water": {"group_prefix": "WFC01"},
 }
 
@@ -110,6 +110,40 @@ class ColumnResolution(_Exports):
         self.assertEqual([n for n, _ in rep["skipped"]], ["a.xlsx", "b.xlsx"])
         self.assertIn("skipped b.xlsx: 1 data row(s), none timestamped",
                       parse_ecowitt.summary_lines(rep))
+
+
+class VoltageChannels(_Exports):
+    """The channel tag is a whole token, so CH1 is not CH10 (#18)."""
+
+    def test_ch1_does_not_match_ch10(self):
+        subs = list(SUBS)
+        subs[5] = "[CH10] Deep Soil Sensor(V)"
+        _write(self.dir, "a.xlsx", GROUPS, subs, [ROW])
+        readings, rep = self.load()
+        self.assertIsNone(readings[0]["v_tom"])
+        self.assertEqual(rep["unresolved"]["v_tom"], ["a.xlsx"])
+        self.assertEqual(readings[0]["v_pep"], 1.7)
+
+    def test_both_firmware_spellings_of_the_tag_resolve(self):
+        for header in ("Soil Moisture Sensor CH1(V)", "[CH1] Tomato Soil Sensor(V)"):
+            with self.subTest(header=header):
+                self.setUp()
+                subs = list(SUBS)
+                subs[5] = header
+                _write(self.dir, "a.xlsx", GROUPS, subs, [ROW])
+                readings, _ = self.load()
+                self.assertEqual(readings[0]["v_tom"], 1.7)
+
+    def test_the_channel_comes_from_config(self):
+        cfg = {**CONFIG, "probes": {"tomato": {"group": "Tomato Probe",
+                                               "voltage_channel": "CH2"},
+                                    "pepper": {"group": "Pepper Probe",
+                                               "voltage_channel": "CH1"}}}
+        _write(self.dir, "a.xlsx", GROUPS, SUBS,
+               [["2026-09-19 00:00", 60, 500, 40, 400, 1.55, 1.75, 100.0]])
+        readings, _ = parse_ecowitt.load_readings(self.dir, cfg)
+        self.assertEqual(readings[0]["v_tom"], 1.75)
+        self.assertEqual(readings[0]["v_pep"], 1.55)
 
 
 class GroupMatching(_Exports):

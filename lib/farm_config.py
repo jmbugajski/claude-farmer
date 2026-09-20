@@ -103,8 +103,16 @@ def _check_regimes(plan, errors):
         errors.append("plan.regimes: the last row is the current plan and needs its runs")
 
 
+_CHANNEL = re.compile(r"^CH[1-9][0-9]*$")
+
+
 def _check_probe(name, probe, errors):
     b, g = probe.get("bands") or {}, probe.get("gauge") or {}
+    # parse_ecowitt finds the probe's battery-voltage column by this tag; a
+    # missing or malformed one silently costs the sensor-health check (#18).
+    if not _CHANNEL.match(str(probe.get("voltage_channel"))):
+        errors.append(f"probes.{name}.voltage_channel: the console channel carrying this "
+                      f"probe's voltage column, as CH<n> (e.g. 'CH1')")
     for k in DERIVED_GAUGE_KEYS:
         if k in g:
             errors.append(f"probes.{name}.gauge.{k}: derived from bands -- delete the stored copy")

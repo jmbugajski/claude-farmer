@@ -138,12 +138,17 @@ def _find_voltage(group_row, sub_row, ch: str) -> Optional[int]:
     Locate a per-channel sensor voltage column. EcoWitt has renamed these
     across firmware versions, e.g. 'Soil Moisture Sensor CH1(V)' ->
     '[CH1] Tomato Soil Sensor(V)', so match on the channel tag + '(V)'.
+
+    The tag has to be a whole token: a bare `'ch1' in s` also matched CH10-CH16,
+    so adding the planned deep WH51L probe would have silently re-pointed the
+    health check at the wrong sensor (#18).
     """
+    tag = re.compile(r"(?<![a-z0-9])" + re.escape(ch.lower()) + r"(?![0-9])")
     for i, s in enumerate(sub_row):
         if s is None:
             continue
-        s = str(s).strip()
-        if ch.lower() in s.lower() and "(v)" in s.lower():
+        s = str(s).strip().lower()
+        if "(v)" in s and tag.search(s):
             return i
     return None
 
@@ -167,8 +172,10 @@ def _resolve_columns(group_row, sub_row, config: dict) -> tuple[dict, dict]:
         # collapsing daily AD range) — see analyze._sensor_health.
         "tom_ad": _find_column(group_row, sub_row, tom_group, "AD"),
         "pep_ad": _find_column(group_row, sub_row, pep_group, "AD"),
-        "v_tom": (_find_voltage(group_row, sub_row, "CH1"), None),
-        "v_pep": (_find_voltage(group_row, sub_row, "CH2"), None),
+        "v_tom": (_find_voltage(group_row, sub_row,
+                                config["probes"]["tomato"]["voltage_channel"]), None),
+        "v_pep": (_find_voltage(group_row, sub_row,
+                                config["probes"]["pepper"]["voltage_channel"]), None),
     }
     idx = {ch: found[ch][0] for ch in CHANNELS}
     notes = {ch: found[ch][1] for ch in CHANNELS if found[ch][1]}
