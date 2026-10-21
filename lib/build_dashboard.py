@@ -19,9 +19,9 @@ Options:
     --publish FILE  stable copy for hosting         (default: <repo>/docs/index.html)
     --no-publish    skip writing the published copy
 
-The generated file is self-contained: soil-moisture, trend, distribution and
-water charts are baked in; live weather + correlation are fetched client-side
-from Open-Meteo when the file is opened online.
+The generated file is self-contained and works offline: every chart is baked
+in, including weather, which comes from the inputs/weather.csv cache that
+pull_weather_data.sh refreshes from Open-Meteo before the build.
 
 Each run writes two identical files: a dated archive in outputs/ and a stable
 docs/index.html. The latter is what GitHub Pages serves, giving one permanent
