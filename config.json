@@ -851,5 +851,47 @@
   "pepper_prev_run_min": 15,
   "pepper_time_effective": "2026-07-24",
   "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations. AMENDED 2026-09-19 (#15): the tomato half is no longer stored. runs_time_effective is derived as the start of the oldest regimes[] row in the trailing streak that holds the current SET of start times, which gives 2026-09-15 today; by that rule the 2026-08-20 cut (05:20 / 05:35 retired, 17:00 -> 17:05) also moved it, where this key was left at 2026-08-04. pepper_time_effective is still hand-kept: the peppers have no regimes[] rows."
+ },
+ "next_season": {
+  "_comment": "DRAFTED 2026-10-21 at the end of the 2026 season, as the starting plan for 2027 so the first month is not spent re-learning this one. Read by analyze._next_season() and rendered as dashboard panel 9; only the keys in analyze.PAGE_NEXT_KEYS reach the page. The tomato pulse counts are NOT stored here: panel 9 computes them from this season's regimes (events.hold_rate) times et0_reference, so a new season's data re-derives them. Edit the text lists freely; keep each item one or two sentences.",
+  "drafted": "2026-10-21",
+  "pulse_seconds": 90,
+  "et0_reference": {
+   "_comment": "Mean daily FAO-56 ET0 (mm/day) by month for Santa Clara, from the Open-Meteo archive for 2025-03-01 -> 2025-10-31 (lib/fetch_weather.py --start 2025-03-01 --end 2025-10-31, fetched 2026-10-21). 2025 is used because the 2026 cache starts 2026-06-29 and has no spring. Where the two years overlap they agree within ~0.3 mm/day (Jul 5.69 vs 5.76, Aug 5.34 vs 5.01, Sep 4.13 vs 4.27).",
+   "source": "Open-Meteo archive, Santa Clara, 2025",
+   "mm_per_day": {"03": 2.65, "04": 4.12, "05": 5.44, "06": 5.96, "07": 5.69, "08": 5.34, "09": 4.13, "10": 2.66}
+  },
+  "start_times": {
+   "_comment": "Start times by number of daily runs, spread across the 05:05-17:05 demand window per the 2026-09-11 placement finding: starts 15 min apart (2026-08-04 plan) added nothing, while starts spread through the day landed where the daytime loss was.",
+   "1": ["05:05"],
+   "2": ["05:05", "17:05"],
+   "3": ["05:05", "11:05", "17:05"],
+   "4": ["05:05", "09:05", "13:05", "17:05"],
+   "5": ["05:05", "08:05", "11:05", "14:05", "17:05"]
+  },
+  "young_plant_factor": 0.5,
+  "_young_plant_comment": "NOT MEASURED. The hold rate comes from established, fruiting plants (2026-08 onward). FAO-56 puts tomato Kc at ~0.6 in the initial stage against 1.15 mid-season, so the first month after transplant needs roughly half. Replace with a measured figure once 2027 has early-season data.",
+  "before_planting": [
+   "Put alkaline AA batteries in both probes, never lithium. A lithium cell flatlined the pepper probe from Jul 18 to Aug 6 this year, and the readings looked like a bed slowly drying out.",
+   "Add a WH51L probe at 8–10 in in the tomato bed. The 3-in probe cannot tell water reaching the roots from water draining past them.",
+   "Run the infiltration test (tasks/infiltrometer.md). The 90-second limit rests on a guessed absorption rate; this measures it.",
+   "Write down the house controller's make, the pepper zone number and the zone order. Late pepper runs were a zone ahead of them running long.",
+   "Export the EcoWitt logs weekly from day one, and log every timer change in config.json the day you make it.",
+   "After the first month of data, re-derive the too-wet and too-dry bands (lib/derive_bands.py). They are flagged unverified now."
+  ],
+  "rules": [
+   "Change the number of starts, not the run length. Keep runs at 90 s or less: the line delivers about 6.6 in/hr, far faster than the bed absorbs, so longer runs drain away. A 14-minute daily run used 189 L/day and held the bed lower than two 90-second pulses.",
+   "Spread the starts through the day (times in the table). Pulses 15 minutes apart added nothing: the second and third drained straight through.",
+   "Check panel 2 weekly. If the before-first-run level drops 3 or more points in a week, add a start. If it climbs and panel 5 shows runs shedding, drop one.",
+   "In a heat wave, add a midday start for those days rather than lengthening runs.",
+   "For the first month after transplant, use about half the table's pulses."
+  ],
+  "peppers": [
+   "Start at 7 min once daily at 06:45 on the house controller. The bags fill in 5–8 minutes; at 15 minutes the rest drained out the bottom, taking fertiliser with it.",
+   "If the pepper low keeps sliding (it reached 28–33% in October on 7 min), add a second 7-minute run rather than lengthening the first.",
+   "Every 2–3 weeks, run one 15-minute flush to wash salts out of the bags.",
+   "Fertilise when the bags are dry, not straight after a run: liquid feed on wet bags washed out with the next morning's water.",
+   "The pepper probe is the only check that the pepper zone ran (panel 7). Peppers are not metered."
+  ]
  }
 }

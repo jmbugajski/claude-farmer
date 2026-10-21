@@ -31,6 +31,8 @@ def _build():
     cfg["plan"]["note_to_self"] = SENTINEL
     cfg["plan"]["schedule_log"][0]["private"] = SENTINEL
     cfg["plan"]["regimes"][0]["note"] = SENTINEL
+    cfg["next_season"]["_scratch_comment"] = SENTINEL
+    cfg["next_season"]["et0_reference"]["_comment"] = SENTINEL
     for probe in ("tomato", "pepper"):
         cfg["probes"][probe]["bands"]["_scratch_comment"] = SENTINEL
     return analyze.build(READINGS, cfg)

@@ -56,10 +56,50 @@ PAGE_PLAN_KEYS = (
 PAGE_LOG_KEYS = ("date", "logged", "kind", "summary", "change")
 PAGE_BAND_KEYS = ("drainage_ceiling", "stress_floor", "verified")
 PAGE_REGIME_KEYS = ("start", "end", "label")
+# Panel 9's text. et0_reference and start_times are read by _next_season() and
+# reach the page only as the month table it builds.
+PAGE_NEXT_KEYS = ("drafted", "pulse_seconds", "young_plant_factor",
+                  "before_planting", "rules", "peppers")
 
 
 def _pick(d, keys):
     return {k: d[k] for k in keys if k in d}
+
+
+def _next_season(ns, hold, rate_lps):
+    """Panel 9: next season's tomato schedule by month, from this season.
+
+    pulses = reference ET0 x hold rate (L per mm that held the bed) / litres
+    per pulse, rounded UP. The rate is the least water that held, so rounding
+    down plans below it: July at 2025's ET0 would get 3 pulses = 11.1 L/mm,
+    between the 10.8 that slid and the 12.1 that held. The weekly check in
+    `rules` trims a start if that runs wet. Nothing here is typed in: the hold
+    rate is events.hold_rate() over this season's regimes, so a season with
+    more data re-derives the table. Returns None without a config block, a
+    hold rate or a metered flow rate, and the panel is left out.
+    """
+    if not ns or not hold or not hold.get("rate") or not rate_lps:
+        return None
+    secs = ns.get("pulse_seconds") or 90
+    pulse_l = secs * rate_lps
+    ref = (ns.get("et0_reference") or {})
+    times = {k: v for k, v in (ns.get("start_times") or {}).items() if not k.startswith("_")}
+    top = max((int(k) for k in times), default=0)
+    young = ns.get("young_plant_factor")
+    months = []
+    for mm, et0 in sorted((ref.get("mm_per_day") or {}).items()):
+        liters = et0 * hold["rate"]
+        n = max(1, math.ceil(liters / pulse_l - 1e-9))
+        months.append({
+            "month": mm, "et0": et0, "liters": round(liters),
+            "pulses": n, "times": times.get(str(min(n, top))) if top else None,
+            "young": max(1, int(n * young + 0.5)) if young else None,
+        })
+    out = _pick(ns, PAGE_NEXT_KEYS)
+    out.update(pulse_liters=round(pulse_l, 1), et0_source=ref.get("source"),
+               rate=hold["rate"], slid_max=hold.get("slid_max"),
+               evidence=hold["regimes"], months=months)
+    return out
 
 
 def _page_plan(plan):
@@ -1235,6 +1275,14 @@ def build(readings, config, wx_hourly=None):
     # ET0-derived band for September put it over.
     proj_band = ([budget[-1]["etc_lo"], budget[-1]["etc_hi"]]
                  if budget and budget[-1]["etc_lo"] else None)
+    regimes = events_mod.regime_summary(
+        plan_cfg.get("regimes"), ext_tom, water.get("daily") if water else None,
+        skip_days=events_mod.metered_manual_days(manual))
+    # Panel 9 scales next season's schedule from what held the bed this one.
+    next_season = _next_season(
+        config.get("next_season"),
+        events_mod.hold_rate(plan_cfg.get("regimes"), regimes, ext_tom, et0_by_date),
+        plan_cfg.get("measured_rate_lps"))
     native = {
         "events": {"tom": ev_tom, "pep": ev_pep},
         "extremes": {"tom": ext_tom, "pep": ext_pep},
@@ -1264,9 +1312,7 @@ def build(readings, config, wx_hourly=None):
                                    if d] or [None]),
                              readings)),
         },
-        "regimes": events_mod.regime_summary(
-            plan_cfg.get("regimes"), ext_tom, water.get("daily") if water else None,
-            skip_days=events_mod.metered_manual_days(manual)),
+        "regimes": regimes,
         "budget": budget,
         # The live plan's weekly depth, scored by the same rule as the weeks.
         # Carries its own band: with a per-week band the template can no longer
@@ -1340,6 +1386,7 @@ def build(readings, config, wx_hourly=None):
         # label the band it draws (#22). The scalar only -- config.bed also
         # holds _comment keys and must not be passed whole (#16).
         "kc_mid_season": kc,
+        "next_season": next_season,
         "footer_meta": footer_meta,
         "location_desc": loc["name"],
         "generated": datetime.now().strftime("%Y-%m-%d %H:%M %Z").strip(),
