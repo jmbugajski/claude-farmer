@@ -668,10 +668,10 @@ def _advice(data, config, cycle):
             obs = ""
             if peak is not None and trough is not None:
                 obs = f" Over the last {n_days} days it cycled {trough}–{peak}%."
-            return (f"~{last}% (24 h avg).{obs} No recommendation this build: the drainage "
-                    f"ceiling and stress floor are being re-derived, and the advice here is a "
-                    f"function of both. Watch the daily trough in the trend chart — that is a "
-                    f"direct reading and does not depend on the bands.")
+            # One short line: the page-top notice already says why there is no
+            # recommendation, so this does not repeat it.
+            return (f"~{last}% now.{obs} No recommendation until the bands are re-derived; "
+                    f"watch the daily low.")
 
         part = (data.get("partition") or {}).get(key)
         thin = (f" Only {n_days} day{'s' if n_days != 1 else ''} on this schedule so far, so treat "
@@ -756,8 +756,7 @@ def _advice(data, config, cycle):
             shift = (f" — {way} from a {older} L lifetime average, which spans "
                      f"earlier schedules")
         water = (f"metered ~{w['recent_avg_L']} L per watering day over the last "
-                 f"{w['recent_n']} active days on the tomato bed's {plan_desc}{shift}. "
-                 f"Read as delivered volume, not against a target.")
+                 f"{w['recent_n']} active days on the tomato bed's {plan_desc}{shift}.")
     else:
         water = (f"metered ~{w['avg_active_L']} L per watering day on the tomato bed's "
                  f"{plan_desc} — read as delivered volume, not against a target.")
@@ -802,15 +801,12 @@ def _gauge_for(pkey, pcfg, stats, cycle, split=None, partition=None):
     # it reads STRESS RISK. Report the observation and say the thresholds are
     # under review rather than pick one.
     if not b.get("verified", True):
-        g["verdict"] = f"{last}% · BANDS UNDER REVIEW"
+        # The tile already shows the reading, and the page-top notice explains
+        # the withheld bands, so neither is repeated here.
+        g["verdict"] = "BANDS UNDER REVIEW"
         g["vclass"] = "v-trend"
-        g["note"] = (
-            f"Latest {last}% (24 h avg), range {stats['min']}–{stats['max']}%. "
-            f"The drainage ceiling and stress floor this gauge scores against are being "
-            f"re-derived, so no band percentages, verdict or distance-from-threshold is "
-            f"shown. The readings themselves are unaffected — the trend, the daily "
-            f"peak/trough and the metered water below are all measured, not inferred."
-        )
+        g["note"] = (f"Big number: 24 h average. Typical high/low: median of the last 7 full "
+                     f"days. Season range {stats['min']}–{stats['max']}%.")
         g["bands"] = None
         return g
 
