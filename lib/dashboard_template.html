@@ -17,19 +17,19 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"IBM Plex Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 60px}
+.wrap{max-width:1400px;margin:0 auto;padding:28px 20px 60px}
 .mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
 .cond{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif}
 
 header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;
   border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:24px}
-.title{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--pep);margin:0 0 6px}
-h1{font-family:"IBM Plex Sans Condensed";font-weight:700;font-size:34px;line-height:1;margin:0;letter-spacing:.5px}
-.sub{color:var(--mut);font-size:13px;margin-top:8px}
+.title{font-size:13px;letter-spacing:.34em;text-transform:uppercase;color:var(--pep);margin:0 0 6px}
+h1{font-family:"IBM Plex Sans Condensed";font-weight:700;font-size:40px;line-height:1;margin:0;letter-spacing:.5px}
+.sub{color:var(--mut);font-size:15px;margin-top:8px}
 .meta{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end}
-.meta div{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.12em}
-.meta b{display:block;font-size:14px;color:var(--ink);letter-spacing:0;text-transform:none;margin-top:3px}
-.pill{font-size:11px;font-family:"IBM Plex Mono";padding:5px 10px;border:1px solid var(--line);border-radius:2px;color:var(--mut)}
+.meta div{font-size:13px;color:var(--faint);text-transform:uppercase;letter-spacing:.12em}
+.meta b{display:block;font-size:17px;color:var(--ink);letter-spacing:0;text-transform:none;margin-top:3px}
+.pill{font-size:13px;font-family:"IBM Plex Mono";padding:5px 10px;border:1px solid var(--line);border-radius:2px;color:var(--mut)}
 .pill.live{color:var(--wx);border-color:#33473f}
 .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--wx);margin-right:6px;vertical-align:middle}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -37,11 +37,11 @@ h1{font-family:"IBM Plex Sans Condensed";font-weight:700;font-size:34px;line-hei
 
 .gauges{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 .gauge{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:18px 20px}
-.gauge h2{font-family:"IBM Plex Sans Condensed";font-size:18px;margin:0 0 2px;letter-spacing:.5px}
-.gauge .loc{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.14em;margin-bottom:16px}
+.gauge h2{font-family:"IBM Plex Sans Condensed";font-size:22px;margin:0 0 2px;letter-spacing:.5px}
+.gauge .loc{font-size:13px;color:var(--faint);text-transform:uppercase;letter-spacing:.14em;margin-bottom:16px}
 .readout{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
-.big{font-family:"IBM Plex Mono";font-weight:600;font-size:46px;line-height:.9}
-.verdict{font-size:12px;font-weight:600;padding:4px 9px;border-radius:2px;letter-spacing:.04em}
+.big{font-family:"IBM Plex Mono";font-weight:600;font-size:56px;line-height:.9}
+.verdict{font-size:14px;font-weight:600;padding:4px 9px;border-radius:2px;letter-spacing:.04em}
 .v-wet{background:#33271c;color:var(--pep)}
 .v-ok{background:#23311a;color:var(--leaf)}
 .v-trend{background:#2b2338;color:var(--trend)}
@@ -58,62 +58,62 @@ h1{font-family:"IBM Plex Sans Condensed";font-weight:700;font-size:34px;line-hei
 .bar .zone.drain{background:repeating-linear-gradient(135deg,rgba(196,112,58,.20) 0 5px,rgba(196,112,58,.07) 5px 10px)}
 .bar .zone.dry{background:repeating-linear-gradient(135deg,rgba(120,124,140,.18) 0 5px,rgba(120,124,140,.06) 5px 10px)}
 .needle{position:absolute;top:-4px;bottom:-4px;width:3px;border-radius:2px}
-.scale{display:flex;justify-content:space-between;font-family:"IBM Plex Mono";font-size:10px;color:var(--faint);margin-top:5px}
+.scale{display:flex;justify-content:space-between;font-family:"IBM Plex Mono";font-size:13px;color:var(--faint);margin-top:5px}
 .stats{display:flex;gap:20px;margin-top:16px;border-top:1px solid var(--line);padding-top:14px;flex-wrap:wrap}
-.stat .k{font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:var(--faint)}
-.stat .v{font-family:"IBM Plex Mono";font-size:17px;margin-top:3px}
-.note{font-size:12px;color:var(--mut);margin-top:14px;line-height:1.5}
+.stat .k{font-size:13px;text-transform:uppercase;letter-spacing:.13em;color:var(--faint)}
+.stat .v{font-family:"IBM Plex Mono";font-size:20px;margin-top:3px}
+.note{font-size:14px;color:var(--mut);margin-top:14px;line-height:1.5}
 
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:20px;margin-bottom:20px}
 .phead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px}
-.phead h3{font-family:"IBM Plex Sans Condensed";font-size:16px;margin:0;letter-spacing:.4px}
-.phead .hint{font-size:12px;color:var(--faint)}
+.phead h3{font-family:"IBM Plex Sans Condensed";font-size:19px;margin:0;letter-spacing:.4px}
+.phead .hint{font-size:14px;color:var(--faint)}
 .toggles{display:flex;gap:6px}
-.tg{font-family:"IBM Plex Mono";font-size:11px;background:var(--panel2);border:1px solid var(--line);
+.tg{font-family:"IBM Plex Mono";font-size:13px;background:var(--panel2);border:1px solid var(--line);
   color:var(--mut);padding:5px 10px;border-radius:2px;cursor:pointer}
 .tg[aria-pressed="true"]{color:var(--ink);border-color:var(--faint)}
 .tg:focus-visible{outline:2px solid var(--wx);outline-offset:2px}
-.chartbox{position:relative;height:340px;margin-top:14px}
-.chartbox.sm{height:240px}
+.chartbox{position:relative;height:420px;margin-top:14px}
+.chartbox.sm{height:300px}
 
 /* weekly table */
-table.wk{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+table.wk{width:100%;border-collapse:collapse;margin-top:12px;font-size:15px}
 table.wk th,table.wk td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--line)}
-table.wk th{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);font-weight:600}
+table.wk th{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);font-weight:600}
 table.wk td:first-child,table.wk th:first-child{text-align:left}
 table.wk td.mono,table.wk .num{font-family:"IBM Plex Mono";font-variant-numeric:tabular-nums}
 table.wk tbody tr:last-child td{border-bottom:none}
 .delta-dn{color:var(--leaf)} .delta-up{color:var(--pep)} .delta-0{color:var(--faint)}
-.wk-cap{font-size:11px;color:var(--faint);margin-top:6px}
+.wk-cap{font-size:13px;color:var(--faint);margin-top:6px}
 
 /* trend cards / generic 3-up */
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
 .cc{background:var(--panel2);border:1px solid var(--line);border-radius:2px;padding:14px}
-.cc .lab{font-size:11px;color:var(--mut);line-height:1.4;min-height:42px}
-.cc .r{font-family:"IBM Plex Mono";font-size:30px;margin:8px 0 2px}
-.cc .rd{font-size:11px;color:var(--faint)}
-.caveat{font-size:12px;color:var(--faint);margin-top:14px;line-height:1.5;border-left:2px solid var(--line);padding-left:12px}
+.cc .lab{font-size:13px;color:var(--mut);line-height:1.4;min-height:54px}
+.cc .r{font-family:"IBM Plex Mono";font-size:36px;margin:8px 0 2px}
+.cc .rd{font-size:13px;color:var(--faint)}
+.caveat{font-size:14px;color:var(--faint);margin-top:14px;line-height:1.5;border-left:2px solid var(--line);padding-left:12px}
 
 /* "How to read this" and the change log: method notes stay one click away
    instead of sitting under every chart. */
-details.more{margin-top:10px;font-size:12px;color:var(--faint);line-height:1.5}
-details.more summary{cursor:pointer;color:var(--wx);font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.04em}
+details.more{margin-top:10px;font-size:14px;color:var(--faint);line-height:1.5}
+details.more summary{cursor:pointer;color:var(--wx);font-family:"IBM Plex Mono";font-size:13px;letter-spacing:.04em}
 details.more[open] summary{margin-bottom:6px}
 details.more p{margin:6px 0 0}
-.take{font-size:13px;color:#D7D5C8;margin-top:12px;line-height:1.5}
+.take{font-size:15px;color:#D7D5C8;margin-top:12px;line-height:1.5}
 .take b{color:var(--ink)}
 ul.take{padding-left:18px;margin-bottom:0} ul.take li{margin-top:3px}
 
 .find{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .fcard{border:1px solid var(--line);border-radius:2px;padding:16px;background:var(--panel2)}
-.fcard .tag{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.fcard .tag{font-family:"IBM Plex Mono";font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
 .tag.t{color:var(--tom)} .tag.p{color:var(--pep)} .tag.w{color:var(--wx)} .tag.a{color:var(--leaf)}
-.fcard p{margin:0;font-size:13px;line-height:1.55;color:#D7D5C8}
+.fcard p{margin:0;font-size:15px;line-height:1.55;color:#D7D5C8}
 .fcard b{color:var(--ink)}
-footer{margin-top:26px;border-top:1px solid var(--line);padding-top:16px;font-size:11px;color:var(--faint);line-height:1.6}
+footer{margin-top:26px;border-top:1px solid var(--line);padding-top:16px;font-size:13px;color:var(--faint);line-height:1.6}
 footer a{color:var(--mut)}
-@media(max-width:760px){.gauges,.grid3,.find{grid-template-columns:1fr}h1{font-size:27px}.big{font-size:38px}
-  table.wk th,table.wk td{padding:7px 5px;font-size:12px}}
+@media(max-width:760px){.gauges,.grid3,.find{grid-template-columns:1fr}h1{font-size:32px}.big{font-size:46px}
+  table.wk th,table.wk td{padding:7px 5px;font-size:14px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -132,7 +132,7 @@ footer a{color:var(--mut)}
   </div>
 </header>
 
-<div id="bands-notice" style="display:none;margin:0 0 18px;padding:11px 14px;border:1px solid #C4703A;border-left-width:4px;border-radius:3px;background:rgba(196,112,58,.07);font-size:13px;line-height:1.5">
+<div id="bands-notice" style="display:none;margin:0 0 18px;padding:11px 14px;border:1px solid #C4703A;border-left-width:4px;border-radius:3px;background:rgba(196,112,58,.07);font-size:15px;line-height:1.5">
   <b>Bands under review.</b>
   The too-wet and too-dry thresholds are being re-derived, so this page shows measured values only:
   no zones on the gauges and no recommendations until they are back.
@@ -304,7 +304,7 @@ function gauge(key,name,loc,g,verdict,vclass,note){
   const peak=g.peak, trough=g.trough;
   return `<div class="gauge">
     <h2>${name}</h2><div class="loc">${loc}</div>
-    <div class="readout"><span class="big" style="color:${col}">${s.last!=null?s.last:'—'}<span style="font-size:20px;color:var(--mut)">%</span></span>
+    <div class="readout"><span class="big" style="color:${col}">${s.last!=null?s.last:'—'}<span style="font-size:24px;color:var(--mut)">%</span></span>
       <span class="verdict ${vclass}">${verdict}</span></div>
     <div class="bandwrap">
       <div class="bar">
@@ -367,7 +367,7 @@ const NAT=DATA.native||{};
     ['Daily swing',last.swing,'high &minus; low'+swingNote,
       prev?prev.swing:null,'var(--mut)'],
   ].map(c=>`<div class="cc"><div class="lab">${c[2]}</div>
-      <div class="r" style="color:${c[4]}">${c[1]==null?'&mdash;':c[1]}<span style="font-size:14px;color:var(--mut)">%</span></div>
+      <div class="r" style="color:${c[4]}">${c[1]==null?'&mdash;':c[1]}<span style="font-size:17px;color:var(--mut)">%</span></div>
       <div class="rd">${c[0]}${c[1]!=null?d(c[1],c[3]):''}</div></div>`).join('');
 
   const bands=(NAT.regime_bands||[]);
@@ -381,9 +381,9 @@ const NAT=DATA.native||{};
        pointRadius:0,tension:.25,spanGaps:true},
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      plugins:{legend:{labels:{color:COL.mut,font:{family:'IBM Plex Sans',size:11},boxWidth:12}}},
-      scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},
-        y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(46,51,34,.5)'}}}},
+      plugins:{legend:{labels:{color:COL.mut,font:{family:'IBM Plex Sans',size:13},boxWidth:12}}},
+      scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:12},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},
+        y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:12}},grid:{color:'rgba(46,51,34,.5)'}}}},
     plugins:[{id:'regimeBands',beforeDatasetsDraw(c){
       const{ctx,chartArea:{top,bottom},scales:{x}}=c; ctx.save();
       bands.forEach((b,i)=>{
@@ -393,8 +393,8 @@ const NAT=DATA.native||{};
         const x0=x.getPixelForValue(i0), x1=x.getPixelForValue(i1);
         ctx.fillStyle=i%2?'rgba(127,166,80,.07)':'rgba(127,166,80,.13)';
         ctx.fillRect(x0,top,x1-x0,bottom-top);
-        ctx.fillStyle=COL.mut;ctx.font='9px "IBM Plex Mono"';
-        ctx.fillText(b.label,x0+4,top+11);
+        ctx.fillStyle=COL.mut;ctx.font='12px "IBM Plex Mono"';
+        ctx.fillText(b.label,x0+4,top+14);
       });
       // Derived thresholds, replacing the single setpoint line. Two lines, not
       // one, because they bound the band from opposite sides and mean opposite
@@ -410,7 +410,7 @@ const NAT=DATA.native||{};
       const yF=c.scales.y.getPixelForValue(CFG.bands.tom.stress_floor);
       ctx.fillStyle='rgba(196,112,58,.10)';
       ctx.fillRect(c.chartArea.left,c.chartArea.top,c.chartArea.right-c.chartArea.left,Math.max(0,yC-c.chartArea.top));
-      ctx.font='9px "IBM Plex Mono"';
+      ctx.font='12px "IBM Plex Mono"';
       [[yC,'#C4703A','drainage ceiling '+CFG.bands.tom.drainage_ceiling+'%'],
        [yF,'#8A8FA3','stress floor '+CFG.bands.tom.stress_floor+'%']].forEach(([yy,col,lab])=>{
         if(!isFinite(yy)) return;
@@ -494,9 +494,9 @@ const NAT=DATA.native||{};
        borderColor:B.map(b=>EDGE[b.verdict]||COL.mut),borderWidth:1},
     ]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      title:{display:true,text:'inches of water over the bed per week',color:COL.mut,font:{family:'IBM Plex Sans',size:12}}},
-      scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{display:false}},
-        y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(46,51,34,.5)'}}}},
+      title:{display:true,text:'inches of water over the bed per week',color:COL.mut,font:{family:'IBM Plex Sans',size:14}}},
+      scales:{x:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:12}},grid:{display:false}},
+        y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:12}},grid:{color:'rgba(46,51,34,.5)'}}}},
     // One shaded step per week, spanning that week's bar slot, rather than one
     // rectangle across the whole chart: the band now tracks weekly ET0 and a
     // single rectangle would misstate every week but the one it came from.
@@ -511,7 +511,7 @@ const NAT=DATA.native||{};
         const yTop=y.getPixelForValue(b.etc_hi);
         ctx.fillRect(x0,yTop,w,y.getPixelForValue(b.etc_lo)-yTop);});
       const kc=(CFG.kc_mid_season||[]);
-      ctx.fillStyle=COL.mut;ctx.font='9px "IBM Plex Mono"';
+      ctx.fillStyle=COL.mut;ctx.font='12px "IBM Plex Mono"';
       ctx.fillText(kc.length===2?`weekly ET₀ × Kc ${kc[0]}–${kc[1]}`:'weekly ET₀ × Kc',
                    left+4,c.chartArea.top+10);ctx.restore();}},
       // The current plan's weekly depth. Moved here from panel 8's litres chart,
@@ -520,7 +520,7 @@ const NAT=DATA.native||{};
         const{ctx,chartArea:{left,right},scales:{y}}=c, yy=y.getPixelForValue(pin);
         ctx.save();ctx.strokeStyle=COL.wx;ctx.lineWidth=1.5;ctx.setLineDash([6,4]);
         ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();ctx.setLineDash([]);
-        ctx.fillStyle=COL.wx;ctx.font='10px "IBM Plex Mono"';ctx.textBaseline='bottom';
+        ctx.fillStyle=COL.wx;ctx.font='13px "IBM Plex Mono"';ctx.textBaseline='bottom';
         ctx.fillText('current plan '+pin+' in/wk',right-140,yy-2);ctx.restore();}}]});
   const lastB=B[B.length-1];
   const over=B.filter(b=>b.verdict==='over').length;
@@ -552,7 +552,7 @@ const NAT=DATA.native||{};
     const col=eff==null?'var(--mut)':(eff<40?'#C4643C':(eff<60?'#C9A227':'#7FA650'));
     return `<tr>
       <td><span style="color:${e.k==='tom'?'var(--tom)':'var(--pep)'}">${e.k==='tom'?'Tomato':'Pepper'}</span>
-          <span style="color:var(--faint)">${e.date} ${e.onset}</span>${e.manual?' <span style="color:var(--wx);font-size:10px">HAND-APPLIED</span>':''}</td>
+          <span style="color:var(--faint)">${e.date} ${e.onset}</span>${e.manual?' <span style="color:var(--wx);font-size:13px">HAND-APPLIED</span>':''}</td>
       <td class="num">${e.pre_floor}</td>
       <td class="num">${e.peak}</td>
       <td class="num">${e.settled==null?'—':e.settled}</td>
@@ -609,12 +609,12 @@ const NAT=DATA.native||{};
     });
     new Chart(document.getElementById(id),{type:'line',data:{datasets:ds},
       options:{responsive:true,maintainAspectRatio:false,parsing:false,
-        plugins:{legend:{display:false},title:{display:true,text:title,color:COL.mut,font:{family:'IBM Plex Sans',size:12}},
+        plugins:{legend:{display:false},title:{display:true,text:title,color:COL.mut,font:{family:'IBM Plex Sans',size:14}},
           tooltip:{callbacks:{title:c=>{const m=c[0].parsed.x;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');}}}},
         scales:{x:{type:'linear',min:0,max:1440,
-          ticks:{stepSize:180,color:COL.mut,font:{family:'IBM Plex Mono',size:9},
+          ticks:{stepSize:180,color:COL.mut,font:{family:'IBM Plex Mono',size:12},
             callback:v=>String(Math.floor(v/60)).padStart(2,'0')+':00'},grid:{color:'rgba(46,51,34,.35)'}},
-          y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(46,51,34,.5)'}}}}});
+          y:{ticks:{color:COL.mut,font:{family:'IBM Plex Mono',size:12}},grid:{color:'rgba(46,51,34,.5)'}}}}});
   }
   draw('pulseTom','tom',COL.tom,'Tomato — last 7 days overlaid by time of day');
   draw('pulsePep','pep',COL.pep,'Pepper — last 7 days overlaid by time of day');
@@ -650,7 +650,7 @@ const NAT=DATA.native||{};
       <td class="num">${o.onset||'—'}</td>
       <td class="num" style="color:${col||'var(--mut)'}">${o.delta_min==null?'—':(o.delta_min>0?'+':'')+o.delta_min+' min'}</td>
       <td class="num">${o.retained==null?(o.rise?'(+'+o.rise+' raw)':'—'):(o.retained>0?'+':'')+o.retained}</td>
-      <td style="color:${col||'var(--faint)'};font-size:11px">${lab||'on time'}</td>
+      <td style="color:${col||'var(--faint)'};font-size:13px">${lab||'on time'}</td>
     </tr>`;}).join('');
   document.getElementById('onset-table').innerHTML=
     `<thead><tr><th>Run</th><th>Scheduled</th><th>Actual</th><th>Delta</th><th>Retained</th><th></th></tr></thead><tbody>${tr}</tbody>`;
@@ -699,7 +699,7 @@ const NAT=DATA.native||{};
     const col=s.ok?'var(--leaf)':(bad?'var(--tom)':'var(--wx)');
     const badge=s.ok?'OK':(bad?'CHECK PROBE':(volt?'CALIBRATION SHIFT':'RANGE NARROWED'));
     return `<div class="cc"><div class="lab">${s.label} probe</div>
-      <div class="r" style="color:${col};font-size:20px">${badge}</div>
+      <div class="r" style="color:${col};font-size:24px">${badge}</div>
       <div class="rd">${s.v_last!=null?s.v_last.toFixed(2)+' V':'— V'} &middot; AD range ${s.ad_range_last!=null?s.ad_range_last.toFixed(0):'—'} counts</div></div>`;
   }).join('');
   const all=[];
@@ -733,9 +733,9 @@ const NAT=DATA.native||{};
   // Complete weeks only (#9).
   const B=NAT.budget||[], latest=B[B.length-1];
   document.getElementById('tva-cards').innerHTML=
-    `<div class="cc"><div class="lab">Tomato timer</div><div class="r" style="color:var(--leaf)">${runs.length}<span style="font-size:14px;color:var(--mut)">${PLAN.run_seconds?' × '+PLAN.run_seconds+'s':' runs'}</span></div><div class="rd">${runs.map(r=>r.time).join(' · ')}${effD?' · from '+effD:''}</div></div>
-     <div class="cc"><div class="lab">Plan should meter</div><div class="r" style="color:var(--wx)">~${PLAN.metered_daily}<span style="font-size:14px;color:var(--mut)"> L/day</span></div><div class="rd">~${PLAN.metered_weekly} L/wk${PLAN.expected_in_per_week?' · '+PLAN.expected_in_per_week+' in/wk':''}</div></div>
-     <div class="cc"><div class="lab">Last full week metered</div><div class="r" style="color:var(--tom)">${latest?latest.liters:'—'}<span style="font-size:14px;color:var(--mut)"> L</span></div><div class="rd">${latest?fmt(latest.start)+'–'+fmt(latest.end).replace(/^\w+ /,'')+' · '+latest.inches+' in':'awaiting data'}</div></div>`;
+    `<div class="cc"><div class="lab">Tomato timer</div><div class="r" style="color:var(--leaf)">${runs.length}<span style="font-size:17px;color:var(--mut)">${PLAN.run_seconds?' × '+PLAN.run_seconds+'s':' runs'}</span></div><div class="rd">${runs.map(r=>r.time).join(' · ')}${effD?' · from '+effD:''}</div></div>
+     <div class="cc"><div class="lab">Plan should meter</div><div class="r" style="color:var(--wx)">~${PLAN.metered_daily}<span style="font-size:17px;color:var(--mut)"> L/day</span></div><div class="rd">~${PLAN.metered_weekly} L/wk${PLAN.expected_in_per_week?' · '+PLAN.expected_in_per_week+' in/wk':''}</div></div>
+     <div class="cc"><div class="lab">Last full week metered</div><div class="r" style="color:var(--tom)">${latest?latest.liters:'—'}<span style="font-size:17px;color:var(--mut)"> L</span></div><div class="rd">${latest?fmt(latest.start)+'–'+fmt(latest.end).replace(/^\w+ /,'')+' · '+latest.inches+' in':'awaiting data'}</div></div>`;
 
   document.getElementById('plan-note').innerHTML=
     `<div class="take"><b>Tomato bed:</b> Ecowitt timer, through ${esc(PLAN.emitters)}${runs.some(r=>r.seconds!==runs[0].seconds)?` (${runs.map(r=>`${r.time} ${r.seconds} s`).join(', ')})`:''}.
@@ -781,23 +781,23 @@ const NAT=DATA.native||{};
       if(e.date!==last){
         last=e.date;
         rows+=`<div style="margin:9px 0 3px;padding-top:6px;border-top:1px solid rgba(217,213,200,.15);
-          color:var(--ink);font-family:'IBM Plex Mono';font-size:11px;letter-spacing:.04em">
+          color:var(--ink);font-family:'IBM Plex Mono';font-size:13px;letter-spacing:.04em">
           ${new Date(e.date+'T00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</div>`;
       }
       const k=e.kind||'note', b=brief(e);
       rows+=`<div style="display:flex;gap:9px;padding:3px 0;align-items:baseline">
-        <span style="flex:0 0 62px;font-family:'IBM Plex Mono';font-size:10px;text-transform:uppercase;
+        <span style="flex:0 0 80px;font-family:'IBM Plex Mono';font-size:13px;text-transform:uppercase;
           letter-spacing:.06em;color:${KC[k]||'var(--mut)'}">${esc(k)}</span>
         <span style="color:#D7D5C8">${esc(b.head)}${b.rest
             ? ` <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--wx);
-                font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.04em">why &rsaquo;</summary>
-                <span style="color:var(--mut)"> ${esc(b.rest)}</span>${e.logged?`<span style="color:var(--faint);font-family:'IBM Plex Mono';font-size:10px"> · logged ${esc(e.logged.replace('T',' ').slice(0,16))}</span>`:''}</details>`
+                font-family:'IBM Plex Mono';font-size:13px;letter-spacing:.04em">why &rsaquo;</summary>
+                <span style="color:var(--mut)"> ${esc(b.rest)}</span>${e.logged?`<span style="color:var(--faint);font-family:'IBM Plex Mono';font-size:13px"> · logged ${esc(e.logged.replace('T',' ').slice(0,16))}</span>`:''}</details>`
             : ''}</span></div>`;
     });
     const nChange=L.filter(e=>e.kind==='change').length;
     document.getElementById('plan-log').innerHTML=
       `<details class="more" style="margin-top:14px"><summary>Change log &middot; ${L.length} entries, ${nChange} schedule changes</summary>
-        <div style="color:var(--mut);font-size:11px;margin:2px 0 4px">newest first &middot;
+        <div style="color:var(--mut);font-size:13px;margin:2px 0 4px">newest first &middot;
         <span style="color:${KC.change}">change</span> = what the timer does &middot;
         <span style="color:${KC.decision}">decision</span> &middot;
         <span style="color:${KC.finding}">finding</span> &middot;
@@ -814,9 +814,9 @@ const NAT=DATA.native||{};
   const MON=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const perPulse=(N.pulse_liters/N.rate).toFixed(1);
   document.getElementById('next-cards').innerHTML=
-    `<div class="cc"><div class="lab">Water that held the tomato bed steady</div><div class="r" style="color:var(--leaf)">${N.rate}<span style="font-size:14px;color:var(--mut)"> L/day per mm</span></div><div class="rd">per mm of daily evaporation (ET&#8320;)</div></div>
-     <div class="cc"><div class="lab">One pulse</div><div class="r" style="color:var(--wx)">${N.pulse_seconds}<span style="font-size:14px;color:var(--mut)"> s</span></div><div class="rd">&asymp; ${N.pulse_liters} L on the tomato line</div></div>
-     <div class="cc"><div class="lab">Rule of thumb</div><div class="r" style="color:var(--tom)">1<span style="font-size:14px;color:var(--mut)"> pulse per ${perPulse} mm</span></div><div class="rd">of daily ET&#8320;, rounded up</div></div>`;
+    `<div class="cc"><div class="lab">Water that held the tomato bed steady</div><div class="r" style="color:var(--leaf)">${N.rate}<span style="font-size:17px;color:var(--mut)"> L/day per mm</span></div><div class="rd">per mm of daily evaporation (ET&#8320;)</div></div>
+     <div class="cc"><div class="lab">One pulse</div><div class="r" style="color:var(--wx)">${N.pulse_seconds}<span style="font-size:17px;color:var(--mut)"> s</span></div><div class="rd">&asymp; ${N.pulse_liters} L on the tomato line</div></div>
+     <div class="cc"><div class="lab">Rule of thumb</div><div class="r" style="color:var(--tom)">1<span style="font-size:17px;color:var(--mut)"> pulse per ${perPulse} mm</span></div><div class="rd">of daily ET&#8320;, rounded up</div></div>`;
   const rows=N.months.map(m=>`<tr>
       <td>${MON[+m.month]}</td>
       <td class="num">${m.et0.toFixed(1)}</td>
