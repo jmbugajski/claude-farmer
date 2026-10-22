@@ -132,11 +132,6 @@ footer a{color:var(--mut)}
   </div>
 </header>
 
-<div id="bands-notice" style="display:none;margin:0 0 18px;padding:11px 14px;border:1px solid #C4703A;border-left-width:4px;border-radius:3px;background:rgba(196,112,58,.07);font-size:15px;line-height:1.5">
-  <b>Bands under review.</b>
-  The too-wet and too-dry thresholds are being re-derived, so this page shows measured values only:
-  no zones on the gauges and no recommendations until they are back.
-</div>
 
 <section class="gauges" id="gauges"></section>
 
@@ -272,9 +267,6 @@ footer a{color:var(--mut)}
 <script>
 const DATA = __DATA__;
 const CFG = __CFG__;
-if(CFG.bands&&(CFG.bands.tom.verified===false||CFG.bands.pep.verified===false)){
-  var _bn=document.getElementById('bands-notice'); if(_bn) _bn.style.display='block';
-}
 // config.json free text (schedule_log, emitters, regime labels) is prose, not
 // markup: escape it before it meets innerHTML (#16).
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
