@@ -150,6 +150,20 @@ def resample(readings, interval_min):
 
 
 # ----------------------------------------------------------------------------- soil stats
+def _past_ceiling(v, ceiling):
+    """True when a reading is in draining territory: strictly above the ceiling.
+
+    The one comparison (#29). The ceiling is derived as drainage ONSET
+    (config.json probes.*.bands.ceiling_confidence), so a reading exactly on
+    it is the target, not waste. _classify() said so and used `>`, while
+    _regime_split() and _partition() counted `>=`: a day peaking exactly on
+    the ceiling read WORKING on the verdict and sat in the "at or above the
+    drainage ceiling" share on the tile beside it -- 42 of 2,682 hourly
+    tomato samples and 3 peak days on 2026-06-29 -> 10-20.
+    """
+    return v > ceiling
+
+
 def _regime_split(series, key, bands, since=None, until=None):
     """Share of readings in each irrigation regime: draining / working / dry.
 
@@ -177,7 +191,7 @@ def _regime_split(series, key, bands, since=None, until=None):
                 "n": len(vals), "withheld": "bands_unverified"}
     ceiling, floor = bands["drainage_ceiling"], bands["stress_floor"]
     n = len(vals)
-    drain = sum(1 for v in vals if v >= ceiling)
+    drain = sum(1 for v in vals if _past_ceiling(v, ceiling))
     dry = sum(1 for v in vals if v < floor)
     return {
         "pct_draining": round(drain / n * 100, 1),
@@ -347,7 +361,7 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
 
     ceiling = bands["drainage_ceiling"]
     night_loss = day_loss = 0.0
-    night_hi = 0.0   # night loss occurring at or above the ceiling = clear waste
+    night_hi = 0.0   # night loss occurring above the ceiling = clear waste
     n_night = n_day = 0
     for a, b in zip(readings, readings[1:]):
         if a["dt"] < cutoff or b["dt"] > t_end:
@@ -362,7 +376,7 @@ def _partition(readings, wx_hourly, key, bands, since=None, until=None, label=No
         if e <= 0.01:
             night_loss += drop
             n_night += 1
-            if a[key] >= ceiling:
+            if _past_ceiling(a[key], ceiling):
                 night_hi += drop
         else:
             day_loss += drop
@@ -707,7 +721,7 @@ def _classify(cycle, bands):
     peak, trough = cycle["peak"], cycle["trough"]
     if peak is None or trough is None:
         return None
-    if peak > bands["drainage_ceiling"]:
+    if _past_ceiling(peak, bands["drainage_ceiling"]):
         return "DRAINING"
     if trough < bands["stress_floor"]:
         return "STRESS RISK"
@@ -907,7 +921,7 @@ def _gauge_for(pkey, pcfg, stats, cycle, split=None, partition=None):
     bits = [f"Latest {last}% (24 h avg), range {stats['min']}–{stats['max']}%."]
     if split and split.get("pct_working") is not None:
         bits.append(f"{split['pct_working']}% of readings sit in the plant-fed band, "
-                    f"{split['pct_draining']}% at or above the drainage ceiling.")
+                    f"{split['pct_draining']}% above the drainage ceiling.")
     if partition and partition.get("pct_uptake") is not None:
         bits.append(f"Last {partition['days']} d: {partition['pct_uptake']}% of moisture loss "
                     f"under daytime demand, {partition['pct_drainage']}% overnight.")

@@ -125,5 +125,18 @@ class RegimeSplitIsScoped(unittest.TestCase):
         self.assertEqual((s["pct_draining"], s["n"]), (None, 72))
 
 
+class CeilingIsOneComparison(unittest.TestCase):
+    def test_series_on_the_ceiling_is_working_not_draining(self):
+        # The ceiling is drainage onset: a reading exactly on it is the target.
+        # _classify said so with `>` while the split counted `>=` (#29).
+        bands = {"drainage_ceiling": 75, "stress_floor": 50, "working_lo": 58,
+                 "verified": True}
+        series = [{"dt": datetime(2026, 9, 1) + timedelta(hours=h), "tom": 75.0}
+                  for h in range(48)]
+        s = analyze._regime_split(series, "tom", bands)
+        self.assertEqual((s["pct_draining"], s["pct_working"]), (0.0, 100.0))
+        self.assertEqual(analyze._classify({"peak": 75, "trough": 75}, bands), "WORKING")
+
+
 if __name__ == "__main__":
     unittest.main()
