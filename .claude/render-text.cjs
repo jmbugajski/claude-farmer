@@ -10,7 +10,7 @@ const fs = require('fs');
 const IDS = ['gauges', 'story-cards', 'cv-cards', 'cv-caveat', 'regime-caveat', 'question',
              'budget-caveat', 'event-cards', 'event-caveat', 'pulse-caveat', 'onset-caveat',
              'health-flags',
-             'plan-note', 'tva-caveat', 'f-tom', 'f-pep', 'f-wx', 'f-act'];
+             'plan-note', 'tva-caveat', 'next-cards', 'next-lists', 'f-tom', 'f-pep', 'f-wx', 'f-act'];
 const html = fs.readFileSync(process.argv[2], 'utf8').replace(/<script src=[^>]*><\/script>/g, '');
 const errs = [];
 const dom = new JSDOM(html, { runScripts: 'dangerously', beforeParse(w) {

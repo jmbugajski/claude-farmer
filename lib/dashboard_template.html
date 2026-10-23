@@ -881,8 +881,18 @@ const NAT=DATA.native||{};
     </tr>`).join('');
   document.getElementById('next-table').innerHTML=
     `<thead><tr><th>Month</th><th>ET&#8320; mm/day</th><th>Tomato pulses</th><th>Start times</th><th>First month after transplant</th></tr></thead><tbody>${rows}</tbody>`;
-  const list=(title,items)=>items&&items.length
-    ?`<div class="take" style="margin-top:16px"><b>${title}</b><ul class="take" style="margin-top:4px">${items.map(i=>`<li>${esc(i)}</li>`).join('')}</ul></div>`:'';
+  // Each item is an instruction and its reason in one breath (#33): the
+  // first sentence shows, the rest sits behind the same inline "why" the
+  // schedule log uses. The once-a-season lists are folded; the weekly rule
+  // for changing the schedule stays open.
+  const item=i=>{const s=String(i), m=/[.!?](?=\s)/.exec(s);
+    const head=m?s.slice(0,m.index+1):s, rest=m?s.slice(m.index+1).trim():'';
+    return `<li>${esc(head)}${rest?` <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--wx);font-family:'IBM Plex Mono';font-size:13px;letter-spacing:.04em">why &rsaquo;</summary><span style="color:var(--mut)"> ${esc(rest)}</span></details>`:''}</li>`;};
+  const list=(title,items,open=true)=>items&&items.length
+    ?(open
+      ?`<div class="take" style="margin-top:16px"><b>${title}</b><ul class="take" style="margin-top:4px">${items.map(item).join('')}</ul></div>`
+      :`<details class="more" style="margin-top:16px"><summary>${title} &middot; ${items.length} items</summary><ul class="take" style="margin-top:4px">${items.map(item).join('')}</ul></details>`)
+    :'';
   const ev=(N.evidence||[]).map(r=>`<tr><td>${esc(r.label)} <span style="color:var(--faint)">${r.start}${r.end?'→'+r.end:'→ now'}</span></td>
       <td class="num">${r.days}</td><td class="num">${r.liters_day}</td><td class="num">${r.et0}</td>
       <td class="num"><b>${r.l_per_mm}</b></td>
@@ -890,9 +900,9 @@ const NAT=DATA.native||{};
   document.getElementById('next-lists').innerHTML=
     (N.slid_max!=null&&N.slid_max>=N.rate
       ? `<div class="take"><b style="color:#C4643C">The evidence disagrees with itself:</b> a schedule at ${N.slid_max} L/mm let the bed slide, more than the ${N.rate} that held. Treat the table as a rough start.</div>`:'')+
-    list('Before planting',N.before_planting)+
+    list('Before planting',N.before_planting,false)+
     list('Tomatoes: changing the schedule',N.rules)+
-    list('Peppers',N.peppers)+
+    list('Peppers',N.peppers,false)+
     `<details class="more"><summary>How this was worked out</summary>
      <p>Each short-pulse tomato schedule this season (runs of 2 minutes or less, at least 7 full days) is scored by the water it used per mm of daily evaporation, and by whether the before-first-run level held (drifting under about a point a week) or slid. The least water that held sets the rate. Long single runs are left out: they were limited by how fast the bed absorbs, not by what the plants used.</p>
      <div style="overflow-x:auto"><table class="wk"><thead><tr><th>Schedule</th><th>Days scored</th><th>L/day</th><th>ET&#8320;</th><th>L per mm</th><th>Before-first-run trend</th></tr></thead><tbody>${ev}</tbody></table></div>
