@@ -642,7 +642,7 @@
     "start": "2026-06-29",
     "end": "2026-07-15",
     "runs": [],
-    "note": "pre-timer; no fixed schedule"
+    "note": "pre-timer; no fixed schedule. AMENDED 2026-10-22 (#27): the meter and the tomato probe show watering every other day 07-07 -> 07-15 (0 L and no probe rise on 07-08, 07-10, 07-12, 07-14; one single-run block the next morning), and 07-03 had only a 3-count hand-watering that never passed the meter. A 0 L day is a skipped watering, not meter batching, so this row's 161.3 L is per watering day."
    },
    {
     "label": "14 min daily",
@@ -880,7 +880,7 @@
    "After the first month of data, re-derive the too-wet and too-dry bands (lib/derive_bands.py). They are flagged unverified now."
   ],
   "rules": [
-   "Change the number of starts, not the run length. Keep runs at 90 s or less: the line delivers about 6.6 in/hr, far faster than the bed absorbs, so longer runs drain away. A 14-minute daily run used 189 L/day and held the bed lower than two 90-second pulses.",
+   "Change the number of starts, not the run length. Keep runs at 90 s or less: the line delivers about 6.6 in/hr, far faster than the bed absorbs, so longer runs drain away. A 14-minute run used 189 L per watering and held the bed lower than two 90-second pulses.",
    "Spread the starts through the day (times in the table). Pulses 15 minutes apart added nothing: the second and third drained straight through.",
    "Check panel 2 weekly. If the before-first-run level drops 3 or more points in a week, add a start. If it climbs and panel 5 shows runs shedding, drop one.",
    "In a heat wave, add a midday start for those days rather than lengthening runs.",

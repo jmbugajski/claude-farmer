@@ -446,7 +446,7 @@ const NAT=DATA.native||{};
       <td class="num">${r.day_min==null?'—':r.day_min}</td>
     </tr>`).join('');
   document.getElementById('regime-table').innerHTML=
-    `<thead><tr><th>Schedule</th><th>Days logged</th><th>L/day</th><th>Before first run</th><th>Daily low</th></tr></thead><tbody>${rows}</tbody>`;
+    `<thead><tr><th>Schedule</th><th>Days logged</th><th>L per watering day</th><th>Before first run</th><th>Daily low</th></tr></thead><tbody>${rows}</tbody>`;
   // The sentence follows the numbers: more water for a LOWER-or-equal floor is
   // the application-rate diagnosis; more water for a HIGHER floor is not, and
   // says so. A regime of under 3 days is one morning, not a regime (#13).
@@ -458,7 +458,7 @@ const NAT=DATA.native||{};
     const diff=most.pre_irrigation-least.pre_irrigation;
     const [first,second]=most.start<least.start?[most,least]:[least,most];
     const brk=(((DATA.health||{}).tom||{}).breaks||[]).filter(k=>k.date>first.start&&k.date<=(second.end||'9999'));
-    msg=`<div class="take">The most water (${esc(most.label)}, <b>${most.liters_day} L/day</b>) held the bed at <b>${most.pre_irrigation}%</b> before the first run; the least (${esc(least.label)}, <b>${least.liters_day} L/day</b>) held <b>${least.pre_irrigation}%</b>. `+
+    msg=`<div class="take">The most water (${esc(most.label)}, <b>${most.liters_day} L per watering day</b>) held the bed at <b>${most.pre_irrigation}%</b> before the first run; the least (${esc(least.label)}, <b>${least.liters_day} L per watering day</b>) held <b>${least.pre_irrigation}%</b>. `+
       (diff<=0
         ? `<b>${(most.liters_day/least.liters_day).toFixed(1)}&times; the water bought no higher floor</b>: the extra drained away.`
         : `More water did hold a higher floor here, so check panel 5 before cutting volume.`)+
@@ -746,7 +746,7 @@ const NAT=DATA.native||{};
   document.getElementById('tva-caveat').innerHTML=
     `<div class="take">${planCheck}</div>
      <details class="more"><summary>How to read this</summary>
-     <p>The water meter is a running total that reports in batches: a 0 L day followed by a double is the meter catching up, not a skipped watering.</p>
+     <p>A 0 L day is a day no water passed the meter: the hand-timed weeks (July 7&ndash;15) watered every other day, and the 14-min timer skipped July 18. On each one the probe showed no run and the next day&rsquo;s water was a single run, not a double. Litres per day are per watering day, so a skipped day does not pull the figure down.</p>
      ${WG.length?`<p>No export exists for ${WG.map(g=>g.missing.join(', ')).join(', ')}. The day after a gap reads the whole gap's water (${WG.map(g=>g.liters+' L on '+g.booked_to).join('; ')}), so it is spread over the missing days and left out of the per-day figures.</p>`:''}
      ${WR.length?`<p>The meter's running total went backwards on ${WR.map(r=>r.date).join(', ')} (a reset); that day's water is unknown, so its week is not drawn.</p>`:''}
      </details>`;
