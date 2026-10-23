@@ -485,7 +485,7 @@ def _daily(series, extremes):
 # floor). Neither was rendered by the dashboard.
 
 
-def _water(readings, since=None, until=None, label=None):
+def _water(readings, since=None, until=None, label=None, skip_days=()):
     """Metered litres. `since`/`until`/`label` are _regime_window()'s, passed by
     build(): `recent_avg_L` is the mean under the regime the readings cover
     (`until` exclusive), and `recent_label` names it.
@@ -495,6 +495,13 @@ def _water(readings, since=None, until=None, label=None):
     reading; the window was then empty and _advice() quoted the LIFETIME mean
     as the new plan's delivery (#12: 96.0 L/day against a 2 x 90 s plan that
     delivers ~39).
+
+    `skip_days` is events.metered_manual_days(): the regime mean counts only
+    the days events.per_day_draw() keeps (a single-day measured draw, no
+    reset, no partial tail) and not a metered test run, the two filters
+    regime_summary() and hold_rate() apply. Until #26 it kept the spread days
+    and the test day: 60.6 against the regime table's 55.9 L/day for the
+    3 x 80 s regime, the same two figures #9 was opened for.
     """
     wr = [(r["dt"], r["water"]) for r in readings if r["water"] is not None]
     if not wr:
@@ -605,12 +612,21 @@ def _water(readings, since=None, until=None, label=None):
     if partial_tail:
         daily_out[-1]["partial"] = True
     usable = [d for d in display_days if d != partial_tail]
+    # One owner for "a day whose litres describe the schedule" (#26): the
+    # rows above, read back through the same function the regime table uses.
+    eligible = events_mod.per_day_draw(daily_out)
+
+    def _counts(d):
+        return d in eligible and eligible[d] > 0 and d not in skip_days
+
     if since:
-        recent_days = [d for d in usable if d >= since and draws[d] > 0
+        recent_days = [d for d in usable if d >= since and _counts(d)
                        and (until is None or d < until)]
     else:
-        recent_days = [d for d in usable[-7:] if draws[d] > 0]
-    recent_avg = (round(sum(draws[d] for d in recent_days) / len(recent_days), 1)
+        recent_days = [d for d in usable[-7:] if _counts(d)]
+    # The rows' rounded draws, as the regime table averages them: on the
+    # 4 x 90 s regime the unrounded values read 79.6 against its 79.5.
+    recent_avg = (round(sum(eligible[d] for d in recent_days) / len(recent_days), 1)
                   if recent_days else None)
 
     return {
@@ -815,7 +831,7 @@ def _advice(data, config, cycle):
             shift = (f" — {way} from a {older} L lifetime average, which spans "
                      f"earlier schedules")
         water = (f"metered ~{w['recent_avg_L']} L per watering day over the last "
-                 f"{w['recent_n']} active days on the tomato bed's {plan_desc}{shift}.")
+                 f"{w['recent_n']} metered days on the tomato bed's {plan_desc}{shift}.")
     else:
         water = (f"metered ~{w['avg_active_L']} L per watering day on the tomato bed's "
                  f"{plan_desc} — read as delivered volume, not against a target.")
@@ -1233,7 +1249,10 @@ def build(readings, config, wx_hourly=None):
     # hourly resample averages straight out of existence.
     regime_since, regime_until, regime_label = _regime_window(config, readings)
     _day = lambda dt: dt.strftime("%Y-%m-%d") if dt else None
-    water = _water(readings, _day(regime_since), _day(regime_until), regime_label)
+    plan_cfg = config.get("plan", {})
+    manual = plan_cfg.get("manual_events") or []
+    water = _water(readings, _day(regime_since), _day(regime_until), regime_label,
+                   skip_days=events_mod.metered_manual_days(manual))
     split = {k: _regime_split(series, k, c["bands"], regime_since, regime_until)
              for k, c in (("tom", tom_cfg), ("pep", pep_cfg))}
     partition = {"tom": _partition(readings, wx_hourly, "tom", tom_cfg["bands"],
@@ -1244,9 +1263,7 @@ def build(readings, config, wx_hourly=None):
     # ---- native-resolution analytics (see lib/events.py for why these do NOT
     # use `series`: hourly resampling erases the pulse structure that every
     # irrigation decision in plan.schedule_log was actually made from).
-    plan_cfg = config.get("plan", {})
     bed_cfg = config.get("bed", {})
-    manual = plan_cfg.get("manual_events") or []
     ev_tom = events_mod.tag_manual(events_mod.detect_events(readings, "tom"), manual, channel="tom")
     ev_pep = events_mod.tag_manual(events_mod.detect_events(readings, "pep"), manual, channel="pep")
     ext_tom = events_mod.daily_extremes(readings, "tom", ev_tom)

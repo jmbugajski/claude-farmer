@@ -446,7 +446,7 @@ const NAT=DATA.native||{};
       <td class="num">${r.day_min==null?'—':r.day_min}</td>
     </tr>`).join('');
   document.getElementById('regime-table').innerHTML=
-    `<thead><tr><th>Schedule</th><th>Days</th><th>L/day</th><th>Before first run</th><th>Daily low</th></tr></thead><tbody>${rows}</tbody>`;
+    `<thead><tr><th>Schedule</th><th>Days logged</th><th>L/day</th><th>Before first run</th><th>Daily low</th></tr></thead><tbody>${rows}</tbody>`;
   // The sentence follows the numbers: more water for a LOWER-or-equal floor is
   // the application-rate diagnosis; more water for a HIGHER floor is not, and
   // says so. A regime of under 3 days is one morning, not a regime (#13).
@@ -832,7 +832,7 @@ const NAT=DATA.native||{};
     list('Peppers',N.peppers)+
     `<details class="more"><summary>How this was worked out</summary>
      <p>Each short-pulse tomato schedule this season (runs of 2 minutes or less, at least 7 full days) is scored by the water it used per mm of daily evaporation, and by whether the before-first-run level held (drifting under about a point a week) or slid. The least water that held sets the rate. Long single runs are left out: they were limited by how fast the bed absorbs, not by what the plants used.</p>
-     <div style="overflow-x:auto"><table class="wk"><thead><tr><th>Schedule</th><th>Days</th><th>L/day</th><th>ET&#8320;</th><th>L per mm</th><th>Before-first-run trend</th></tr></thead><tbody>${ev}</tbody></table></div>
+     <div style="overflow-x:auto"><table class="wk"><thead><tr><th>Schedule</th><th>Days scored</th><th>L/day</th><th>ET&#8320;</th><th>L per mm</th><th>Before-first-run trend</th></tr></thead><tbody>${ev}</tbody></table></div>
      <p>Monthly ET&#8320; is the ${esc(N.et0_source||'reference year')} average, because this season&rsquo;s weather starts in late June. Pulses = ET&#8320; &times; ${N.rate} L &divide; ${N.pulse_liters} L, rounded up.</p>
      <p>Limits: the rate comes from established, fruiting plants and a 3-inch probe. The first-month column (&times; ${N.young_plant_factor}) is a textbook estimate for young plants, not a measurement. The too-wet and too-dry bands are still unverified, so &ldquo;held&rdquo; means steady, not ideal.${N.drafted?` Drafted ${N.drafted}.`:''}</p></details>`;
 })();

@@ -57,6 +57,16 @@ class RecentAverageIsBoundedByTheWindow(unittest.TestCase):
         w = analyze._water(STEP_DOWN, "2026-09-02", "2026-09-21", "A")
         self.assertEqual((w["recent_avg_L"], w["recent_n"]), (100.0, 19))
 
+    def test_spread_and_metered_test_days_are_out(self):
+        # Regime B, 09-21 -> 09-25: 40, 200 (a metered test), 40, 80, 40 L,
+        # with the 09-23 export missing so 09-23/24 are one spread draw. The
+        # regime table averages the two clean days; until #26 this mean kept
+        # all five and read 80.0 (#9's pair, one regime later).
+        rd = [r for r in _readings([100] * 20 + [40, 200, 40, 80, 40])
+              if r["dt"].strftime("%Y-%m-%d") != "2026-09-23"]
+        w = analyze._water(rd, "2026-09-21", None, "B", skip_days={"2026-09-22"})
+        self.assertEqual((w["recent_avg_L"], w["recent_n"]), (40.0, 2))
+
 
 class PlanLoggedButNotYetRun(unittest.TestCase):
     """The open regime starts the day after the newest reading."""
