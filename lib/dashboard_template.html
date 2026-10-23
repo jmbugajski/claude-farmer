@@ -867,9 +867,14 @@ function writeFindings(){
         // bands under review the observation stands but the interpretation does
         // not, so state the swing and stop.
         // Bands withheld: state the observation and the week's direction only.
+        // A day with no detected first run has no before-first-run level, and
+        // the week-ago row can lack one for the same reason. Interpolated bare,
+        // a null read "null% before the first run, down 61 points on a week
+        // ago: drying between waterings" -- a verdict from an absent number (#31).
+        const have=lx.pre_irrigation!=null;
+        const dw=have&&px&&px.pre_irrigation!=null?lx.pre_irrigation-px.pre_irrigation:null;
         if(TB.verified===false){
-          const dw=px?lx.pre_irrigation-px.pre_irrigation:null;
-          return `Daily low <b>${lx.day_min}%</b>, <b>${lx.pre_irrigation}%</b> before the first run${dw==null?'':dw<=-3?`, <b>down ${Math.abs(dw).toFixed(0)} points</b> on a week ago: drying between waterings`:dw>=3?`, up ${dw.toFixed(0)} points on a week ago`:', steady on a week ago'}. <span style="color:var(--mut)">(${lx.date}, last full day.)</span>`;
+          return `Daily low <b>${lx.day_min}%</b>${have?`, <b>${lx.pre_irrigation}%</b> before the first run`:`; no run was detected before it, so the before-first-run level is withheld`}${dw==null?'':dw<=-3?`, <b>down ${Math.abs(dw).toFixed(0)} points</b> on a week ago: drying between waterings`:dw>=3?`, up ${dw.toFixed(0)} points on a week ago`:', steady on a week ago'}. <span style="color:var(--mut)">(${lx.date}, last full day.)</span>`;
         }
         const where = lx.day_max!=null&&lx.day_max>TB.drainage_ceiling
           ? `the daily <b>peak</b> of ${lx.day_max}% is above the <b>${TB.drainage_ceiling}% drainage ceiling</b>, so the top of each cycle is being lost`
@@ -878,7 +883,10 @@ function writeFindings(){
           : `the whole cycle sits between the <b>${TB.stress_floor}% floor</b> and the <b>${TB.drainage_ceiling}% ceiling</b>, which is the plant-fed band`;
         const part = P&&P.pct_uptake!=null
           ? ` Since ${P.since}, <b>${P.pct_uptake}%</b> of moisture loss has occurred under daytime evaporative demand — i.e. through the plants rather than past them.` : '';
-        return `Pre-irrigation floor is <b>${lx.pre_irrigation}%</b>${px?` (${lx.pre_irrigation-px.pre_irrigation>0?'+':''}${(lx.pre_irrigation-px.pre_irrigation).toFixed(1)} vs a week ago)`:''}, daily minimum <b>${lx.day_min}%</b> at ${lx.day_min_t}, swing ${lx.swing} points — ${where}.${part} <span style="color:var(--mut)">(${lx.date}, last complete day.)</span>`;})()
+        const lead=have
+          ? `Pre-irrigation floor is <b>${lx.pre_irrigation}%</b>${dw!=null?` (${dw>0?'+':''}${dw.toFixed(1)} vs a week ago)`:''}`
+          : `No run was detected before the day's low, so the pre-irrigation floor is withheld`;
+        return `${lead}, daily minimum <b>${lx.day_min}%</b> at ${lx.day_min_t}, swing ${lx.swing} points — ${where}.${part} <span style="color:var(--mut)">(${lx.date}, last complete day.)</span>`;})()
     : `Tomato bed mean is <b>${S.tom.mean}%</b> (range ${S.tom.min}–${S.tom.max}%), latest <b>${S.tom.last}%</b>.`;
   const hp=(DATA.health||{}).pep;
   document.getElementById('f-pep').innerHTML= (hp&&hp.has_bad)
