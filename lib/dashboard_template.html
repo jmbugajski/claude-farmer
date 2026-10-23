@@ -100,6 +100,10 @@ details.more{margin-top:10px;font-size:14px;color:var(--faint);line-height:1.5}
 details.more summary{cursor:pointer;color:var(--wx);font-family:"IBM Plex Mono";font-size:13px;letter-spacing:.04em}
 details.more[open] summary{margin-bottom:6px}
 details.more p{margin:6px 0 0}
+details.diag{margin:0 0 20px}
+details.diag>summary{font-size:15px;padding:10px 0}
+details.diag[open]>summary{margin-bottom:14px}
+details.diag .panel{margin-top:0}
 .take{font-size:15px;color:#D7D5C8;margin-top:12px;line-height:1.5}
 .take b{color:var(--ink)}
 ul.take{padding-left:18px;margin-bottom:0} ul.take li{margin-top:3px}
@@ -138,7 +142,7 @@ footer a{color:var(--mut)}
 <!-- The summary sits directly under the gauges: it is the answer, and the
      numbered panels below are the evidence for it. -->
 <section class="panel">
-  <div class="phead"><h3>This week</h3><div class="hint">the short version &middot; panels 1&ndash;8 below are the detail</div></div>
+  <div class="phead"><h3>This week</h3><div class="hint">the short version &middot; panels 1&ndash;6 below are the evidence, diagnostics at the end</div></div>
   <div class="find">
     <div class="fcard"><div class="tag t">Tomatoes &middot; raised bed</div><p id="f-tom"></p></div>
     <div class="fcard"><div class="tag p">Peppers &middot; fabric bags</div><p id="f-pep"></p></div>
@@ -157,65 +161,40 @@ footer a{color:var(--mut)}
   <div id="health-flags"></div>
 </section>
 
-<!-- 2. THE CONTROL VARIABLE. Every decision in the change log was made on the
-     pre-irrigation floor ("hold until the overnight min returns to 58-60%"),
-     which the old dashboard never plotted -- it tracked the daily MEAN. -->
+<!-- 2. WHAT THE SEASON SHOWED (#32). The measured result leads: water per
+     watering day by schedule, the before-first-run level it held, and how much
+     of each run's rise the probe kept. The schedule table used to sit third,
+     under verdicts that are withheld while the bands are unverified. -->
 <section class="panel">
-  <div class="phead"><h3>2 &middot; Tomato bed &mdash; daily low and high</h3>
-    <div class="hint" id="cv-hint">red = moisture just before the first run &middot; shaded = each schedule</div></div>
-  <div class="grid3" id="cv-cards"></div>
-  <div class="chartbox"><canvas id="cvChart"></canvas></div>
-  <div class="caveat" id="cv-caveat"></div>
-</section>
-
-<!-- 3. REGIME COMPARISON. Replaces the old single-trend-plus-projection panel,
-     which fitted ONE line across five different irrigation regimes (R^2 0.28)
-     and then projected a setpoint crossing from that slope. -->
-<section class="panel">
-  <div class="phead"><h3>3 &middot; Did each schedule change work?</h3>
-    <div class="hint">one row per tomato schedule &middot; a higher pre-run floor = the bed held more</div></div>
+  <div class="phead"><h3>2 &middot; What the season showed</h3>
+    <div class="hint">one row per tomato schedule &middot; what was applied, and what the bed did under it</div></div>
+  <div class="grid3" id="story-cards"></div>
   <div style="overflow-x:auto"><table class="wk" id="regime-table"></table></div>
   <div class="caveat" id="regime-caveat"></div>
 </section>
 
-<!-- 4. WATER BUDGET. Litres only became agronomically meaningful once bed
-     geometry was measured (2026-08-03); this is that conversion, weekly. -->
+<!-- 3. THE OPEN QUESTION. The weekly conversion of litres to inches against
+     the ETc estimate (possible since bed geometry was measured, 2026-08-03),
+     stated next to what the before-first-run level did under the open
+     schedule. Until #32 the two sat in separate panels and could contradict
+     each other without the page saying so. -->
 <section class="panel">
-  <div class="phead"><h3>4 &middot; Water applied vs what the plants use</h3>
+  <div class="phead"><h3>3 &middot; The open question &mdash; applied water vs what the plants use</h3>
     <div class="hint" id="budget-hint">bars = inches applied per week &middot; green band = estimated crop use &middot; dashed = current plan</div></div>
+  <div class="take" id="question"></div>
   <div class="chartbox sm"><canvas id="budgetChart"></canvas></div>
   <div class="caveat" id="budget-caveat"></div>
 </section>
 
-<!-- 5. PER-RUN EFFICIENCY. retained vs shed is the diagnostic that broke the
-     flood regime open on 2026-08-03, computed by hand at the time. -->
+<!-- 2. THE CONTROL VARIABLE. Every decision in the change log was made on the
+     pre-irrigation floor ("hold until the overnight min returns to 58-60%"),
+     which the old dashboard never plotted -- it tracked the daily MEAN. -->
 <section class="panel">
-  <div class="phead"><h3>5 &middot; Is each run earning its water?</h3>
-    <div class="hint"><b>retained</b> = points the soil kept &middot; <b>shed</b> = points that arrived and drained past the probe</div></div>
-  <div class="grid3" id="event-cards"></div>
-  <div style="overflow-x:auto"><table class="wk" id="event-table"></table></div>
-  <div class="caveat" id="event-caveat"></div>
-</section>
-
-<!-- 6. PULSE DETAIL at native resolution -- the view the hourly resample
-     destroyed, and where both the tomato and pepper findings came from. -->
-<section class="panel">
-  <div class="phead"><h3>6 &middot; Last 7 days, run by run</h3>
-    <div class="hint">each day drawn over the same 24 hours &middot; solid = most recent day</div></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-    <div class="chartbox sm"><canvas id="pulseTom"></canvas></div>
-    <div class="chartbox sm"><canvas id="pulsePep"></canvas></div>
-  </div>
-  <div class="caveat" id="pulse-caveat"></div>
-</section>
-
-<!-- 7. RUN VERIFICATION. The only run-log that exists for the pepper line,
-     which sits on the unmetered, unlogged house multi-zone controller. -->
-<section class="panel">
-  <div class="phead"><h3>7 &middot; Did the runs fire on time?</h3>
-    <div class="hint" id="onset-hint">when the probe saw water arrive vs the scheduled start</div></div>
-  <div style="overflow-x:auto"><table class="wk" id="onset-table"></table></div>
-  <div class="caveat" id="onset-caveat"></div>
+  <div class="phead"><h3>4 &middot; Tomato bed &mdash; daily low and high</h3>
+    <div class="hint" id="cv-hint">red = moisture just before the first run &middot; shaded = each schedule</div></div>
+  <div class="grid3" id="cv-cards"></div>
+  <div class="chartbox"><canvas id="cvChart"></canvas></div>
+  <div class="caveat" id="cv-caveat"></div>
 </section>
 
 <!-- PANELS 8 AND 9 REMOVED 2026-08-22, on the rule that nothing stays unless it
@@ -239,7 +218,7 @@ footer a{color:var(--mut)}
      drawn on panel 4, and panel 8 keeps the plan-vs-meter check as a sentence. -->
 
 <section class="panel">
-  <div class="phead"><h3>8 &middot; Irrigation schedule</h3><div class="hint" id="plan-hint"></div></div>
+  <div class="phead"><h3>5 &middot; Irrigation schedule</h3><div class="hint" id="plan-hint"></div></div>
   <div class="grid3" id="tva-cards"></div>
   <div id="plan-note"></div>
   <div class="caveat" id="tva-caveat"></div>
@@ -250,12 +229,51 @@ footer a{color:var(--mut)}
      season learned instead of re-learning it. The tomato pulse counts are
      computed (analyze._next_season), the lists come from config.next_season. -->
 <section class="panel" id="next-panel" style="display:none">
-  <div class="phead"><h3>9 &middot; Next season &mdash; start here</h3>
+  <div class="phead"><h3>6 &middot; Next season &mdash; start here</h3>
     <div class="hint" id="next-hint">built from this season&rsquo;s data &middot; set this on day one, then follow the weekly check</div></div>
   <div class="grid3" id="next-cards"></div>
   <div style="overflow-x:auto"><table class="wk" id="next-table"></table></div>
   <div id="next-lists"></div>
 </section>
+
+<!-- DIAGNOSTICS (#32): the run-level views, collapsed. They are how the findings
+     above were made and where a fault shows first; they are not the story. The
+     pulse charts are drawn on first open: a chart created inside a closed
+     <details> has no size. -->
+<details class="more diag" id="diagnostics">
+  <summary>Diagnostics &middot; is each run earning its water &middot; last 7 days run by run &middot; did the runs fire on time</summary>
+<!-- 5. PER-RUN EFFICIENCY. retained vs shed is the diagnostic that broke the
+     flood regime open on 2026-08-03, computed by hand at the time. -->
+<section class="panel">
+  <div class="phead"><h3>Is each run earning its water?</h3>
+    <div class="hint"><b>retained</b> = points the soil kept &middot; <b>shed</b> = points that arrived and drained past the probe</div></div>
+  <div class="grid3" id="event-cards"></div>
+  <div style="overflow-x:auto"><table class="wk" id="event-table"></table></div>
+  <div class="caveat" id="event-caveat"></div>
+</section>
+
+<!-- 6. PULSE DETAIL at native resolution -- the view the hourly resample
+     destroyed, and where both the tomato and pepper findings came from. -->
+<section class="panel">
+  <div class="phead"><h3>Last 7 days, run by run</h3>
+    <div class="hint">each day drawn over the same 24 hours &middot; solid = most recent day</div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="chartbox sm"><canvas id="pulseTom"></canvas></div>
+    <div class="chartbox sm"><canvas id="pulsePep"></canvas></div>
+  </div>
+  <div class="caveat" id="pulse-caveat"></div>
+</section>
+
+<!-- 7. RUN VERIFICATION. The only run-log that exists for the pepper line,
+     which sits on the unmetered, unlogged house multi-zone controller. -->
+<section class="panel">
+  <div class="phead"><h3>Did the runs fire on time?</h3>
+    <div class="hint" id="onset-hint">when the probe saw water arrive vs the scheduled start</div></div>
+  <div style="overflow-x:auto"><table class="wk" id="onset-table"></table></div>
+  <div class="caveat" id="onset-caveat"></div>
+</section>
+
+</details>
 
 <footer>
   Moisture data: Ecowitt GW1200 export, __FOOTER_META__. &nbsp;|&nbsp;
@@ -327,7 +345,7 @@ const series=DATA.series;
 
 const NAT=DATA.native||{};
 
-/* ---------- 2 · control variable ----------
+/* ---------- 4 · control variable ----------
    The pre-irrigation floor is the quantity every entry in the change log
    actually steered on. Plotting it next to the daily minimum shows both ends
    of the cycle; the old dashboard plotted the daily MEAN, which is the one
@@ -434,19 +452,32 @@ const NAT=DATA.native||{};
       : `The bed cycled <b>${mn}–${mx==null?'?':mx}%</b>, inside the <b>${floor}–${ceil}%</b> plant-fed band: peaks stay under the drainage ceiling and troughs stay above the point where uptake falls off.${trend}`)+more;
 })();
 
-/* ---------- 3 · regime comparison ----------
-   Replaces a single OLS fitted across every regime at once. */
+/* ---------- 2 · what the season showed ----------
+   The measured result, from NAT.season and the regime rows (#32): nothing
+   here is typed in. Replaces the regime comparison, which carried the same
+   table without the applied-vs-estimate, kept-per-run and ET0 columns. */
 (function(){
-  const R=NAT.regimes||[]; if(!R.length) return;
+  const R=NAT.regimes||[], SS=NAT.season||{}; if(!R.length) return;
+  const n=v=>v==null?'—':v, sm=t=>`<span style="font-size:17px;color:var(--mut)">${t}</span>`;
+  const cards=[
+    SS.cut!=null?['Water per watering day, heaviest schedule to the current one',`${SS.most_liters}${sm(' → '+SS.current_liters+' L')}`,`÷${SS.cut} · ${esc(SS.most_label)} → ${esc(SS.current_label)}`,'var(--wx)']:null,
+    SS.floor_lo!=null?['Before-first-run level, across every schedule',`${SS.floor_lo}–${SS.floor_hi}${sm('%')}`,'what the bed held overnight, averaged per schedule','var(--tom)']:null,
+    SS.kept_long!=null&&SS.kept_pulsed!=null?['Kept per run: long runs → pulses',`${SS.kept_long}${sm('% → ')}${SS.kept_pulsed}${sm('%')}`,'share of each run&rsquo;s rise still at the probe an hour later','var(--leaf)']:null,
+  ].filter(Boolean);
+  document.getElementById('story-cards').innerHTML=cards.map(c=>`<div class="cc"><div class="lab">${c[0]}</div>
+      <div class="r" style="color:${c[3]}">${c[1]}</div><div class="rd">${c[2]}</div></div>`).join('');
   const rows=R.map(r=>`<tr>
       <td>${esc(r.label)} <span style="color:var(--faint)">${r.start}${r.end?'→'+r.end:'→ now'}</span></td>
       <td class="num">${r.days}</td>
-      <td class="num">${r.liters_day==null?'—':r.liters_day}</td>
-      <td class="num"><b>${r.pre_irrigation==null?'—':r.pre_irrigation}</b></td>
-      <td class="num">${r.day_min==null?'—':r.day_min}</td>
+      <td class="num">${n(r.liters_day)}</td>
+      <td class="num">${r.x_etc==null?'—':r.x_etc+'×'}</td>
+      <td class="num"><b>${n(r.pre_irrigation)}</b></td>
+      <td class="num">${n(r.day_min)}</td>
+      <td class="num">${r.kept_pct==null?'—':r.kept_pct+'%'}</td>
+      <td class="num">${n(r.et0)}</td>
     </tr>`).join('');
   document.getElementById('regime-table').innerHTML=
-    `<thead><tr><th>Schedule</th><th>Days logged</th><th>L per watering day</th><th>Before first run</th><th>Daily low</th></tr></thead><tbody>${rows}</tbody>`;
+    `<thead><tr><th>Schedule</th><th>Days logged</th><th>L per watering day</th><th>× crop use</th><th>Before first run</th><th>Daily low</th><th>Kept per run</th><th>ET&#8320; mm/d</th></tr></thead><tbody>${rows}</tbody>`;
   // The sentence follows the numbers: more water for a LOWER-or-equal floor is
   // the application-rate diagnosis; more water for a HIGHER floor is not, and
   // says so. A regime of under 3 days is one morning, not a regime (#13).
@@ -461,17 +492,19 @@ const NAT=DATA.native||{};
     msg=`<div class="take">The most water (${esc(most.label)}, <b>${most.liters_day} L per watering day</b>) held the bed at <b>${most.pre_irrigation}%</b> before the first run; the least (${esc(least.label)}, <b>${least.liters_day} L per watering day</b>) held <b>${least.pre_irrigation}%</b>. `+
       (diff<=0
         ? `<b>${(most.liters_day/least.liters_day).toFixed(1)}&times; the water bought no higher floor</b>: the extra drained away.`
-        : `More water did hold a higher floor here, so check panel 5 before cutting volume.`)+
-      (brk.length?` <b>A probe battery change (${brk.map(k=>k.date).join(', ')}) falls between these two</b>, so their % are not directly comparable.`:'')+`</div>`;
+        : `More water did hold a higher floor here, so check the per-run table under Diagnostics before cutting volume.`)+
+      (brk.length?` <b>A probe battery change (${brk.map(k=>k.date).join(', ')}) falls between these two</b>, so their % are not directly comparable.`:'')+
+      (SS.kept_long!=null&&SS.kept_pulsed!=null?` Long runs kept <b>${SS.kept_long}%</b> of their rise at the probe an hour later, pulses <b>${SS.kept_pulsed}%</b>; the rest went past it.`:'')+`</div>`;
   }
-  // Bookkeeping for the maintainer, not a reading of the data.
-  document.getElementById('regime-caveat').innerHTML=msg+
+  const season=SS.x_etc!=null?`<div class="take">Over ${SS.weeks} complete weeks the bed received <b>${SS.applied_in} in</b> of water against an estimated <b>${SS.etc_lo_in}&ndash;${SS.etc_hi_in} in</b> of crop use: <b>${SS.x_etc}&times; the top of the estimate</b>. What that estimate assumes is panel 3.</div>`:'';
+  document.getElementById('regime-caveat').innerHTML=msg+season+
     `<details class="more"><summary>How to read this</summary>
-     <p>Each schedule ran in a different part of the season, so the weather was not the same between rows. A schedule shorter than 3 days is left out of the comparison above.</p>
+     <p>Each schedule ran in a different part of the season: the July schedules under peak demand with full plants, the taper in October with plants winding down. ET&#8320; is listed so rows can be compared with that in view; the before-first-run levels are not corrected for it. A schedule shorter than 3 days is left out of the comparison above.</p>
+     <p>&ldquo;&times; crop use&rdquo; is water applied over the schedule&rsquo;s metered days against the crop-use estimate for the same days, skipped days included. &ldquo;Kept per run&rdquo; is retained &divide; (retained + shed) at the 3-inch probe; the per-run table under Diagnostics has every run. Pulses 15 minutes apart (4 &times; 90 s) kept little more than a long run; pulses spread through the day kept most of theirs.</p>
      <p>Rows come from <code>plan.regimes</code> in config.json; add one when the schedule changes.</p></details>`;
 })();
 
-/* ---------- 4 · water budget ---------- */
+/* ---------- 3 · the open question: applied water vs the estimate ---------- */
 (function(){
   const B=NAT.budget||[]; if(!B.length) return;
   // Each week carries its OWN band (#22). A week whose ET0 cache is incomplete
@@ -514,6 +547,29 @@ const NAT=DATA.native||{};
         ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();ctx.setLineDash([]);
         ctx.fillStyle=COL.wx;ctx.font='13px "IBM Plex Mono"';ctx.textBaseline='bottom';
         ctx.fillText('current plan '+pin+' in/wk',right-140,yy-2);ctx.restore();}}]});
+  // The open question (#32): the open schedule's applied-vs-estimate next to
+  // what the before-first-run level did under it. The two can disagree, and
+  // until #32 they sat in separate panels that never said so.
+  (function(){
+    const RG=NAT.regimes||[], cur=RG[RG.length-1], P=NAT.projection||{};
+    const bands=NAT.regime_bands||[], curStart=bands.length?bands[bands.length-1].start:null;
+    const EXc=((NAT.extremes||{}).tom||[]).filter(r=>!r.partial&&r.pre_irrigation!=null&&(!curStart||r.date>=curStart));
+    const el=document.getElementById('question');
+    if(!cur||cur.x_etc==null||EXc.length<3){el.innerHTML='';return;}
+    // OLS slope of the level in points per day; `held` as events.hold_rate
+    // judges it when panel 6 has scored this schedule, else the same -0.15.
+    const xs=EXc.map(r=>Date.parse(r.date+'T00:00')/86400000), ys=EXc.map(r=>r.pre_irrigation);
+    const mx=xs.reduce((a,b)=>a+b,0)/xs.length, my=ys.reduce((a,b)=>a+b,0)/ys.length;
+    const slope=xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0)/xs.reduce((a,x)=>a+(x-mx)*(x-mx),0);
+    const ev=(((CFG.next_season||{}).evidence)||[]).find(e=>e.label===cur.label&&e.start===cur.start);
+    const held=ev?ev.held:slope>=-0.15, sl=(slope>0?'+':'')+slope.toFixed(2);
+    const first=ys[0], last=ys[ys.length-1], n=EXc.length;
+    const plan=P.verdict?` (the plan&rsquo;s ${P.inches} in/wk against ${P.etc_lo}&ndash;${P.etc_hi} in this week)`:'';
+    el.innerHTML=`<b>Under the ${esc(cur.label)} the bed has received ${cur.x_etc}&times; the estimated crop use</b>${plan}, `+(held
+      ?`and its before-first-run level held (${sl}/day over ${n} days, ${first} &rarr; ${last}%). The surplus is going where the 3-inch probe does not see it: past it, or into the air. The estimate may be the better guide to how much further the taper can go.`
+      :`yet its before-first-run level slid from <b>${first}%</b> to <b>${last}%</b> (${sl}/day over ${n} days). <b>Both cannot read as over-watered.</b> Either the estimate is high for this bed (a crop coefficient over the bed&rsquo;s area, with nothing for water draining past the roots at an application rate far above what the bed absorbs), or the 3-inch probe sits above where the roots now drink, or the plants were winding down.`)
+      +` This data cannot tell which. What settles it: a probe at 8&ndash;10 in; a plant count; the infiltration test; and one deliberate skipped day, to see how far the level falls.`;
+  })();
   const lastB=B[B.length-1];
   const over=B.filter(b=>b.verdict==='over').length;
   const scored=B.filter(b=>b.verdict!=null).length;
@@ -531,7 +587,7 @@ const NAT=DATA.native||{};
      <p>Meter litres are converted to inches over the bed's area. Treat the band as a sanity check, not a target to hit exactly.</p></details>`;
 })();
 
-/* ---------- 5 · per-run efficiency ---------- */
+/* ---------- diagnostics · per-run efficiency ---------- */
 (function(){
   const EV=(NAT.events||{}), HH=DATA.health||{};
   const rows=[];
@@ -585,9 +641,10 @@ const NAT=DATA.native||{};
      </details>`;
 })();
 
-/* ---------- 6 · pulse detail, native resolution ---------- */
+/* ---------- diagnostics · pulse detail, native resolution ---------- */
 (function(){
   const S5=DATA.series5||[]; if(!S5.length) return;
+  const drawAll=()=>{
   const days=[...new Set(S5.map(r=>r.t.slice(0,10)))].slice(-7);
   const mins=t=>+t.slice(11,13)*60+ +t.slice(14,16);
   function draw(id,key,col,title){
@@ -610,11 +667,17 @@ const NAT=DATA.native||{};
   }
   draw('pulseTom','tom',COL.tom,'Tomato — last 7 days overlaid by time of day');
   draw('pulsePep','pep',COL.pep,'Pepper — last 7 days overlaid by time of day');
+  };
+  // Drawn on first open of Diagnostics (#32): a chart created inside a closed
+  // <details> has no size. The caveat below is written eagerly.
+  const diag=document.getElementById('diagnostics'); let drawn=false;
+  const go=()=>{if(!drawn&&diag.open){drawn=true;drawAll();}};
+  diag.addEventListener('toggle',go); go();
   document.getElementById('pulse-caveat').innerHTML=
     `<div class="take">Look for two things: a spike that <b>drops back fast</b> (the soil was full and the rest drained through), and a <b>floor that stays flat between runs</b> (later runs are landing on soil that is already full).</div>`;
 })();
 
-/* ---------- 7 · run verification ---------- */
+/* ---------- diagnostics · run verification ---------- */
 (function(){
   const O=NAT.onset||{};
   const rows=[];
@@ -709,7 +772,7 @@ const NAT=DATA.native||{};
      Battery changes: ${brk.map(b=>`${b.label} ${b.date}`).join(', ')}. Compare that probe&rsquo;s % only within one battery.</p>`;
 })();
 
-/* ---------- 8 · irrigation schedule ----------
+/* ---------- 5 · irrigation schedule ----------
    What the timers do now (cards and one sentence per line), whether the meter
    agrees with the plan, then the change log collapsed. The log held ~6,000
    words, about 70% of the page: it is history, so it stays one click away. */
@@ -799,7 +862,7 @@ const NAT=DATA.native||{};
   }
 })();
 
-/* ---------- 9 · next season ---------- */
+/* ---------- 6 · next season ---------- */
 (function(){
   const N=CFG.next_season; if(!N) return;
   document.getElementById('next-panel').style.display='';
