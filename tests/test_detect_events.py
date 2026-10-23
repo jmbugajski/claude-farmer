@@ -94,5 +94,20 @@ class Pulses(unittest.TestCase):
         self.assertEqual(evs[0]["floor_between"], 45.0)
 
 
+class Extremes(unittest.TestCase):
+    def test_unknown_floor_withholds_pre_irrigation(self):
+        # The 08-15 fixture: pre_floor 49 is where the data resumed, and the
+        # detector already withholds `retained` on it; the day's control
+        # variable must not publish that number either (#30).
+        rd = _trace(6, {100: 9, 125: 7, 130: 1}, skip=[(60, 120)])
+        ext = events.daily_extremes(rd, "tom", events.detect_events(rd, "tom"))
+        self.assertEqual((ext[0]["n_events"], ext[0]["pre_irrigation"]), (1, None))
+
+    def test_known_floor_is_published(self):
+        rd = _trace(6, {125: 7}, skip=[(60, 120)])
+        ext = events.daily_extremes(rd, "tom", events.detect_events(rd, "tom"))
+        self.assertEqual(ext[0]["pre_irrigation"], 40.0)
+
+
 if __name__ == "__main__":
     unittest.main()

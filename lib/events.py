@@ -175,6 +175,9 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
       settled     value at onset + settle_min -- what it actually KEPT
       retained    settled - pre_floor        <- the only gain that matters
                   (None when the data resumed mid-climb: no floor to measure from)
+      floor_known False when the data resumed mid-climb across a gap: pre_floor
+                  is where the data resumed, not a floor, and daily_extremes()
+                  withholds pre_irrigation on it (#30)
       shed        peak - settled             <- water that arrived and left
       pulses      per-pulse (time, peak) within the event
       floor_between  lowest value between the first and last pulse peak. When
@@ -345,6 +348,7 @@ def detect_events(readings, key, min_rise=MIN_RISE, group_min=GROUP_MIN,
             "peak_t": peak_row["dt"].strftime("%H:%M"),
             "min_to_peak": round((peak_row["dt"] - onset).total_seconds() / 60),
             "settled": settled,
+            "floor_known": floor_known,
             "retained": round(settled - pre_floor, 1)
                         if settled is not None and floor_known else None,
             "shed": round(peak_row[key] - settled, 1) if settled is not None else None,
@@ -363,7 +367,13 @@ def daily_extremes(readings, key, events=None):
                     the real overnight minimum -- the quantity every decision in
                     plan.schedule_log actually used ("hold until the overnight
                     min returns to 58-60%"), and it is not the same as the daily
-                    mean the old dashboard tracked.
+                    mean the old dashboard tracked. None with no event, and None
+                    when the first event's floor is unknown -- the data resumed
+                    mid-climb across a gap, so its pre_floor is where the probe
+                    came back, not what the soil held. detect_events() already
+                    withheld `retained` on that; until #30 this published the
+                    same number as the control variable (pepper 2026-08-15: 49
+                    against a pre-onset minimum of 40).
     day_min         lowest point of the day and when it occurred. Under the
                     current two-run plan this lands mid-afternoon, just before
                     the PM run, and it is the number that says whether the bed
@@ -390,7 +400,9 @@ def daily_extremes(readings, key, events=None):
         partial = span_min < 20 * 60
         out.append({
             "date": d,
-            "pre_irrigation": first_ev[0]["pre_floor"] if first_ev else None,
+            "pre_irrigation": (first_ev[0]["pre_floor"]
+                               if first_ev and first_ev[0].get("floor_known", True)
+                               else None),
             "first_onset": first_ev[0]["onset"] if first_ev else None,
             "n_events": len(ev_by_day.get(d, [])),
             "day_min": lo[key], "day_min_t": lo["dt"].strftime("%H:%M"),
