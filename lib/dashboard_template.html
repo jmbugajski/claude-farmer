@@ -327,7 +327,7 @@ function gauge(key,name,loc,g,verdict,vclass,note){
       <div class="scale"><span>${lo}%</span><span>${g.verified===false?'':`<b>${g.floor}% floor</b> &nbsp;·&nbsp; plant-fed &nbsp;·&nbsp; <b>${g.ceiling}% ceiling</b>`}</span><span>${hi}%</span></div>
     </div>
     <div class="stats">
-      ${/* 7-day medians from analyze._cycle(), so they can differ from panel 2's single day. */''}
+      ${/* 7-day medians from analyze._cycle(), so they can differ from panel 4's single day. */''}
       <div class="stat"><div class="k">typical high</div><div class="v">${peak!=null?peak+'%':'—'}</div></div>
       <div class="stat"><div class="k">typical low</div><div class="v">${trough!=null?trough+'%':'—'}</div></div>
       ${/* Withheld figures are left off rather than shown as a row of dashes. */''}
@@ -952,6 +952,12 @@ function writeFindings(){
         return `${lead}, daily minimum <b>${lx.day_min}%</b> at ${lx.day_min_t}, swing ${lx.swing} points — ${where}.${part} <span style="color:var(--mut)">(${lx.date}, last complete day.)</span>`;})()
     : `Tomato bed mean is <b>${S.tom.mean}%</b> (range ${S.tom.min}–${S.tom.max}%), latest <b>${S.tom.last}%</b>.`;
   const hp=(DATA.health||{}).pep;
+  // The pepper line is unmetered: say so, and give the one trend the probe
+  // alone can show, the daily low by month (#32).
+  const pepLows=(()=>{const by={};((NAT.extremes||{}).pep||[]).forEach(r=>{if(!r.partial&&r.day_min!=null){const m=r.date.slice(0,7);by[m]=Math.min(by[m]==null?Infinity:by[m],r.day_min);}});
+    const MON=['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const ks=Object.keys(by).sort(); return ks.length?` Daily low by month: ${ks.map(k=>`${MON[+k.slice(5)]} ${Math.round(by[k])}%`).join(', ')}.`:'';})();
+  const pepMeter=` The pepper line is not metered, so there is no litres figure for the bags.${pepLows}`;
   document.getElementById('f-pep').innerHTML= (hp&&hp.has_bad)
     ? `<b style="color:var(--tom)">Pepper readings are not usable right now.</b> The daily AD range has collapsed to <b>${hp.ad_range_last} counts</b>, against a healthy norm many times that. Soil breathes on a daily cycle; a flat trace is a sensor, not a substrate — ${S.pep.mean!=null?`so the reported <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}) describes the instrument, not the bed.`:`and the channel returned no moisture reading at all in this window.`} <b>Do not act on pepper numbers until the AD range recovers.</b> First check the battery: this channel must run on alkaline (~1.5 V nominal). A lithium AA reads ~1.7 V and has previously pinned this probe flat for two weeks while the derived % drifted smoothly downward, which reads convincingly like a bed drying out and is not.`
     : (hp&&hp.ok===false)
@@ -960,13 +966,13 @@ function writeFindings(){
         // range is not a calibration shift, and only a voltage step makes
         // absolute % incomparable across battery eras (#13).
         const f=hp.flags.find(x=>x.level==='warn')||hp.flags[0], volt=/volt/i.test(f.msg);
-        return `Pepper channel is reporting (daily AD range ${hp.ad_range_last} counts) with a <b>${volt?'calibration':'narrowed-range'}</b> caveat: ${f.msg} ${volt?`Day-to-day <em>swings</em> are trustworthy; absolute % is comparable only within a single battery era.`:''} Current mean <b>${S.pep.mean}%</b> (range ${S.pep.min}–${S.pep.max}%).`;})()
+        return `Pepper channel is reporting (daily AD range ${hp.ad_range_last} counts) with a <b>${volt?'calibration':'narrowed-range'}</b> caveat: ${f.msg} ${volt?`Day-to-day <em>swings</em> are trustworthy; absolute % is comparable only within a single battery era.`:''} Current mean <b>${S.pep.mean}%</b> (range ${S.pep.min}–${S.pep.max}%).`+pepMeter;})()
     : (()=>{const PE=((DATA.native||{}).events||{}).pep||[];
         const es=PE.filter(e=>e.retained!=null&&!e.manual).slice(-7);
         if(!es.length) return `Peppers held a tight <b>${S.pep.mean}% mean</b> (std ±${S.pep.std}, range ${S.pep.min}–${S.pep.max}%).`;
         const r=es.reduce((a,e)=>a+e.retained,0)/es.length, sh=es.reduce((a,e)=>a+e.shed,0)/es.length;
         const eff=Math.round(r/(r+sh)*100);
-        return `Bags cycle <b>${Math.min(...es.map(e=>e.pre_floor))}–${Math.max(...es.map(e=>e.peak))}%</b>${CFG.bands.pep.verified===false?'':` against a <b>${CFG.bands.pep.drainage_ceiling}% ceiling</b> and a <b>${CFG.bands.pep.stress_floor}% floor</b>`}. Each run adds <b>+${r.toFixed(1)} points</b> and keeps ${eff}% of it (last ${es.length} runs).${eff<45?` <b>Washout:</b> the bags fill part-way through the run and drain the rest.`:``}`;})();
+        return `Bags cycle <b>${Math.min(...es.map(e=>e.pre_floor))}–${Math.max(...es.map(e=>e.peak))}%</b>${CFG.bands.pep.verified===false?'':` against a <b>${CFG.bands.pep.drainage_ceiling}% ceiling</b> and a <b>${CFG.bands.pep.stress_floor}% floor</b>`}. Each run adds <b>+${r.toFixed(1)} points</b> and keeps ${eff}% of it (last ${es.length} runs).${eff<45?` <b>Washout:</b> the bags fill part-way through the run and drain the rest.`:``}`+pepMeter;})();
   // Weather card repurposed 2026-08-22. It used to report an ET0-vs-dry-down
   // correlation of r ~ 0 and explain at length why that null was expected --
   // true, but it answered a question nobody was asking. ET0's real job is as the
@@ -999,7 +1005,10 @@ function writeFindings(){
   // same thing twice: say it once and point at the two readings to watch.
   document.getElementById('f-act').innerHTML=
     (CFG.bands.tom.verified===false&&CFG.bands.pep.verified===false
-      ? `No recommendation for either line until the bands are re-derived. Watch the tomato <b>daily low</b> (panel 2) and whether the <b>pepper runs</b> are landing (panel 7).`
+      ? (()=>{const RG=NAT.regimes||[], cur=RG[RG.length-1];
+          // Points at the season's result and its open question (#32) instead
+          // of ending at "no recommendation" while the bands are withheld.
+          return `Keep the ${esc(cur?cur.label:'current schedule')} and watch the tomato <b>daily low</b> (panel 4). ${cur&&cur.x_etc!=null?`The bed gets <b>${cur.x_etc}&times;</b> the estimated crop use under it; whether that estimate or the probe is right is the season&rsquo;s open question (panel 3), and a probe at 8&ndash;10 in settles it. `:''}No band verdict until the thresholds are re-derived.`;})()
       : `<b>Tomatoes:</b> ${CFG.advice.tom}<br><b>Peppers:</b> ${CFG.advice.pep}`)+
     `<br><b>Water:</b> ${CFG.advice.water}`;
 }

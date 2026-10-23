@@ -25,11 +25,13 @@ pull_weather_data.sh → fetch_weather.py (Open-Meteo)
    published copy at `docs/index.html`.
 
 The dashboard is a single HTML file with everything baked in, weather included, so
-it works fully offline. Its panels are: sensor health, the control variable (what
-the bed holds), a regime comparison, water budget vs crop demand, whether each run
-earns its water, 5-minute pulse detail for the last 7 days, whether runs fired on
-time, the irrigation schedule, and a "what the month says" summary with a
-**Do next** card.
+it works fully offline. Its panels are: a "this week" summary with a **Do next**
+card, sensor health, what the season showed (water per schedule, the level the
+bed held, kept per run, applied vs estimated crop use), the open question
+(applied water against the crop-use estimate, next to what the bed's level did),
+the tomato bed's daily low and high, the irrigation schedule, next season, and a
+collapsed Diagnostics section (per-run efficiency, 5-minute pulse detail for the
+last 7 days, whether runs fired on time).
 
 ## Run it
 

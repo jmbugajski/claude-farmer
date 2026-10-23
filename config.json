@@ -77,7 +77,7 @@
   "liters_per_inch_of_water": 113.3,
   "gallons_per_inch_of_water": 29.9,
   "target": {
-   "_comment": "target_in_per_week is Justin's stated goal. NOTE it is a classic in-ground, moderate-weather rule of thumb; a 10-inch-deep raised bed in a Santa Clara August loses considerably more. august_etc_in_per_week is the estimated real crop demand (reference ET0 ~0.25-0.35 in/day x tomato mid-season Kc ~1.15). Water to the ETc figure in a heat event and drift back toward target_in_per_week in Sept/Oct. AMENDED 2026-09-19 (#22): august_etc_in_per_week is NO LONGER what panel 4 scores weeks against. It was one August figure drawn across the whole June-September span, and cached FAO-56 ET0 puts real weekly demand at 1.14-1.91 in/wk over 2026-06-29 -> 2026-09-19, below this constant in every week and below its lower edge from mid-August. Panel 4 now derives the band per week as that week's mean ET0 x kc_mid_season. The constant is kept because it is still a true August estimate and the dark CFG.bed template branches (#16) quote it.",
+   "_comment": "target_in_per_week is Justin's stated goal. NOTE it is a classic in-ground, moderate-weather rule of thumb; a 10-inch-deep raised bed in a Santa Clara August loses considerably more. august_etc_in_per_week is the estimated real crop demand (reference ET0 ~0.25-0.35 in/day x tomato mid-season Kc ~1.15). Water to the ETc figure in a heat event and drift back toward target_in_per_week in Sept/Oct. AMENDED 2026-09-19 (#22): august_etc_in_per_week is NO LONGER what the open-question panel scores weeks against. It was one August figure drawn across the whole June-September span, and cached FAO-56 ET0 puts real weekly demand at 1.14-1.91 in/wk over 2026-06-29 -> 2026-09-19, below this constant in every week and below its lower edge from mid-August. The open-question panel now derives the band per week as that week's mean ET0 x kc_mid_season. The constant is kept because it is still a true August estimate and the dark CFG.bed template branches (#16) quote it.",
    "in_per_week": [
     1.0,
     1.5
@@ -86,7 +86,7 @@
     113,
     170
    ],
-   "_kc_comment": "FAO-56 crop coefficient for the tomato bed, recorded 2026-09-19 (#22). Panel 4's weekly demand band is that week's mean cached ET0 (mm/day) x 7 / 25.4 x this range. Mid-season only: there is deliberately no growth-stage curve, because FAO-56 tomato Kc_end ~0.7-0.9 was measured against this span and moved NO verdict -- applied depth was above every candidate band's top in all 11 complete weeks. Revisit when applied water gets close enough to demand for the late-season step-down to bind.",
+   "_kc_comment": "FAO-56 crop coefficient for the tomato bed, recorded 2026-09-19 (#22). The open-question panel's weekly demand band is that week's mean cached ET0 (mm/day) x 7 / 25.4 x this range. Mid-season only: there is deliberately no growth-stage curve, because FAO-56 tomato Kc_end ~0.7-0.9 was measured against this span and moved NO verdict -- applied depth was above every candidate band's top in all 11 complete weeks. Revisit when applied water gets close enough to demand for the late-season step-down to bind.",
    "kc_mid_season": [
     1.05,
     1.15
@@ -163,7 +163,7 @@
   "step_recent_days": 14
  },
  "plan": {
-  "_comment": "Actual watering is a fixed timer, not a volume-based/Smart plan (that was never implemented). The WFC01 meters the tomato raised bed line ONLY. THE PEPPERS ARE NOT ON ECOWITT HARDWARE AT ALL — corrected 2026-08-19; they run off the HOUSE MULTI-ZONE IRRIGATION CONTROLLER alongside lawn/roses/trees. See pepper_system below before troubleshooting anything pepper-related. The pepper_freq/pepper_time/pepper_run_min keys live in this block for dashboard-rendering reasons only; they describe a different device on a different network with different failure modes. Delivery figures below are the MEASURED metered rate on clean days, not a nameplate estimate — real flow runs well above emitter nameplate. AMENDED 2026-09-19 (#16): this block is a notebook and the page is public. Only the keys in analyze.PAGE_PLAN_KEYS reach docs/index.html, plus schedule_log entries' date / logged / kind / summary / change, which panel 8 prints in full. Write nothing in a schedule_log summary or change that should not be on a public web page; every other key here, new ones included, stays out of the build.",
+  "_comment": "Actual watering is a fixed timer, not a volume-based/Smart plan (that was never implemented). The WFC01 meters the tomato raised bed line ONLY. THE PEPPERS ARE NOT ON ECOWITT HARDWARE AT ALL — corrected 2026-08-19; they run off the HOUSE MULTI-ZONE IRRIGATION CONTROLLER alongside lawn/roses/trees. See pepper_system below before troubleshooting anything pepper-related. The pepper_freq/pepper_time/pepper_run_min keys live in this block for dashboard-rendering reasons only; they describe a different device on a different network with different failure modes. Delivery figures below are the MEASURED metered rate on clean days, not a nameplate estimate — real flow runs well above emitter nameplate. AMENDED 2026-09-19 (#16): this block is a notebook and the page is public. Only the keys in analyze.PAGE_PLAN_KEYS reach docs/index.html, plus schedule_log entries' date / logged / kind / summary / change, which the Irrigation schedule panel prints in full. Write nothing in a schedule_log summary or change that should not be on a public web page; every other key here, new ones included, stays out of the build.",
   "mode": "plan mode, pulsed timer",
   "scope": "tomato raised bed only",
   "emitters": "12 bubblers + 8–10 drip-flag emitters (4 gph)",
@@ -853,7 +853,7 @@
   "_time_effective_comment": "Date the START TIMES last moved, as distinct from runs_effective/pepper_effective which also advance on a DURATION change. Onset checking compares start times, so it scopes on these. Keeping them separate is not pedantry: on 2026-08-19 the pepper duration cut set pepper_effective to a FUTURE date, the onset filter excluded every event, and the panel silently rendered empty. Tomato times have been 05:05 + a PM start since 2026-08-04 (17:00 -> 17:05 is inside tolerance); pepper has been 06:45 since 2026-07-24, through both the 15-min and 7-min durations. AMENDED 2026-09-19 (#15): the tomato half is no longer stored. runs_time_effective is derived as the start of the oldest regimes[] row in the trailing streak that holds the current SET of start times, which gives 2026-09-15 today; by that rule the 2026-08-20 cut (05:20 / 05:35 retired, 17:00 -> 17:05) also moved it, where this key was left at 2026-08-04. pepper_time_effective is still hand-kept: the peppers have no regimes[] rows."
  },
  "next_season": {
-  "_comment": "DRAFTED 2026-10-21 at the end of the 2026 season, as the starting plan for 2027 so the first month is not spent re-learning this one. Read by analyze._next_season() and rendered as dashboard panel 9; only the keys in analyze.PAGE_NEXT_KEYS reach the page. The tomato pulse counts are NOT stored here: panel 9 computes them from this season's regimes (events.hold_rate) times et0_reference, so a new season's data re-derives them. Edit the text lists freely; keep each item one or two sentences.",
+  "_comment": "DRAFTED 2026-10-21 at the end of the 2026 season, as the starting plan for 2027 so the first month is not spent re-learning this one. Read by analyze._next_season() and rendered as the dashboard's next-season panel; only the keys in analyze.PAGE_NEXT_KEYS reach the page. The tomato pulse counts are NOT stored here: the next-season panel computes them from this season's regimes (events.hold_rate) times et0_reference, so a new season's data re-derives them. Edit the text lists freely; keep each item one or two sentences.",
   "drafted": "2026-10-21",
   "pulse_seconds": 90,
   "et0_reference": {
@@ -882,7 +882,7 @@
   "rules": [
    "Change the number of starts, not the run length. Keep runs at 90 s or less: the line delivers about 6.6 in/hr, far faster than the bed absorbs, so longer runs drain away. A 14-minute run used 189 L per watering and held the bed lower than two 90-second pulses.",
    "Spread the starts through the day (times in the table). Pulses 15 minutes apart added nothing: the second and third drained straight through.",
-   "Check panel 2 weekly. If the before-first-run level drops 3 or more points in a week, add a start. If it climbs and panel 5 shows runs shedding, drop one.",
+   "Check the daily-low panel weekly. If the before-first-run level drops 3 or more points in a week, add a start. If it climbs and the per-run table under Diagnostics shows runs shedding, drop one.",
    "In a heat wave, add a midday start for those days rather than lengthening runs.",
    "For the first month after transplant, use about half the table's pulses."
   ],
@@ -891,7 +891,7 @@
    "If the pepper low keeps sliding (it reached 28–33% in October on 7 min), add a second 7-minute run rather than lengthening the first.",
    "Every 2–3 weeks, run one 15-minute flush to wash salts out of the bags.",
    "Fertilise when the bags are dry, not straight after a run: liquid feed on wet bags washed out with the next morning's water.",
-   "The pepper probe is the only check that the pepper zone ran (panel 7). Peppers are not metered."
+   "The pepper probe is the only check that the pepper zone ran (the run log under Diagnostics). Peppers are not metered."
   ]
  }
 }

@@ -69,9 +69,9 @@ projected L/day, L/wk and in/wk from that last row, and the build refuses a
 config whose rows overlap, leave a gap, or that stores one of those keys again.
 The gauge bar's zones are `bands.stress_floor` / `drainage_ceiling`.
 
-## Writing schedule-log entries (section 8 · Irrigation schedule)
+## Writing schedule-log entries (the Irrigation schedule panel)
 
-Hard limit: **every entry in section 8 must read as a few sentences at most — 3
+Hard limit: **every entry in that panel must read as a few sentences at most — 3
 sentences or ~250 characters, whichever is shorter.**
 
 When adding to `plan.schedule_log` in `config.json`, write two fields:
