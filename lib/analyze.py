@@ -1283,6 +1283,16 @@ def build(readings, config, wx_hourly=None):
         config.get("next_season"),
         events_mod.hold_rate(plan_cfg.get("regimes"), regimes, ext_tom, et0_by_date),
         plan_cfg.get("measured_rate_lps"))
+    # Where the run LENGTH changed, for onset_check's `short` baseline (#24):
+    # the panel's `since` is the date the start times last moved, which is
+    # the right window for the slot grid and the wrong one for "normal
+    # retained" -- the pepper window straddled the 15 -> 7 min cut and every
+    # 7-min run that retained 2 scored short against the pooled median.
+    regimes_cfg = plan_cfg.get("regimes") or []
+    dur_tom = [b["start"] for a, b in zip(regimes_cfg, regimes_cfg[1:])
+               if sorted(r["seconds"] for r in a.get("runs") or [])
+               != sorted(r["seconds"] for r in b.get("runs") or [])]
+    dur_pep = [plan_cfg.get("pepper_effective")]
     native = {
         "events": {"tom": ev_tom, "pep": ev_pep},
         "extremes": {"tom": ext_tom, "pep": ext_pep},
@@ -1301,11 +1311,11 @@ def build(readings, config, wx_hourly=None):
         "onset": {
             "tom": events_mod.onset_check(
                 ev_tom, sched_tom, readings, "tom", ad_floor=ad_floor,
-                ad_exc_floor=ad_exc_floor,
+                ad_exc_floor=ad_exc_floor, duration_changes=dur_tom,
                 since=_scope(plan_cfg.get("runs_time_effective"), readings)),
             "pep": events_mod.onset_check(
                 ev_pep, sched_pep, readings, "pep", ad_floor=ad_floor,
-                ad_exc_floor=ad_exc_floor,
+                ad_exc_floor=ad_exc_floor, duration_changes=dur_pep,
                 since=_scope(max([d for d in (plan_cfg.get("pepper_time_effective")
                                               or plan_cfg.get("pepper_effective"),
                                               (health.get("pep") or {}).get("trust_from"))

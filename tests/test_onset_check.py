@@ -131,6 +131,23 @@ class ShortIsJudgedOnRetainedAlone(unittest.TestCase):
         rows = events.onset_check(evs, ["06:45"], _trace(3), "pep")
         self.assertEqual((rows[-1]["kind"], rows[-1]["delta_min"]), ("displaced", 40))
 
+    def test_baseline_is_the_runs_own_duration_era(self):
+        # Five 15-min-era runs retaining 9, then a 7-min era retaining 2, 2, 1.
+        # Pooled, the median is 9 and every 7-min run is short; the live pepper
+        # panel carried 20 such rows after the 2026-08-20 cut (#24). Scored
+        # against its own era (median 2, threshold 1.2) a 2 is normal and
+        # the 1 is still short.
+        evs = ([_ev(_at(d, 6, 45), retained=9.0) for d in (1, 2, 3, 4, 5)]
+               + [_ev(_at(6, 6, 45), retained=2.0), _ev(_at(7, 6, 45), retained=2.0),
+                  _ev(_at(8, 6, 45), retained=1.0)])
+        pooled = events.onset_check(evs, ["06:45"], _trace(8), "pep")
+        self.assertEqual([k for _, k in _kinds(pooled)[5:]], ["short"] * 3)
+        rows = events.onset_check(evs, ["06:45"], _trace(8), "pep",
+                                  duration_changes=["2026-09-06"])
+        self.assertEqual(_kinds(rows)[5:], [("06", "on_time"), ("07", "on_time"),
+                                            ("08", "short")])
+        self.assertEqual([k for _, k in _kinds(rows)[:5]], ["on_time"] * 5)
+
 
 class OneEventPerSlot(unittest.TestCase):
     def test_second_event_at_a_slot_is_extra(self):

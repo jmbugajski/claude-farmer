@@ -520,7 +520,7 @@ def _trailing_median(by_date, upto, window=3):
 
 def onset_check(events, scheduled, readings, key, tol_min=15, since=None,
                 fault_frac=0.6, cover_min=SLOT_COVER_MIN, min_rise=MIN_RISE,
-                ad_floor=None, ad_exc_floor=None):
+                ad_floor=None, ad_exc_floor=None, duration_changes=()):
     """
     Did each SCHEDULED run fire, when it should, at full size?
 
@@ -585,9 +585,17 @@ def onset_check(events, scheduled, readings, key, tol_min=15, since=None,
     2026-08-19. `displaced` stays in the table because this is the only run-log
     the house system has, but it is not styled as an alarm.
 
-    The `retained` reference is the median of matched runs in the same scoped
-    window, so it tracks the current schedule rather than a historical constant;
-    `fault_frac` is how far below that a run must land to count as short.
+    The `retained` reference is the median of matched runs in the same DURATION
+    era: `duration_changes` lists the dates the run length changed, the matched
+    runs are split into eras at them, and each era is scored against its own
+    median; `fault_frac` is how far below that a run must land to count as
+    short. Until #24 the reference was one median over the whole scoped
+    window, and `since` is scoped by the date the START TIMES last moved, on
+    purpose -- so the pepper window (from 2026-08-06) straddled the 2026-08-20
+    cut from 15 to 7 minutes. The pooled median was 4 counts against 3 for the
+    7-minute runs alone, and every 7-minute run that retained 2 -- the modal
+    outcome of that schedule, 20 of 52 -- published as `short`, "points at the
+    pepper valve or probe", while scoring 0 against its own era's median.
     """
     samples = sorted(((r["dt"], r[key]) for r in (readings or [])
                       if r.get(key) is not None), key=lambda x: x[0])
@@ -686,12 +694,21 @@ def onset_check(events, scheduled, readings, key, tol_min=15, since=None,
             out.append(_row(slot, "missed"))
 
     # Second pass: classify. Needs the whole set first, because "normal
-    # retained" is defined by the matched runs in this same window.
-    ref = [r["retained"] for r in matched if r["retained"] is not None]
-    ref_med = statistics.median(ref) if ref else None
+    # retained" is defined by the matched runs in the same duration era (#24).
+    breaks = sorted(d for d in (duration_changes or ()) if d)
+
+    def _era(r):
+        return sum(1 for b in breaks if r["date"] >= b)
+
+    ref_med = {}
+    for era in {_era(r) for r in matched}:
+        ref = [r["retained"] for r in matched
+               if _era(r) == era and r["retained"] is not None]
+        ref_med[era] = statistics.median(ref) if ref else None
     for r in matched:
-        usable = ref_med is not None and ref_med > 0 and r["retained"] is not None
-        if usable and r["retained"] < fault_frac * ref_med:
+        med = ref_med[_era(r)]
+        usable = med is not None and med > 0 and r["retained"] is not None
+        if usable and r["retained"] < fault_frac * med:
             r["kind"] = "short"
         elif not r["late"]:
             r["kind"] = "on_time"
