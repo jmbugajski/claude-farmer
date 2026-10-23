@@ -930,3 +930,90 @@ def water_budget(water_daily, liters_per_inch, et0_mm_by_date, kc):
             "x_etc": round(inches / hi, 1) if hi else None,
         })
     return out
+
+
+def regime_efficiency(regimes_cfg, events, water_daily, et0_by_date, kc, liters_per_inch,
+                      skip_days=()):
+    """
+    Per regime, keyed (label, start), the figures the season's story turns on
+    (#32): `kept_pct`, the share of each run's rise still at the probe ~50 min
+    later, averaged over the regime's non-manual tomato runs (`n_runs`);
+    `et0`, mean daily ET0 over the regime's metered days; `x_etc`, water
+    applied over those days as a multiple of the ETc top band (summed ET0 x
+    kc[1]) for the same days.
+
+    The day set is per_day_draw()'s -- single-day measured draws, no reset or
+    partial tail -- less `skip_days` (metered test runs). 0 L days STAY IN:
+    the hand-timed bed was watered every other day (#27) and the skipped
+    day's demand was real, so x_etc is on a calendar basis while
+    regime_summary's liters_day is per watering day. Each is what its label
+    says.
+    """
+    draw = per_day_draw(water_daily)
+    hi_kc = (kc or [None, None])[1]
+    out = {}
+    for rg in regimes_cfg or []:
+        lo, hi = rg["start"], rg.get("end") or "9999-99-99"
+        es = [e for e in events or [] if lo <= e["date"] <= hi and not e.get("manual")
+              and e.get("retained") is not None and e.get("shed") is not None
+              and e["retained"] + e["shed"] > 0]
+        kept = [e["retained"] / (e["retained"] + e["shed"]) for e in es]
+        days = [d for d in draw if lo <= d <= hi and d not in skip_days and d in et0_by_date]
+        demand_mm = sum(et0_by_date[d] for d in days)
+        x_etc = None
+        if days and hi_kc and liters_per_inch and demand_mm > 0:
+            applied_in = sum(draw[d] for d in days) / liters_per_inch
+            x_etc = round(applied_in / (demand_mm / MM_PER_INCH * hi_kc), 1)
+        out[(rg["label"], rg["start"])] = {
+            "kept_pct": round(statistics.fmean(kept) * 100) if kept else None,
+            "n_runs": len(es),
+            "et0": round(statistics.fmean(et0_by_date[d] for d in days), 2) if days else None,
+            "x_etc": x_etc,
+        }
+    return out
+
+
+def season_summary(budget, regime_rows, regimes_cfg, max_pulse_s=120, min_runs=5):
+    """
+    The season in a few numbers for the page's lead panel (#32), read off the
+    rows the other panels already show: complete weeks' applied depth against
+    the ETc band; the water cut, from the highest L per watering day of any
+    schedule of 3+ days to the open schedule's; the range of before-first-run
+    levels those schedules held; and the run-weighted kept share for long runs
+    (any run over max_pulse_s) against pulsed schedules, over regimes with at
+    least `min_runs` scored runs. Nothing here is typed in.
+    """
+    weeks = [b for b in budget or [] if b.get("etc_hi")]
+    applied = sum(b["inches"] for b in weeks)
+    etc_lo = sum(b["etc_lo"] for b in weeks)
+    etc_hi = sum(b["etc_hi"] for b in weeks)
+    rows = regime_rows or []
+    wet = [r for r in rows if r.get("liters_day") and r.get("days", 0) >= 3]
+    most = max(wet, key=lambda r: r["liters_day"]) if wet else None
+    current = rows[-1] if rows else None
+    cur_l = current.get("liters_day") if current else None
+    floors = [r["pre_irrigation"] for r in wet if r.get("pre_irrigation") is not None]
+    longest = {(rg["label"], rg["start"]): max((r["seconds"] for r in rg.get("runs") or []),
+                                                default=None) for rg in regimes_cfg or []}
+
+    def _kept(pulsed):
+        pairs = [(r["kept_pct"], r["n_runs"]) for r in rows
+                 if r.get("kept_pct") is not None and r.get("n_runs", 0) >= min_runs
+                 and longest.get((r["label"], r["start"])) is not None
+                 and (longest[(r["label"], r["start"])] <= max_pulse_s) == pulsed]
+        n = sum(w for _, w in pairs)
+        return round(sum(k * w for k, w in pairs) / n) if n else None
+
+    return {
+        "weeks": len(weeks), "applied_in": round(applied, 1),
+        "etc_lo_in": round(etc_lo, 1), "etc_hi_in": round(etc_hi, 1),
+        "x_etc": round(applied / etc_hi, 1) if etc_hi else None,
+        "most_label": most["label"] if most else None,
+        "most_liters": most["liters_day"] if most else None,
+        "current_label": current["label"] if current else None,
+        "current_liters": cur_l,
+        "cut": round(most["liters_day"] / cur_l, 1) if most and cur_l else None,
+        "floor_lo": min(floors) if floors else None,
+        "floor_hi": max(floors) if floors else None,
+        "kept_long": _kept(False), "kept_pulsed": _kept(True),
+    }

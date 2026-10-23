@@ -1329,6 +1329,15 @@ def build(readings, config, wx_hourly=None):
     regimes = events_mod.regime_summary(
         plan_cfg.get("regimes"), ext_tom, water.get("daily") if water else None,
         skip_days=events_mod.metered_manual_days(manual))
+    # The lead panel's figures (#32): kept share, ET0 and applied-vs-estimate
+    # per schedule on the regime rows, and the season in a few numbers.
+    efficiency = events_mod.regime_efficiency(
+        plan_cfg.get("regimes"), ev_tom, water.get("daily") if water else None,
+        et0_by_date, kc, bed_cfg.get("liters_per_inch_of_water"),
+        skip_days=events_mod.metered_manual_days(manual))
+    for row in regimes:
+        row.update(efficiency.get((row["label"], row["start"]), {}))
+    season = events_mod.season_summary(budget, regimes, plan_cfg.get("regimes"))
     # Panel 9 scales next season's schedule from what held the bed this one.
     next_season = _next_season(
         config.get("next_season"),
@@ -1373,6 +1382,7 @@ def build(readings, config, wx_hourly=None):
                            if d] or [None])),
         },
         "regimes": regimes,
+        "season": season,
         "budget": budget,
         # The live plan's weekly depth, scored by the same rule as the weeks.
         # Carries its own band: with a per-week band the template can no longer
