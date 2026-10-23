@@ -163,6 +163,26 @@ def _times(row):
     return {r["time"] for r in row["runs"]}
 
 
+def times_effective(regimes, i):
+    """The date regimes[i]'s START TIMES took effect: the start of the oldest
+    row in the trailing streak, ending at i, that holds the same SET of times.
+
+    A duration-only change keeps the streak going, which is the distinction
+    onset_check() needs: on 2026-08-19 a duration cut advanced the one date
+    there was, put it in the future, and the onset panel rendered empty.
+    resolve() reads it for the last row (plan.runs_time_effective);
+    analyze.build() reads it for the row the readings were produced under,
+    which is not the last row while a logged change has yet to run (#25).
+    """
+    row = regimes[i]
+    since = row
+    for prev in reversed(regimes[:i]):
+        if _times(prev) != _times(row):
+            break
+        since = prev
+    return since["start"]
+
+
 def resolve(config):
     """Validate, then fill in DERIVED_PLAN_KEYS on config["plan"]. Returns config.
 
@@ -179,17 +199,6 @@ def resolve(config):
     current = regimes[-1]
     runs = current["runs"]
 
-    # Start times last moved at the oldest row of the trailing streak that
-    # holds the current SET of times. A duration-only change keeps the streak
-    # going, which is the distinction onset_check() needs: on 2026-08-19 a
-    # duration cut advanced the one date there was, put it in the future, and
-    # the onset panel rendered empty.
-    since = current
-    for row in reversed(regimes[:-1]):
-        if _times(row) != _times(current):
-            break
-        since = row
-
     seconds = sum(r["seconds"] for r in runs)
     daily = seconds * plan["measured_rate_lps"]
     uniform = len({r["seconds"] for r in runs}) == 1
@@ -199,7 +208,7 @@ def resolve(config):
         "run_seconds": runs[0]["seconds"] if uniform else None,
         "run_min": round(seconds / 60, 1),
         "runs_effective": current["start"],
-        "runs_time_effective": since["start"],
+        "runs_time_effective": times_effective(regimes, len(regimes) - 1),
         "metered_daily": round(daily, 1),
         "metered_weekly": round(daily * 7, 1),
         "expected_in_per_week": round(daily * 7 / config["bed"]["liters_per_inch_of_water"], 2),

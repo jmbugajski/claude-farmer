@@ -20,6 +20,7 @@ import math
 import statistics
 
 import events as events_mod
+import farm_config
 import parse_ecowitt
 from datetime import datetime, timedelta
 
@@ -186,6 +187,31 @@ def _regime_split(series, key, bands, since=None, until=None):
     }
 
 
+def _running_regime(config, readings):
+    """Index into plan.regimes of the row the readings were produced under:
+    the latest row whose start is at or before the newest reading, or None.
+
+    One owner. _regime_window() bounds the litres, split and cycle by it, and
+    build() takes the onset panel's slot times and `since` from it (#25):
+    until then the slots were plan.runs, the LAST row started or not, so on
+    the evening a time change was logged the whole record was scored against
+    times that had never run.
+    """
+    regimes = (config.get("plan", {}) or {}).get("regimes") or []
+    last = readings[-1]["dt"] if readings else None
+    best = None
+    for i, r in enumerate(regimes):
+        try:
+            dt = datetime.strptime(r.get("start"), "%Y-%m-%d")
+        except (TypeError, ValueError):
+            continue
+        if last is not None and dt > last:
+            continue        # not in effect yet -- cannot describe these readings
+        if best is None or dt > best[0]:
+            best = (dt, i)
+    return best[1] if best else None
+
+
 def _regime_window(config, readings):
     """The irrigation regime the DATA actually covers, as (start, end, label).
 
@@ -222,17 +248,10 @@ def _regime_window(config, readings):
         except (TypeError, ValueError):
             return None
 
-    started = []
-    for r in regimes:
-        dt = _d(r.get("start"))
-        if dt is None:
-            continue
-        if last is not None and dt > last:
-            continue        # not in effect yet -- cannot describe these readings
-        started.append((dt, r))
-
-    if started:
-        dt, r = max(started, key=lambda p: p[0])
+    i = _running_regime(config, readings)
+    if i is not None:
+        r = regimes[i]
+        dt = _d(r["start"])
         end = _d(r.get("end"))
         if end is not None:
             # `end` is the last full day ON the regime, so the window runs to the
@@ -882,22 +901,6 @@ def _gauge_for(pkey, pcfg, stats, cycle, split=None, partition=None):
     return g
 
 
-def _scope(since, readings):
-    """
-    Guard a `since` date against being in the future.
-
-    Plan changes are entered the day BEFORE they first run, so an effective date
-    routinely sits ahead of the newest reading. Any panel filtered on it then
-    silently shows nothing -- which is how the onset table went blank when the
-    pepper duration cut was logged. Returns None (no filter) in that case, so the
-    panel keeps showing the schedule that has actually been running.
-    """
-    if not since or not readings:
-        return since
-    last = readings[-1]["dt"].strftime("%Y-%m-%d")
-    return since if since <= last else None
-
-
 def _sensor_health(readings, config):
     """
     Per-channel instrument trust check. Two failure modes matter for remote
@@ -1249,7 +1252,24 @@ def build(readings, config, wx_hourly=None):
     ext_tom = events_mod.daily_extremes(readings, "tom", ev_tom)
     ext_pep = events_mod.daily_extremes(readings, "pep", ev_pep)
     daily = _daily(series, {"tom": ext_tom, "pep": ext_pep})
-    sched_tom = [r["time"] for r in plan_cfg.get("runs", [])]
+    # Slot times and `since` for the onset panel come from the regime the
+    # readings were produced under, not from plan.runs (the last row, started
+    # or not). A time change is logged the evening before it first runs; the
+    # old future-date guard then found runs_time_effective ahead of the
+    # readings, dropped `since` to None, and the whole record was scored
+    # against times that had never run: 46 missed and 147 displaced tomato
+    # runs on 06-29 -> 10-20 (#25). The pepper line has no regime rows and no
+    # record of its previous time; a pepper time that has not run yet keeps
+    # its future `since`, onset_check() builds no slot past the newest
+    # reading, and that panel is withheld rather than scored.
+    regimes_cfg = plan_cfg.get("regimes") or []
+    running = _running_regime(config, readings)
+    if running is None:
+        sched_tom, since_tom = [], None
+    else:
+        sched_tom = [r["time"] for r in regimes_cfg[running]["runs"]]
+        since_tom = farm_config.times_effective(regimes_cfg, running)
+    pep_time_since = plan_cfg.get("pepper_time_effective") or plan_cfg.get("pepper_effective")
     sched_pep = [plan_cfg["pepper_time"]] if plan_cfg.get("pepper_time") else []
     # Both limbs of the same conjunction _sensor_health grades `bad` on: under
     # BOTH, a flat trace says nothing about whether a scheduled run fired.
@@ -1288,7 +1308,6 @@ def build(readings, config, wx_hourly=None):
     # the right window for the slot grid and the wrong one for "normal
     # retained" -- the pepper window straddled the 15 -> 7 min cut and every
     # 7-min run that retained 2 scored short against the pooled median.
-    regimes_cfg = plan_cfg.get("regimes") or []
     dur_tom = [b["start"] for a, b in zip(regimes_cfg, regimes_cfg[1:])
                if sorted(r["seconds"] for r in a.get("runs") or [])
                != sorted(r["seconds"] for r in b.get("runs") or [])]
@@ -1312,15 +1331,13 @@ def build(readings, config, wx_hourly=None):
             "tom": events_mod.onset_check(
                 ev_tom, sched_tom, readings, "tom", ad_floor=ad_floor,
                 ad_exc_floor=ad_exc_floor, duration_changes=dur_tom,
-                since=_scope(plan_cfg.get("runs_time_effective"), readings)),
+                since=since_tom),
             "pep": events_mod.onset_check(
                 ev_pep, sched_pep, readings, "pep", ad_floor=ad_floor,
                 ad_exc_floor=ad_exc_floor, duration_changes=dur_pep,
-                since=_scope(max([d for d in (plan_cfg.get("pepper_time_effective")
-                                              or plan_cfg.get("pepper_effective"),
-                                              (health.get("pep") or {}).get("trust_from"))
-                                   if d] or [None]),
-                             readings)),
+                since=max([d for d in (pep_time_since,
+                                       (health.get("pep") or {}).get("trust_from"))
+                           if d] or [None])),
         },
         "regimes": regimes,
         "budget": budget,
