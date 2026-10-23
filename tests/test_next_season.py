@@ -42,27 +42,40 @@ class HoldRate(unittest.TestCase):
         self.cfg = [_regime("held", 0, 10, 90), _regime("slid", 10, 10, 90),
                     _regime("long", 20, 10, 840, runs=1)]
         self.ext = _days(10, 60, 0.5) + _days(10, 65, -1.0, 10) + _days(10, 55, -1.0, 20)
-        self.summary = [{"label": "held", "start": self.cfg[0]["start"], "liters_day": 48.0},
-                        {"label": "slid", "start": self.cfg[1]["start"], "liters_day": 40.0},
-                        {"label": "long", "start": self.cfg[2]["start"], "liters_day": 120.0}]
+        self.water = [{"date": r["date"], "draw": litres, "span_days": 1}
+                      for rows, litres in ((self.ext[:10], 48.0), (self.ext[10:20], 40.0),
+                                           (self.ext[20:], 120.0)) for r in rows]
         self.et0 = {r["date"]: 4.0 for r in self.ext}
 
     def test_rate_is_the_least_water_that_held_and_long_runs_are_ignored(self):
-        h = events.hold_rate(self.cfg, self.summary, self.ext, self.et0)
+        h = events.hold_rate(self.cfg, self.ext, self.et0, self.water)
         self.assertEqual([r["label"] for r in h["regimes"]], ["held", "slid"])
         self.assertEqual(h["rate"], 12.0)
         self.assertEqual(h["slid_max"], 10.0)
 
     def test_a_schedule_shorter_than_min_days_is_not_scored(self):
-        h = events.hold_rate(self.cfg, self.summary, self.ext, self.et0, min_days=11)
+        h = events.hold_rate(self.cfg, self.ext, self.et0, self.water, min_days=11)
         self.assertEqual(h["regimes"], [])
         self.assertIsNone(h["rate"])
 
     def test_days_without_et0_do_not_count(self):
         et0 = {d: v for d, v in self.et0.items() if d >= self.cfg[1]["start"]}
-        h = events.hold_rate(self.cfg, self.summary, self.ext, et0)
+        h = events.hold_rate(self.cfg, self.ext, et0, self.water)
         self.assertEqual([r["label"] for r in h["regimes"]], ["slid"])
         self.assertIsNone(h["rate"])
+
+    def test_a_metered_test_day_is_out_of_every_mean(self):
+        # One day of the held regime carries 200 L of test water. Its litres
+        # were already skipped; its ET0 and level were not (#28), so the ratio
+        # moved with that day's ET0. Now the day is out of all three.
+        test_day = self.ext[4]["date"]
+        water = [dict(r, draw=200.0) if r["date"] == test_day else r for r in self.water]
+        got = []
+        for mm in (0.0, 10.0):
+            et0 = dict(self.et0, **{test_day: mm})
+            h = events.hold_rate(self.cfg, self.ext, et0, water, skip_days={test_day})
+            got.append((h["regimes"][0]["days"], h["regimes"][0]["l_per_mm"]))
+        self.assertEqual(got, [(9, 12.0), (9, 12.0)])
 
 
 class MonthTable(unittest.TestCase):

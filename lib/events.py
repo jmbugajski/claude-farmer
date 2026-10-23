@@ -772,7 +772,8 @@ def regime_summary(regimes, extremes, water_daily, skip_days=()):
 HOLD_SLOPE = -0.15
 
 
-def hold_rate(regimes_cfg, summary, extremes, et0_by_date, min_days=7, max_pulse_s=120):
+def hold_rate(regimes_cfg, extremes, et0_by_date, water_daily, skip_days=(),
+              min_days=7, max_pulse_s=120):
     """
     Litres per day per mm of daily ET0 that kept the tomato bed's
     before-first-run level steady: the one number next season's plan scales
@@ -781,29 +782,36 @@ def hold_rate(regimes_cfg, summary, extremes, et0_by_date, min_days=7, max_pulse
     Only pulsed schedules count (every run <= max_pulse_s). A long single run
     is limited by how fast the bed absorbs, not by how much it is given: the
     14-minute run used 189 L/day and held the bed lower than 2 x 90 s, so its
-    litres per mm say nothing about demand. A schedule needs `min_days`
-    complete days with ET0 to be scored.
+    litres per mm say nothing about demand.
 
-    For each one: mean litres/day (from regime_summary), mean ET0 over its
-    days, their ratio, and the OLS slope of its daily before-first-run level
-    in points per day. `rate` is the smallest ratio that held; `slid_max` is
-    the largest that slid. If slid_max >= rate the evidence disagrees with
-    itself and the page says so rather than picking one.
+    Each schedule is scored over ONE set of days: complete, with a
+    before-first-run level, an ET0 row, and a single-day measured draw above
+    zero (per_day_draw) that is not a metered test day (`skip_days`,
+    metered_manual_days()). Over that set: mean litres/day, mean ET0, their
+    ratio, and the OLS slope of the before-first-run level in points per day;
+    `days` is its size, and a schedule needs `min_days` of them. Until #28 the
+    litres were regime_summary's row -- the same two filters -- while the ET0
+    mean and the slope ran over every complete day with a level and an ET0
+    row, so the 3 x 80 s regime averaged ET0 over 13 days and litres over 11,
+    the two it dropped being the spread draw of 2026-09-04 and the metered
+    test of 09-10, and published 12.1 L/mm against 12.2 on common days.
+
+    `rate` is the smallest ratio that held; `slid_max` is the largest that
+    slid. If slid_max >= rate the evidence disagrees with itself and the page
+    says so rather than picking one.
     """
-    by_key = {(r["label"], r["start"]): r for r in summary or []}
     ext = {r["date"]: r for r in extremes or []}
+    draw = per_day_draw(water_daily)
     rows = []
     for rg in regimes_cfg or []:
         runs = rg.get("runs") or []
         if not runs or max(r["seconds"] for r in runs) > max_pulse_s:
             continue
-        s = by_key.get((rg["label"], rg["start"]))
-        if not s or not s.get("liters_day"):
-            continue
         lo, hi = rg["start"], rg.get("end") or "9999-99-99"
         days = sorted(d for d, r in ext.items()
                       if lo <= d <= hi and not r.get("partial")
-                      and r.get("pre_irrigation") is not None and d in et0_by_date)
+                      and r.get("pre_irrigation") is not None and d in et0_by_date
+                      and draw.get(d, 0) > 0 and d not in skip_days)
         if len(days) < min_days:
             continue
         xs = [datetime.strptime(d, "%Y-%m-%d").toordinal() for d in days]
@@ -812,10 +820,11 @@ def hold_rate(regimes_cfg, summary, extremes, et0_by_date, min_days=7, max_pulse
         slope = (sum((x - mx) * (y - my) for x, y in zip(xs, ys))
                  / sum((x - mx) ** 2 for x in xs))
         et0 = statistics.fmean(et0_by_date[d] for d in days)
+        liters = statistics.fmean(draw[d] for d in days)
         rows.append({
             "label": rg["label"], "start": rg["start"], "end": rg.get("end"),
-            "days": len(days), "liters_day": s["liters_day"],
-            "et0": round(et0, 2), "l_per_mm": round(s["liters_day"] / et0, 1),
+            "days": len(days), "liters_day": round(liters, 1),
+            "et0": round(et0, 2), "l_per_mm": round(liters / et0, 1),
             "slope": round(slope, 2), "held": slope >= HOLD_SLOPE,
         })
     held = [r["l_per_mm"] for r in rows if r["held"]]

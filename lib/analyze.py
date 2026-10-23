@@ -1301,7 +1301,9 @@ def build(readings, config, wx_hourly=None):
     # Panel 9 scales next season's schedule from what held the bed this one.
     next_season = _next_season(
         config.get("next_season"),
-        events_mod.hold_rate(plan_cfg.get("regimes"), regimes, ext_tom, et0_by_date),
+        events_mod.hold_rate(plan_cfg.get("regimes"), ext_tom, et0_by_date,
+                             water.get("daily") if water else None,
+                             skip_days=events_mod.metered_manual_days(manual)),
         plan_cfg.get("measured_rate_lps"))
     # Where the run LENGTH changed, for onset_check's `short` baseline (#24):
     # the panel's `since` is the date the start times last moved, which is
