@@ -817,6 +817,8 @@ def _advice(data, config, cycle):
         each = f" × {plan['run_seconds']} s" if plan.get("run_seconds") else "-run"
         plan_desc = (f"{len(runs)}{each} pulsed plan "
                      f"({plan.get('run_min', 6)} min/day total)")
+    elif (plan.get("regimes") or [{}])[-1].get("off"):
+        plan_desc = "timer, now switched off"
     else:
         plan_desc = f"{plan.get('run_min', '?')}-min daily timer"
 
@@ -829,7 +831,15 @@ def _advice(data, config, cycle):
     if w and effective and effective > w["end"][:10]:
         pending = f" The {plan_desc} logged for {effective} has not run yet."
         plan_desc = f"previous schedule ({w.get('recent_label') or 'label not recorded'})"
-    if not w or not w["first_flow"]:
+    timer_off = (plan.get("regimes") or [{}])[-1].get("off")
+    if timer_off and w and w["first_flow"] and not pending:
+        # The recent average is scoped to the running regime, so with the timer
+        # off it read "~17.3 L per watering day over the last 1 metered days":
+        # the one run on the morning it was switched off.
+        water = (f"the tomato timer is off since {effective}, so the meter should read 0 L; "
+                 f"the season metered {round(w['total_L'])} L over {w['active_days']} "
+                 f"watering days. Peppers are watered separately and not metered.")
+    elif not w or not w["first_flow"]:
         water = "no metered flow yet — confirm the WFC01 meter is paired and reporting."
     elif w["active_days"] < 14:
         water = (f"let the WFC01 log a few more clean weeks before leaning on the L/day "

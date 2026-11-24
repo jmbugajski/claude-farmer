@@ -139,6 +139,20 @@ class Rejections(unittest.TestCase):
         self.assertIn("needs its runs", _errors(
             lambda c: c["plan"]["regimes"][-1].update(runs=[])))
 
+    def test_switched_off_timer_is_a_current_plan(self):
+        self.assertEqual("", _errors(
+            lambda c: c["plan"]["regimes"][-1].update(runs=[], off=True)))
+        cfg = copy.deepcopy(GOOD)
+        cfg["plan"]["regimes"][-1].update(runs=[], off=True)
+        plan = farm_config.resolve(cfg)["plan"]
+        self.assertEqual((plan["runs"], plan["run_seconds"], plan["run_min"],
+                          plan["metered_daily"], plan["metered_weekly"]),
+                         ([], None, 0.0, 0.0, 0.0))
+
+    def test_off_row_with_runs(self):
+        self.assertIn("`off: true` with runs", _errors(
+            lambda c: c["plan"]["regimes"][-1].update(off=True)))
+
     def test_row_without_a_runs_list(self):
         self.assertIn("`runs` must be a list", _errors(
             lambda c: c["plan"]["regimes"][1].pop("runs")))

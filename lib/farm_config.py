@@ -99,8 +99,18 @@ def _check_regimes(plan, errors):
             errors.append(f"{where}: start {row['start']} {kind} the previous row's end "
                           f"{prev_end:%Y-%m-%d}")
         prev_end = end
-    if isinstance(regimes[-1].get("runs"), list) and not regimes[-1]["runs"]:
-        errors.append("plan.regimes: the last row is the current plan and needs its runs")
+    # A switched-off timer is a real plan (2026-11-13, stopped for the rains),
+    # but an empty last row is far more often a row added before its runs were
+    # typed. So the empty current row has to say `off: true`, and `off` on a
+    # row that holds runs contradicts itself.
+    last = regimes[-1]
+    if isinstance(last.get("runs"), list):
+        if not last["runs"] and not last.get("off"):
+            errors.append("plan.regimes: the last row is the current plan and needs its runs "
+                          "(or `off: true` when the timer is switched off)")
+    for i, row in enumerate(regimes):
+        if row.get("off") and row.get("runs"):
+            errors.append(f"plan.regimes[{i}] ({row.get('label')!r}): `off: true` with runs")
 
 
 _CHANNEL = re.compile(r"^CH[1-9][0-9]*$")

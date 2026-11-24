@@ -553,7 +553,10 @@ const NAT=DATA.native||{};
   (function(){
     const RG=NAT.regimes||[], cur=RG[RG.length-1], P=NAT.projection||{};
     const bands=NAT.regime_bands||[], curStart=bands.length?bands[bands.length-1].start:null;
-    const EXc=((NAT.extremes||{}).tom||[]).filter(r=>!r.partial&&r.pre_irrigation!=null&&(!curStart||r.date>=curStart));
+    // cur is the newest SCORED schedule; with the timer off (regime_summary
+    // skips `off` rows) it has an end, and days after it are rain, not it.
+    const EXc=((NAT.extremes||{}).tom||[]).filter(r=>!r.partial&&r.pre_irrigation!=null&&(!curStart||!(CFG.plan.runs||[]).length||r.date>=curStart)
+      &&(!cur||r.date>=cur.start)&&(!cur||!cur.end||r.date<=cur.end));
     const el=document.getElementById('question');
     if(!cur||cur.x_etc==null||EXc.length<3){el.innerHTML='';return;}
     // OLS slope of the level in points per day; `held` as events.hold_rate
@@ -564,7 +567,7 @@ const NAT=DATA.native||{};
     const ev=(((CFG.next_season||{}).evidence)||[]).find(e=>e.label===cur.label&&e.start===cur.start);
     const held=ev?ev.held:slope>=-0.15, sl=(slope>0?'+':'')+slope.toFixed(2);
     const first=ys[0], last=ys[ys.length-1], n=EXc.length;
-    const plan=P.verdict?` (the plan&rsquo;s ${P.inches} in/wk against ${P.etc_lo}&ndash;${P.etc_hi} in this week)`:'';
+    const plan=P.verdict&&(CFG.plan.runs||[]).length?` (the plan&rsquo;s ${P.inches} in/wk against ${P.etc_lo}&ndash;${P.etc_hi} in this week)`:'';
     el.innerHTML=`<b>Under the ${esc(cur.label)} the bed has received ${cur.x_etc}&times; the estimated crop use</b>${plan}, `+(held
       ?`and its before-first-run level held (${sl}/day over ${n} days, ${first} &rarr; ${last}%). The surplus is going where the 3-inch probe does not see it: past it, or into the air. The estimate may be the better guide to how much further the taper can go.`
       :`yet its before-first-run level slid from <b>${first}%</b> to <b>${last}%</b> (${sl}/day over ${n} days). <b>Both cannot read as over-watered.</b> Either the estimate is high for this bed (a crop coefficient over the bed&rsquo;s area, with nothing for water draining past the roots at an application rate far above what the bed absorbs), or the 3-inch probe sits above where the roots now drink, or the plants were winding down.`)
@@ -579,6 +582,7 @@ const NAT=DATA.native||{};
      <b>${over} of ${scored}</b> weeks came in above crop use${noBand?` (${noBand} had no weather data to score)`:''}.
      ${(()=>{const P=NAT.projection||{};
         if(P.verdict==null) return '';
+        if(!(CFG.plan.runs||[]).length) return `The timer is off, so rain is the only water against this week's estimate.`;
         return P.verdict==='over' ? `The current plan (${P.inches} in/wk) is <b>above</b> this week's estimate by ${(P.inches-P.etc_hi).toFixed(1)} in.`
              : P.verdict==='under' ? `The current plan (${P.inches} in/wk) is <b>below</b> this week's estimate by ${(P.etc_lo-P.inches).toFixed(1)} in.`
              : `The current plan (${P.inches} in/wk) is <b>within</b> this week's estimate.`;})()}</div>
@@ -788,8 +792,10 @@ const NAT=DATA.native||{};
   // Complete weeks only (#9).
   const B=NAT.budget||[], latest=B[B.length-1];
   document.getElementById('tva-cards').innerHTML=
-    `<div class="cc"><div class="lab">Tomato timer</div><div class="r" style="color:var(--leaf)">${runs.length}<span style="font-size:17px;color:var(--mut)">${PLAN.run_seconds?' × '+PLAN.run_seconds+'s':' runs'}</span></div><div class="rd">${runs.map(r=>r.time).join(' · ')}${effD?' · from '+effD:''}</div></div>
-     <div class="cc"><div class="lab">Plan should meter</div><div class="r" style="color:var(--wx)">~${PLAN.metered_daily}<span style="font-size:17px;color:var(--mut)"> L/day</span></div><div class="rd">~${PLAN.metered_weekly} L/wk${PLAN.expected_in_per_week?' · '+PLAN.expected_in_per_week+' in/wk':''}</div></div>
+    // An empty current row is a switched-off timer (farm_config: `off: true`).
+    (!runs.length ? `<div class="cc"><div class="lab">Tomato timer</div><div class="r" style="color:var(--leaf)">Off</div><div class="rd">${effD?'since '+effD:''}</div></div>` : '') +
+    (runs.length ? `<div class="cc"><div class="lab">Tomato timer</div><div class="r" style="color:var(--leaf)">${runs.length}<span style="font-size:17px;color:var(--mut)">${PLAN.run_seconds?' × '+PLAN.run_seconds+'s':' runs'}</span></div><div class="rd">${runs.map(r=>r.time).join(' · ')}${effD?' · from '+effD:''}</div></div>` : '') +
+    `<div class="cc"><div class="lab">Plan should meter</div><div class="r" style="color:var(--wx)">~${PLAN.metered_daily}<span style="font-size:17px;color:var(--mut)"> L/day</span></div><div class="rd">~${PLAN.metered_weekly} L/wk${PLAN.expected_in_per_week?' · '+PLAN.expected_in_per_week+' in/wk':''}</div></div>
      <div class="cc"><div class="lab">Last full week metered</div><div class="r" style="color:var(--tom)">${latest?latest.liters:'—'}<span style="font-size:17px;color:var(--mut)"> L</span></div><div class="rd">${latest?fmt(latest.start)+'–'+fmt(latest.end).replace(/^\w+ /,'')+' · '+latest.inches+' in':'awaiting data'}</div></div>`;
 
   document.getElementById('plan-note').innerHTML=
@@ -800,6 +806,10 @@ const NAT=DATA.native||{};
   // week wholly under the current plan, +/-25% of the plan's weekly figure (#13).
   const planCheck=(()=>{
     const wk=B.filter(b=>PLAN.runs_effective&&b.start>=PLAN.runs_effective).pop();
+    // Timer off: any metered water is a hand run or a leak, so say which weeks had none.
+    if(!runs.length&&wk) return wk.liters>0
+      ? `<b style="color:var(--tom)">${fmt(wk.start)}–${fmt(wk.end).replace(/^\w+ /,'')} metered ${wk.liters} L with the timer off</b>: a manual run, a leak or a stuck valve.`
+      : `<b>The meter matches the plan</b>: the timer is off and ${fmt(wk.start)}–${fmt(wk.end).replace(/^\w+ /,'')} metered no water.`;
     if(!wk||!PLAN.metered_weekly) return `No full week has run on this plan yet, so the meter cannot be checked against it.`;
     const x=wk.liters/PLAN.metered_weekly, span=`${fmt(wk.start)}–${fmt(wk.end).replace(/^\w+ /,'')}`;
     return x<0.75 ? `<b style="color:var(--tom)">${span} metered ${wk.liters} L, ${Math.round((1-x)*100)}% under plan</b>: check for a clogged filter, low pressure or missed runs.`
@@ -1014,7 +1024,11 @@ function writeFindings(){
   // With both lines withheld, the two "no recommendation" sentences say the
   // same thing twice: say it once and point at the two readings to watch.
   document.getElementById('f-act').innerHTML=
-    (CFG.bands.tom.verified===false&&CFG.bands.pep.verified===false
+    // Timer off (farm_config `off: true`): nothing to keep or score, only a
+    // level to watch for the dry spell that would call for a run.
+    (!(CFG.plan.runs||[]).length
+      ? `The tomato timer is <b>off</b>${CFG.plan.runs_effective?' since '+new Date(CFG.plan.runs_effective+'T00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):''}. Watch the tomato <b>daily low</b> (panel 4) and turn it back on if a dry spell takes the bed toward its stress floor. No band verdict until the thresholds are re-derived.`
+      : CFG.bands.tom.verified===false&&CFG.bands.pep.verified===false
       ? (()=>{const RG=NAT.regimes||[], cur=RG[RG.length-1];
           // Points at the season's result and its open question (#32) instead
           // of ending at "no recommendation" while the bands are withheld.

@@ -758,6 +758,11 @@ def regime_summary(regimes, extremes, water_daily, skip_days=()):
     ext = {r["date"]: r for r in extremes}
     out = []
     for rg in (regimes or []):
+        # A switched-off timer (`off: true`, 2026-11-13) is not a schedule to
+        # score: its days are rain and nothing, and as the newest row it was
+        # read as "the least water held the bed at 52%" and "keep it".
+        if rg.get("off"):
+            continue
         lo, hi = rg["start"], rg.get("end") or "9999-99-99"
         days = [d for d in ext if lo <= d <= hi]
         if not days:
