@@ -506,6 +506,13 @@
     "kind": "change",
     "summary": "Tomato timer switched off for the rains after the 05:05 run on 2026-11-13, the last metered water. The tomatoes are finished; the bed now waters only herbs. The pepper zone on the house controller was left running.",
     "change": "Set by Justin around 2026-11-13, logged 2026-11-24. Rain did the watering: about 34 mm in the week of Nov 9 and 104 mm over Nov 16-19 (Open-Meteo), with more forecast for Nov 25. On rain alone the tomato probe rose from 43 to 60 and read 54 on Nov 23, back above its 50 floor after about three weeks under it. The meter shows the 05:05 run on Nov 13 (17.3 L) and nothing after it, so the last full day on 2 x 90 s is Nov 12. The pepper zone was not touched: the pepper probe still jumps daily, now at about 05:40 on the EcoWitt clock against 06:45 in October, which fits a house controller that did not change its clock when DST ended on Nov 1."
+   },
+   {
+    "date": "2026-10-22",
+    "logged": "2026-11-24T13:00:00",
+    "kind": "change",
+    "summary": "Rain delay set by Justin during the 2026-10-22 rain: the 17:05 run that day through the 05:05 run on Oct 25 were skipped (0 L on Oct 23 and 24). The 2 x 90 s schedule resumed at 17:05 on Oct 25.",
+    "change": "Logged 2026-11-24, confirmed by Justin. Open-Meteo has 8.6 mm on Oct 22, 1.3 mm on Oct 23 and none on Oct 24, so the delay outlasted the rain by about a day and a half. The tomato probe fell from 66% (rain-wetted, Oct 22 17:00) to 45% by the evening of Oct 24. After the timer resumed, runs mostly moved the probe +0 to +2 points an hour later, against +6 to +14 over Oct 8-16, and the before-first-run level sat at 41-45% until the Nov 16-19 rain. Two next-season rules come from this: clear a delay the morning after the rain, and rewet a dried bed slowly by hand before relying on pulses."
    }
   ],
   "proposed_plan": {
@@ -899,7 +906,9 @@
    "Spread the starts through the day (times in the table). Pulses 15 minutes apart added nothing: the second and third drained straight through.",
    "Check the daily-low panel weekly. If the before-first-run level drops 3 or more points in a week, add a start. If it climbs and the per-run table under Diagnostics shows runs shedding, drop one.",
    "In a heat wave, add a midday start for those days rather than lengthening runs.",
-   "For the first month after transplant, use about half the table's pulses."
+   "For the first month after transplant, use about half the table's pulses.",
+   "Clear a rain delay the morning after the rain stops. A delay set for the 8.6 mm of 2026-10-22 ran through a dry Oct 24, and the bed fell from 66% to 43% in two days.",
+   "If missed runs let the bed dry out, rewet it slowly by hand (a hose trickle) before relying on pulses again. After that delay, 35-40 L a day of 90 s pulses barely moved the probe for three weeks, leaving the bed at 41-45%, under its 50% floor, until 104 mm of rain rewet it."
   ],
   "peppers": [
    "Start at 7 min once daily at 06:45 on the house controller. The bags fill in 5–8 minutes; at 15 minutes the rest drained out the bottom, taking fertiliser with it.",
